@@ -104,20 +104,20 @@ typedef struct {
     BYTE *code;
 } GBState;
 
-BYTE read_8(WORD addr) {
+BYTE read_8(WORD addr, BYTE *code) {
     return code[addr];
 }
-WORD read_16(WORD addr) {
+WORD read_16(WORD addr, BYTE *code) {
     return (WORD)code[addr];
 }
 
-int write_8(WORD addr, BYTE data) {
+int write_8(WORD addr, BYTE *code, BYTE data) {
     code[addr] = data;
 
     return 1;
 }
 
-int write_16(WORD addr, WORD data) {
+int write_16(WORD addr, BYTE *code, WORD data) {
     code[addr] = data;
 
     return 1;
@@ -148,8 +148,9 @@ void execute_program(GBState *state) {
     break;
 
 #define LD_REG(dest, src) state->dest = state->src; break;
+#define MEM_REG(dest, src) write_8(state->dest, state->code, state->src); break;
 
-#define LOAD_REG_8_ADDR(dest, src) dest = read_8(src); break;
+#define LOAD_REG_8_ADDR(dest, src) dest = read_8(src, state->code); break;
 #define LOAD_REG_8_REG(dest, src) dest = src; break;
 #define COND_REL_JUMP_IMMED(cond) int8_t offset = IMMED_8(); \
     if (cond) reg_pc += offset; break;
@@ -177,7 +178,7 @@ void execute_program(GBState *state) {
                 state->pc += 2;
                 break;
             case 0x02:
-                write_8(state->bc.dw, state->a);
+                write_8(state->bc.dw, state->code, state->a);
                 break;
             case 0x03:
                 // Increment BC
@@ -205,13 +206,13 @@ void execute_program(GBState *state) {
                 break;
             case 0x08:
                 // Load immediate 16 bit address with SP
-                write_16((WORD)opcode[1], state->sp);
+                write_16((WORD)opcode[1], state->code, state->sp);
                 state->pc += 2;
                 break;
             case 0x09:
                 ADD_16_REG(state->hl.dw, state->bc.dw);
             case 0x0A:
-                state->a = read_8(state->bc.dw);
+                state->a = read_8(state->bc.dw, state->code);
                 break;
             case 0x0B:
                 state->bc.dw -= 1;
@@ -244,7 +245,7 @@ void execute_program(GBState *state) {
                 state->pc += 2;
                 break;
             case 0x12:
-                write_8(state->de.dw, state->a);
+                write_8(state->de.dw, state->code, state->a);
                 break;
             case 0x13:
                 state->de.dw += 1;
@@ -276,7 +277,7 @@ void execute_program(GBState *state) {
             case 0x19:
                 ADD_16_REG(state->hl.dw, state->de.dw);
             case 0x1A:
-                state->a = read_8(state->de.dw);
+                state->a = read_8(state->de.dw, state->code);
                 break;
             case 0x1B:
                 state->de.dw -= 1;
@@ -320,7 +321,7 @@ void execute_program(GBState *state) {
 
                 break;
             case 0x22:
-                write_8(state->hl.dw, state->a);
+                write_8(state->hl.dw, state->code, state->a);
                 state->hl.dw += 1;
                 break;
             case 0x23:
@@ -364,7 +365,7 @@ void execute_program(GBState *state) {
             case 0x29:
                 ADD_16_REG(state->hl.dw, state->de.dw);
             case 0x2A:
-                state->a = read_8(state->hl.dw);
+                state->a = read_8(state->hl.dw, state->code);
                 state->hl.dw += 1;
 
                 break;
@@ -396,28 +397,28 @@ void execute_program(GBState *state) {
                 state->pc += 2;
                 break;
             case 0x32:
-                write_8(state->hl.dw, state->a);
+                write_8(state->hl.dw, state->code, state->a);
                 state->hl.dw -= 1;
                 break;
             case 0x33:
                 state->sp += 1;
                 break;
             case 0x34:
-                scratch = read_8(state->hl.dw);
+                scratch = read_8(state->hl.dw, state->code);
                 if (check_half(scratch, 1)) state->flags.h = 1;
                 if ((scratch + 1) == 0) state->flags.z = 1;
                 state->flags.n = 0;
-                write_8(state->hl.dw, scratch + 1);
+                write_8(state->hl.dw, state->code, scratch + 1);
                 break;
             case 0x35:
-                scratch = read_8(state->hl.dw);
+                scratch = read_8(state->hl.dw, state->code);
                 if (check_half(scratch, -1)) state->flags.h = 1;
                 if ((scratch - 1) == 0) state->flags.z = 1;
                 state->flags.n = 1;
-                write_8(state->hl.dw, scratch - 1);
+                write_8(state->hl.dw, state->code, scratch - 1);
                 break;
             case 0x36:
-                write_8(state->hl.dw, opcode[1]);
+                write_8(state->hl.dw, state->code, opcode[1]);
                 state->pc += 1;
                 break;
             case 0x37:
@@ -435,7 +436,7 @@ void execute_program(GBState *state) {
             case 0x39:
                 ADD_16_REG(state->hl.dw, state->sp);
             case 0x3A:
-                state->a = read_8(state->hl.dw);
+                state->a = read_8(state->hl.dw, state->code);
                 state->hl.dw -= 1;
                 break;
             case 0x3B:
@@ -473,7 +474,7 @@ void execute_program(GBState *state) {
                 LD_REG(bc.w.h, hl.w.l);
             case 0x46:
                 // B (HL)
-                state->bc.w.h = read_8(state->hl.dw);
+                state->bc.w.h = read_8(state->hl.dw, state->code);
                 break;
             case 0x47:
                 LD_REG(bc.w.h, a);
@@ -490,12 +491,129 @@ void execute_program(GBState *state) {
             case 0x4D:
                 LD_REG(bc.w.l, hl.w.l);
             case 0x4E:
-                state->bc.w.l = read_8(state->hl.dw);
+                state->bc.w.l = read_8(state->hl.dw, state->code);
                 break;
             case 0x4F:
                 LD_REG(bc.w.l, a);
             case 0x50:
+                // D, B
+                LD_REG(de.w.h, bc.w.h);
+            case 0x51:
+                // D, C
+                LD_REG(de.w.h, bc.w.l);
+            case 0x52:
+                // D, D
+                LD_REG(de.w.h, de.w.h);
+            case 0x53:
+                // D E
+                LD_REG(de.w.h, de.w.l);
+            case 0x54:
+                // D H
+                LD_REG(de.w.h, hl.w.h);
+            case 0x55:
+                // D L
+                LD_REG(de.w.h, hl.w.l);
+            case 0x56:
+                // D (HL)
+                state->de.w.h = read_8(state->hl.dw, state->code);
                 break;
+            case 0x57:
+                LD_REG(bc.w.h, a);
+            case 0x58:
+                LD_REG(de.w.l, bc.w.h);
+            case 0x59:
+                LD_REG(de.w.l, bc.w.l);
+            case 0x5A:
+                LD_REG(de.w.l, de.w.h);
+            case 0x5B:
+                LD_REG(de.w.l, de.w.l);
+            case 0x5C:
+                LD_REG(bc.w.l, hl.w.h);
+            case 0x5D:
+                LD_REG(bc.w.l, hl.w.l);
+            case 0x5E:
+                state->de.w.l = read_8(state->hl.dw, state->code);
+                break;
+            case 0x5F:
+                LD_REG(de.w.l, a);
+                break;
+            case 0x60:
+                // H, B
+                LD_REG(hl.w.h, bc.w.h);
+            case 0x61:
+                // H, C
+                LD_REG(hl.w.h, bc.w.l);
+            case 0x62:
+                // H, D
+                LD_REG(hl.w.h, de.w.h);
+            case 0x63:
+                // H E
+                LD_REG(hl.w.h, de.w.l);
+            case 0x64:
+                // H H
+                LD_REG(hl.w.h, hl.w.h);
+            case 0x65:
+                // h L
+                LD_REG(hl.w.h, hl.w.l);
+            case 0x66:
+                // H (HL)
+                state->hl.w.h = read_8(state->hl.dw, state->code);
+                break;
+            case 0x67:
+                LD_REG(hl.w.h, a);
+            case 0x68:
+                LD_REG(hl.w.l, bc.w.h);
+            case 0x69:
+                LD_REG(hl.w.l, bc.w.l);
+            case 0x6A:
+                LD_REG(hl.w.l, de.w.h);
+            case 0x6B:
+                LD_REG(hl.w.l, de.w.l);
+            case 0x6C:
+                LD_REG(hl.w.l, hl.w.h);
+            case 0x6D:
+                LD_REG(hl.w.l, hl.w.l);
+            case 0x6E:
+                state->hl.w.l = read_8(state->hl.dw, state->code);
+                break;
+            case 0x6F:
+                LD_REG(hl.w.l, a);
+            case 0x70:
+                MEM_REG(hl.dw, bc.w.h);
+            case 0x71:
+                MEM_REG(hl.dw, bc.w.l);
+            case 0x72:
+                MEM_REG(hl.dw, de.w.h);
+            case 0x73:
+                MEM_REG(hl.dw, de.w.l);
+            case 0x74:
+                MEM_REG(hl.dw, hl.w.h);
+            case 0x75:
+                MEM_REG(hl.dw, hl.w.l);
+            case 0x76:
+                // HALT
+                printf("HALT CALLED\n");
+                break;
+            case 0x77:
+                MEM_REG(hl.dw, a);
+            case 0x78:
+                LD_REG(a, bc.w.h);
+            case 0x79:
+                LD_REG(a, bc.w.l);
+            case 0x7A:
+                LD_REG(a, de.w.h);
+            case 0x7B:
+                LD_REG(a, de.w.l);
+            case 0x7C:
+                LD_REG(a, hl.w.h);
+            case 0x7D:
+                LD_REG(a, hl.w.l);
+            case 0x7E:
+                state->a = read_8(state->hl.dw, state->code);
+                break;
+            case 0x7F:
+                LD_REG(a, a);
+
 
         }
     }
