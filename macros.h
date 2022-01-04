@@ -155,63 +155,112 @@ int write_16(WORD addr, BYTE *code, WORD data);
                    break;
 #define RET() POP_16(state->pc); break;
 
-#define L_ROT(data) state->flags.c = (bit_7(data)>>7); \
+#define L_ROT(data, ...) state->flags.c = (bit_7(data)>>7); \
                     data = ((data << 1) | state->flags.c); \
                     if (data == 0) state->flags.z = 1; \
                     state->flags.n = 0; \
                     state->flags.h = 0; \
-                    break;
-#define L_ROT_CAR(data) scratch = state->flags.c; \
+                    
+
+#define L_ROT_CAR(data, ...) scratch = state->flags.c; \
                         state->flags.c = (bit_7(data)>>7); \
                         data = (data << 1) | scratch; \
                         if (data == 0) state->flags.z = 1; \
                         state->flags.n = 0; \
                         state->flags.h = 0; \
-                        break;
-#define R_ROT(data) state->flags.c = (bit_0(data)); \
+                        
+#define R_ROT(data, ...) state->flags.c = (bit_0(data)); \
                     data = ((data >> 1) | (state->flags.c << 7)); \
                     if (data == 0) state->flags.z = 1; \
                     state->flags.n = 0; \
                     state->flags.h = 0; \
-                    break;
-#define R_ROT_CAR(data) scratch = state->flags.c; \
+                    
+#define R_ROT_CAR(data, ...) scratch = state->flags.c; \
                         state->flags.c = bit_0(data); \
                         data = ((data >> 1) | (scratch << 7)); \
                         if (data == 0) state->flags.z = 1; \
                         state->flags.n = 0; \
                         state->flags.h = 0; \
-                        break;
+                        
 
-#define SET_BIT(data, bit) data |= (1 << bit);
-#define CLEAR_BIT(data, bit) data &= (BYTE)(~(1 << bit));
+#define SET_BIT(data, bit, ...) data |= (1 << bit); break;
+#define CLEAR_BIT(data, bit, ...) data &= (BYTE)(~(1 << bit)); break;
+#define TEST_BIT(data, bit, ...) if ((data & (1 << bit)) == 0) state->flags.z = 1; \
+                            state->flags.n = 0; \
+                            state->flags.h = 1; \
+                            
 
-#define L_SHIFT_A(data) state->flags.c = (bit_7(data)>>7); \
+#define L_SHIFT_A(data, ...) state->flags.c = (bit_7(data)>>7); \
                         data = (BYTE)(data << 1); \
                         if (data == 0) state->flags.z = 1; \
                         state->flags.n = 0; \
                         state->flags.h = 0; \
-                        break;
-#define R_SHIFT_A(data) state->flags.c = bit_0(data); \
+
+#define R_SHIFT_A(data, ...) state->flags.c = bit_0(data); \
                         data = (bit_7(data)) | (data >> 1); \
                         if (data == 0) state->flags.z = 1; \
                         state->flags.n = 0; \
                         state->flags.h = 0; \
-                        break;
-#define R_SHIFT_L(data) state->flags.c = bit_0(data); \
+
+#define R_SHIFT_L(data, ...) state->flags.c = bit_0(data); \
                         data = data >> 1; \
                         if (data == 0) state->flags.z = 1; \
                         state->flags.n = 0; \
                         state->flags.h = 0; \
-                        break;
 
-#define SWAP(data) data = (BYTE) (((BYTE)data<<4) | ((BYTE)data>>4)); \
+#define SWAP(data, ...) data = (BYTE) (((BYTE)data<<4) | ((BYTE)data>>4)); \
                     if (data == 0) state->flags.z = 1; \
                     state->flags.n = 0; \
                     state->flags.h = 0; \
                     state->flags.c = 0; \
+
+#define OP_ON_HL(OP, ...) scratch = read_8(state->hl.dw, state->code); \
+                    OP(scratch, __VA_ARGS__); \
+                    write_8(state->hl.dw, state->code, scratch); \
                     break;
 
 #define ILLEGAL(inst) printf("Illegal instruction %x\n", inst); exit(1); break;
+
+
+#define PREFIX_LEFT_EVEN_SWITCH(opcode, target) \
+    switch (ms_nib(opcode)) { \
+        case 0x0: L_ROT(target); break; \
+        case 0x1: L_ROT_CAR(target); break;\
+        case 0x2: L_SHIFT_A(target); break;\
+        case 0x3: SWAP(target); break;\
+        case 0x4: TEST_BIT(target, 0); break;\
+        case 0x5: TEST_BIT(target, 2); break;\
+        case 0x6: TEST_BIT(target, 4); break;\
+        case 0x7: TEST_BIT(target, 6); break;\
+        case 0x8: CLEAR_BIT(target, 0); break;\
+        case 0x9: CLEAR_BIT(target, 2); break;\
+        case 0xA: CLEAR_BIT(target, 4); break;\
+        case 0xB: CLEAR_BIT(target, 6); break;\
+        case 0xC: SET_BIT(target, 0); break;\
+        case 0xD: SET_BIT(target, 2); break;\
+        case 0xE: SET_BIT(target, 4); break;\
+        case 0xF: SET_BIT(target, 6) break;\
+    }
+
+#define PREFIX_RIGHT_ODD_SWITCH(opcode, target) \
+    switch (ms_nib(opcode)) { \
+        case 0x0: R_ROT(target); break;\
+        case 0x1: R_ROT_CAR(target); break;\
+        case 0x2: R_SHIFT_A(target); break;\
+        case 0x3: R_SHIFT_L(target); break;\
+        case 0x4: TEST_BIT(target, 1); break;\
+        case 0x5: TEST_BIT(target, 3); break;\
+        case 0x6: TEST_BIT(target, 5); break;\
+        case 0x7: TEST_BIT(target, 7); break;\
+        case 0x8: CLEAR_BIT(target, 1); break;\
+        case 0x9: CLEAR_BIT(target, 3); break;\
+        case 0xA: CLEAR_BIT(target, 5); break;\
+        case 0xB: CLEAR_BIT(target, 7); break;\
+        case 0xC: SET_BIT(target, 1); break;\
+        case 0xD: SET_BIT(target, 3); break;\
+        case 0xE: SET_BIT(target, 5); break;\
+        case 0xF: SET_BIT(target, 7) break;\
+    }
 
 #endif // GB_MACROS
   

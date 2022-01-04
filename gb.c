@@ -54,39 +54,93 @@ int write_16(WORD addr, BYTE *code, WORD data) {
     return 1;
 }
 
-void execute_prefix_inst(GBState *state, BYTE opcode) {
-    switch (opcode & 0xF) {
+void execute_prefix_inst(GBState *state, BYTE *_opcode) {
+    BYTE scratch;
+    BYTE opcode = *_opcode;
+
+    switch (ls_nib(opcode)) {
         case 0x0:
+            PREFIX_LEFT_EVEN_SWITCH(opcode, state->bc.w.h);
             break;
         case 0x1:
+            PREFIX_LEFT_EVEN_SWITCH(opcode, state->bc.w.l);
             break;
         case 0x2:
+            PREFIX_LEFT_EVEN_SWITCH(opcode, state->de.w.h);
             break;
         case 0x3:
+            PREFIX_LEFT_EVEN_SWITCH(opcode, state->de.w.l);
             break;
         case 0x4:
+            PREFIX_LEFT_EVEN_SWITCH(opcode, state->hl.w.h);
             break;
         case 0x5:
+            PREFIX_LEFT_EVEN_SWITCH(opcode, state->hl.w.l);
             break;
         case 0x6:
+            switch (ms_nib(opcode)) { \
+                case 0x0: OP_ON_HL(L_ROT); break; \
+                case 0x1: OP_ON_HL(L_ROT_CAR); break; \
+                case 0x2: OP_ON_HL(L_SHIFT_A);break; \
+                case 0x3: OP_ON_HL(SWAP); break;\
+                case 0x4: OP_ON_HL(TEST_BIT, 0); break;\
+                case 0x5: OP_ON_HL(TEST_BIT, 2); break;\
+                case 0x6: OP_ON_HL(TEST_BIT, 4); break; \
+                case 0x7: OP_ON_HL(TEST_BIT, 6); break;\
+                case 0x8: OP_ON_HL(CLEAR_BIT, 0); break;\
+                case 0x9: OP_ON_HL(CLEAR_BIT, 2); break;\
+                case 0xA: OP_ON_HL(CLEAR_BIT, 4); break;\
+                case 0xB: OP_ON_HL(CLEAR_BIT, 6); break;\
+                case 0xC: OP_ON_HL(SET_BIT, 0); break;\
+                case 0xD: OP_ON_HL(SET_BIT, 2); break;\
+                case 0xE: OP_ON_HL(SET_BIT, 4); break;\
+                case 0xF: OP_ON_HL(SET_BIT, 6) break;\
+            }
             break;
         case 0x7:
+            PREFIX_LEFT_EVEN_SWITCH(opcode, state->a);
             break;
         case 0x8:
+            PREFIX_RIGHT_ODD_SWITCH(opcode, state->bc.w.h);
             break;
         case 0x9:
+            PREFIX_RIGHT_ODD_SWITCH(opcode, state->bc.w.l);
             break;
         case 0xA:
+            PREFIX_RIGHT_ODD_SWITCH(opcode, state->de.w.h);
             break;
         case 0xB:
+            PREFIX_RIGHT_ODD_SWITCH(opcode, state->de.w.l);
             break;
         case 0xC:
+            PREFIX_RIGHT_ODD_SWITCH(opcode, state->hl.w.h);
             break;
         case 0xD:
+            PREFIX_RIGHT_ODD_SWITCH(opcode, state->hl.w.l);
             break;
         case 0xE:
+            // Acts on (HL)
+           switch (ms_nib(opcode)) { \
+                case 0x0: OP_ON_HL(R_ROT); break; \
+                case 0x1: OP_ON_HL(R_ROT_CAR); break; \
+                case 0x2: OP_ON_HL(R_SHIFT_A);break; \
+                case 0x3: OP_ON_HL(R_SHIFT_L); break;\
+                case 0x4: OP_ON_HL(TEST_BIT, 1); break;\
+                case 0x5: OP_ON_HL(TEST_BIT, 3); break;\
+                case 0x6: OP_ON_HL(TEST_BIT, 5); break; \
+                case 0x7: OP_ON_HL(TEST_BIT, 7); break;\
+                case 0x8: OP_ON_HL(CLEAR_BIT, 1); break;\
+                case 0x9: OP_ON_HL(CLEAR_BIT, 3); break;\
+                case 0xA: OP_ON_HL(CLEAR_BIT, 5); break;\
+                case 0xB: OP_ON_HL(CLEAR_BIT, 7); break;\
+                case 0xC: OP_ON_HL(SET_BIT, 1); break;\
+                case 0xD: OP_ON_HL(SET_BIT, 3); break;\
+                case 0xE: OP_ON_HL(SET_BIT, 5); break;\
+                case 0xF: OP_ON_HL(SET_BIT, 7) break;\
+            } 
             break;
         case 0xF:
+            PREFIX_RIGHT_ODD_SWITCH(opcode, state->a);
             break;
     }
 }
@@ -727,6 +781,7 @@ void execute_program(GBState *state) {
                 break;
             case 0xCB:
                 //HANDLE_PREFIX_INSTR
+                execute_prefix_inst(state, opcode);
                 break;
             case 0xCC:
                 state->pc += 2;
