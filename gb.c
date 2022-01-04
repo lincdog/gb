@@ -2,25 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define WORD uint16_t
-#define BYTE uint8_t
-#define START_ADDR 0x100
-
-static char GAMEBOY_LOGO[] = {
-    0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
-    0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
-    0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
-};
-
-typedef union {
-    struct {
-        BYTE l;
-        BYTE h;
-    } w;
-    WORD dw;
-} reg;
-
+#include "macros.h"
 /*
 union {
     struct {
@@ -34,19 +16,6 @@ union {
 } ADDR;*/
 
 #define a(x) ((size_t)&x)
-
-#define ms_nib(x) (((x) & 0xF0)>>4)
-#define ls_nib(x) (((x) & 0x0F))
-
-#define bit_7(x) ((x) & 0x80)
-#define bit_6(x) ((x) & 0x40)
-#define bit_5(x) ((x) & 0x20)
-#define bit_4(x) ((x) & 0x10)
-#define bit_3(x) ((x) & 0x08)
-#define bit_2(x) ((x) & 0x04)
-#define bit_1(x) ((x) & 0x02)
-#define bit_0(x) ((x) & 0x01)
-
 
 /* Memory mapping */
 #define REGION_CHECK(x, lb, ub) (((WORD)(x)>=lb)&&((WORD)(x)<=ub)))
@@ -65,28 +34,6 @@ union {
 #define is_hram(x) REGION_CHECK(x, 0xFF80, 0xFFFE)
 #define is_ram(x) (REGION_CHECK(x, 0x8000, 0xDFFF) || is_hram(x) || is_ioreg(x))
 
-
-enum EXEC_STATE {READY, IM_8, IM_16_LSB, IM_16_MSB, CB};
-
-typedef struct GBFlags {
-    BYTE z;
-    BYTE n;
-    BYTE h;
-    BYTE c;
-    BYTE ime;
-} GBFlags;
-
-typedef struct {
-    BYTE a;
-    reg bc;
-    reg de;
-    reg hl;
-    WORD sp;
-    WORD pc;
-    struct GBFlags flags;
-    
-    BYTE *code;
-} GBState;
 
 BYTE read_8(WORD addr, BYTE *code) {
     return code[addr];
@@ -107,111 +54,54 @@ int write_16(WORD addr, BYTE *code, WORD data) {
     return 1;
 }
 
-#define check_half(a, b) ((((a)+(b)) & 0x1F) > 9)
-#define check_carry_16(a, b) (((int)(a) + (int)(b)) > 0xFFFF)
-#define check_carry_8(a, b) (((WORD)(a) + (WORD)(b)) > 0xFF)
-#define check_sub(a, b) ((b) > (a));
-
-BYTE code[32767];
-
+void execute_prefix_inst(GBState *state, BYTE opcode) {
+    switch (opcode & 0xF) {
+        case 0x0:
+            break;
+        case 0x1:
+            break;
+        case 0x2:
+            break;
+        case 0x3:
+            break;
+        case 0x4:
+            break;
+        case 0x5:
+            break;
+        case 0x6:
+            break;
+        case 0x7:
+            break;
+        case 0x8:
+            break;
+        case 0x9:
+            break;
+        case 0xA:
+            break;
+        case 0xB:
+            break;
+        case 0xC:
+            break;
+        case 0xD:
+            break;
+        case 0xE:
+            break;
+        case 0xF:
+            break;
+    }
+}
 
 void execute_program(GBState *state) {
 
-    BYTE *opcode = &state->code[state->pc];
     char offset;
     BYTE scratch;
 
-#define INC_8(r) r += 1; if (r == 0) state->flags.z = 1; \
-                if (check_half(r, 0)) state->flags.h = 1; \
-                state->flags.n = 0; \
-                break;
-#define DEC_8(r) r -= 1; if (r == 0) state->flags.z = 1; \
-                if (check_half(r, 0)) state->flags.h = 1; \
-                state->flags.n = 0; \
-                break;
-#define ADD_16_REG(dest, src) \
-    if (check_carry_16(state->hl.dw, state->bc.dw)) state->flags.c = 1; \
-    if (check_half(state->hl.dw, state->bc.dw)) state->flags.h = 1; \
-    state->flags.n = 0; state->hl.dw += state->bc.dw; \
-    break;
-
-#define LD_REG(dest, src) state->dest = state->src; break;
-#define MEM_REG(dest, src) write_8(state->dest, state->code, state->src); break;
-
-#define ADD_8(dest, src) if (check_carry_8(state->dest, src)) state->flags.c = 1; \
-                        state->dest += src; \
-                        if (state->dest == 0) state->flags.z = 1; \
-                        if (check_half(state->dest, 0)) state->flags.h = 1; \
-                        state->flags.n = 0; \
-                        break;
-#define ADD_8_REG(dest, rsrc) ADD_8(dest, state->rsrc)
-#define ADC_8(dest, src) ADD_8(dest, src + state->flags.c)
-#define ADC_8_REG(dest, rsrc) ADC_8(dest, state->rsrc)
-
-#define SUB_8(dest, src) if (check_carry_8(state->dest, -(src))) state->flags.c = 1; \
-                        state->dest -= src; \
-                        if (state->dest == 0) state->flags.z = 1; \
-                        if (check_half(state->dest, 0)) state->flags.h = 1; \
-                        state->flags.n = 1; \
-                        break;
-#define SUB_8_REG(dest, rsrc) SUB_8(dest, state->rsrc)
-#define SBC_8(dest, src) SUB_8(dest, src + state->flags.c)
-#define SBC_8_REG(dest, rsrc) SBC_8(dest, state->rsrc)
-
-#define AND_8(dest, src) state->dest &= src; \
-                        if (state->dest == 0) state->flags.z = 1; \
-                        state->flags.n = 0; \
-                        state->flags.h = 1; \
-                        state->flags.c = 0; \
-                        break;
-#define AND_8_REG(dest, rsrc) AND_8(dest, state->rsrc);
-
-#define OR_8(dest, src) state->dest |= src; \
-                        if (state->dest == 0) state->flags.z = 1; \
-                        state->flags.n = 0; \
-                        state->flags.h = 0; \
-                        state->flags.c = 0; \
-                        break;
-#define OR_8_REG(dest, rsrc) OR_8(dest, state->rsrc);
-
-#define XOR_8(dest, src) state->dest ^= src; \
-                        if (state->dest == 0) state->flags.z = 1; \
-                        state->flags.n = 0; \
-                        state->flags.h = 0; \
-                        state->flags.c = 0; \
-                        break;
-#define XOR_8_REG(dest, rsrc) XOR_8(dest, state->rsrc);
-
-#define CP_8(dest, src) offset = state->dest - src; \
-                        state->flags.n = 1; \
-                        if (offset == 0) state->flags.z = 1; \
-                        if (offset < 0) state->flags.c = 1; \
-                        if (check_half(offset, 0)) state->flags.h = 1; \
-                        break;
-#define CP_8_REG(dest, rsrc) CP_8(dest, state->rsrc);
-                        
-#define PUSH_16(data) state->sp -= 2; \
-                      write_16(state->sp, state->code, data); \
-                      break;
-#define PUSH_8(data) state->sp -= 1; \
-                     write_8(state->sp, state->code, data); \
-                     break;
-
-#define POP_8(dest) dest = read_8(state->sp, state->code); \
-                    state->sp += 1; \
-                    break;
-
-#define POP_16(dest) dest = read_16(state->sp, state->code); \
-                     state->sp += 2; \
-                     break;
-
-#define CALL(dest) PUSH_16(state->pc + 1); state->pc = dest; \
-                   break;
-#define RET() POP_16(state->pc); break;
-#define ILLEGAL(inst) print("Illegal instruction %x\n", inst); exit(1); break;
+    BYTE *opcode;
 
     // Main loop
     for (;;) {
+        opcode = &state->code[state->pc];
+        state->pc += 1;
 
         switch (*opcode) {
             case 0x00:
@@ -282,6 +172,7 @@ void execute_program(GBState *state) {
             case 0x10:
                 // STOP
                 opcode[1];
+                state->pc += 1;
                 break;
             case 0x11:
                 state->de.w.l = opcode[1];
@@ -431,7 +322,7 @@ void execute_program(GBState *state) {
                 break;
             case 0x30:
                 offset = (char)opcode[1];
-                state->pc++;
+                state->pc += 1;
                 if (state->flags.c == 0) {
                     state->pc += offset;
                 }
@@ -492,6 +383,7 @@ void execute_program(GBState *state) {
                 DEC_8(state->a);
             case 0x3E:
                 state->a = opcode[1];
+                state->pc += 1;
                 break;
             case 0x3F:
                 state->flags.n = 0;
@@ -796,15 +688,18 @@ void execute_program(GBState *state) {
                 POP_16(state->bc.dw);
             case 0xC2:
                 // JP NZ a16
+                state->pc += 2;
                 if (state->flags.z == 0) {
                     state->pc = (WORD)opcode[1];
                 }
                 break;
             case 0xC3:
                 // JP a16
+                state->pc += 2;
                 state->pc = (WORD)opcode[1];
                 break;
             case 0xC4:
+                state->pc += 2;
                 if (state->flags.z == 0) {
                     CALL((WORD)opcode[1]);
                 }
@@ -814,6 +709,7 @@ void execute_program(GBState *state) {
                 break;
             case 0xC6:
                 ADD_8(a, opcode[1]);
+                state->pc += 1;
             case 0xC7:
                 CALL((WORD)0x0000);
             case 0xC8:
@@ -824,6 +720,7 @@ void execute_program(GBState *state) {
             case 0xC9:
                 RET();
             case 0xCA:
+                state->pc += 2;
                 if (state->flags.z == 1) {
                     state->pc = (WORD)opcode[1];
                 }
@@ -832,13 +729,16 @@ void execute_program(GBState *state) {
                 //HANDLE_PREFIX_INSTR
                 break;
             case 0xCC:
+                state->pc += 2;
                 if (state->flags.z == 1) {
                     CALL((WORD)opcode[1]);
                 }
                 break;
             case 0xCD:
+                state->pc += 2;
                 CALL((WORD)opcode[1]);
             case 0xCE:
+                state->pc += 1;
                 ADC_8(a, opcode[1]);
             case 0xCF:
                 CALL((WORD)0x0008);
@@ -850,6 +750,7 @@ void execute_program(GBState *state) {
             case 0xD1:
                 POP_16(state->de.dw);
             case 0xD2:
+                state->pc += 2;
                 if (state->flags.c == 0) {
                     state->pc = (WORD)opcode[1];
                 }
@@ -857,6 +758,7 @@ void execute_program(GBState *state) {
             case 0xD3:
                 ILLEGAL(0xD3);
             case 0xD4:
+                state->pc += 2;
                 if (state->flags.c == 0) {
                     CALL((WORD)opcode[1]);
                 }
@@ -864,6 +766,7 @@ void execute_program(GBState *state) {
             case 0xD5:
                 PUSH_16(state->de.dw);
             case 0xD6:
+                state->pc += 1;
                 SUB_8(a, opcode[1]);
             case 0xD7:
                 CALL((WORD)0x0010);
@@ -873,9 +776,10 @@ void execute_program(GBState *state) {
                 }
                 break;
             case 0xD9:
-                state->flags.ime = 1;
+                state->flags.wants_ime = 3;
                 RET();
             case 0xDA:
+                state->pc += 2;
                 if (state->flags.c == 1) {
                     state->pc = (WORD)opcode[1];
                 }
@@ -883,6 +787,7 @@ void execute_program(GBState *state) {
             case 0xDB:
                ILLEGAL(0xDB);
             case 0xDC:
+                state->pc += 2;
                 if (state->flags.c == 1) {
                     CALL((WORD)opcode[1]);
                 }
@@ -890,16 +795,17 @@ void execute_program(GBState *state) {
             case 0xDD:
                 ILLEGAL(0xDD);
             case 0xDE:
+                state->pc += 1;
                 SBC_8(a, opcode[1]);
             case 0xDF:
                 CALL((WORD)0x0018);
                 break;
             case 0xE0:
+                state->pc += 1;
                 write_8((WORD)(0xFF00 + opcode[1]), state->code, state->a);
                 break;
             case 0xE1:
-                state->hl.dw = read_16(state->sp, state->code);
-                state->sp += 2;
+                POP_16(state->hl.dw);
                 break;
             case 0xE2:
                 write_8((WORD)(0xFF00 + state->bc.w.l), state->code, state->a);
@@ -911,11 +817,13 @@ void execute_program(GBState *state) {
             case 0xE5:
                 PUSH_16(state->hl.dw);
             case 0xE6:
+                state->pc += 1;
                 AND_8(a, opcode[1]);
             case 0xE7:
                 CALL((WORD)0x0020);
             case 0xE8:
                 offset = (char)opcode[1];
+                state->pc += 1;
                 if (check_half(state->sp, offset)) {
                     state->flags.h = 1;
                 }
@@ -930,6 +838,7 @@ void execute_program(GBState *state) {
                 state->pc = state->hl.dw;
                 break;
             case 0xEA:
+                state->pc += 1;
                 write_8((WORD)opcode[1], state->code, state->a);
                 break;
             case 0xEB:
@@ -943,6 +852,7 @@ void execute_program(GBState *state) {
             case 0xEF:
                 CALL((WORD)0x0028);
             case 0xF0:
+                state->pc += 1;
                 state->a = read_8((WORD)(0xFF00+opcode[1]), state->code);
                 break;
             case 0xF1:
@@ -971,11 +881,13 @@ void execute_program(GBState *state) {
                 PUSH_8(state->a);
                 break;
             case 0xF6:
+                state->pc += 1;
                 OR_8(a, opcode[1]);
             case 0xF7:
                 CALL((WORD)0x0030);
             case 0xF8:
                 offset = (char)opcode[1];
+                state->pc += 1;
                 if (check_carry_16(state->sp, (WORD)offset)) {
                     state->flags.c = 1;
                 }
@@ -990,23 +902,36 @@ void execute_program(GBState *state) {
                 state->sp = state->hl.dw;
                 break;
             case 0xFA:
+                state->pc += 2;
                 state->a = read_8((WORD)opcode[1], state->code);
                 break;
             case 0xFB:
-                state->flags.ime = 1;
+                state->flags.wants_ime = 3;
                 break;
             case 0xFC:
                 ILLEGAL(0xFC);
             case 0xFD:
                 ILLEGAL(0xFD);
             case 0xFE:
+                state->pc += 1;
                 CP_8(a, opcode[1]);
             case 0xFF:
                 CALL((WORD)0x0038);
         }
+
+        if (state->flags.wants_ime > 0) {
+            state->flags.wants_ime -= 1;
+        }
+        if (state->flags.wants_ime == 1) {
+            state->flags.ime = 1;
+            state->flags.wants_ime = 0;
+        }
+        
     }
 
 }
+
+BYTE code[32767];
 
 int main(void) {
     FILE *fp;
