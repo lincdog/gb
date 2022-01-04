@@ -13,23 +13,6 @@ static char GAMEBOY_LOGO[] = {
     0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
 };
 
-#define get_reg_a (WORD)((reg_af & 0xFF00)>>8)
-#define get_reg_f (WORD)((reg_af & 0x00FF))
-#define get_reg_b (WORD)((reg_bc & 0xFF00)>>8)
-#define get_reg_c (WORD)((reg_bc & 0x00FF))
-#define get_reg_d (WORD)((reg_de & 0xFF00)>>8)
-#define get_reg_e (WORD)((reg_de & 0x00FF))
-#define get_reg_h (WORD)((reg_hl & 0xFF00)>>8)
-#define get_reg_l (WORD)((reg_hl & 0x00FF))
-
-#define set_reg_a(x) (reg_af = ((x)<<8) | get_reg_f)
-#define set_reg_b(x) (reg_bc = ((x)<<8) | get_reg_c)
-#define set_reg_c(x) (reg_bc = (reg_bc & 0xFF00) | (x))
-#define set_reg_d(x) (reg_de = ((x)<<8) | get_reg_e)
-#define set_reg_e(x) (reg_de = (reg_de & 0xFF00) | (x))
-#define set_reg_h(x) (reg_hl = ((x)<<8) | get_reg_l)
-#define set_reg_l(x) (reg_hl = (reg_hl & 0xFF00) | (x))
-
 typedef union {
     struct {
         BYTE l;
@@ -90,6 +73,7 @@ typedef struct GBFlags {
     BYTE n;
     BYTE h;
     BYTE c;
+    BYTE ime;
 } GBFlags;
 
 typedef struct {
@@ -133,6 +117,10 @@ BYTE code[32767];
 
 void execute_program(GBState *state) {
 
+    BYTE *opcode = &state->code[state->pc];
+    char offset;
+    BYTE scratch;
+
 #define INC_8(r) r += 1; if (r == 0) state->flags.z = 1; \
                 if (check_half(r, 0)) state->flags.h = 1; \
                 state->flags.n = 0; \
@@ -150,21 +138,77 @@ void execute_program(GBState *state) {
 #define LD_REG(dest, src) state->dest = state->src; break;
 #define MEM_REG(dest, src) write_8(state->dest, state->code, state->src); break;
 
-#define LOAD_REG_8_ADDR(dest, src) dest = read_8(src, state->code); break;
-#define LOAD_REG_8_REG(dest, src) dest = src; break;
-#define COND_REL_JUMP_IMMED(cond) int8_t offset = IMMED_8(); \
-    if (cond) reg_pc += offset; break;
-#define COND_ABS_JUMP_IMMED(cond) WORD addr = IMMED_16(); \
-    if (cond) reg_pc = addr; break;
-#define UNCOND_REL_JUMP_IMMED() reg_pc += IMMED_8(); break;
-#define UNCOND_ABS_JUMP_IMMED() reg_pc = IMMED_16(); break;
-#define ADD_8(dest, src) dest += src; clear_flag_n(); break;
-#define SUB_8(dest, src) dest -= src; set_flag_n(); break;
-#define AND_8(dest, src) dest &= src; clear_flag_n(); set_flag_h(); clear_flag_c(); break;
+#define ADD_8(dest, src) if (check_carry_8(state->dest, src)) state->flags.c = 1; \
+                        state->dest += src; \
+                        if (state->dest == 0) state->flags.z = 1; \
+                        if (check_half(state->dest, 0)) state->flags.h = 1; \
+                        state->flags.n = 0; \
+                        break;
+#define ADD_8_REG(dest, rsrc) ADD_8(dest, state->rsrc)
+#define ADC_8(dest, src) ADD_8(dest, src + state->flags.c)
+#define ADC_8_REG(dest, rsrc) ADC_8(dest, state->rsrc)
 
-    BYTE *opcode = &state->code[state->pc];
-    char offset;
-    BYTE scratch;
+#define SUB_8(dest, src) if (check_carry_8(state->dest, -(src))) state->flags.c = 1; \
+                        state->dest -= src; \
+                        if (state->dest == 0) state->flags.z = 1; \
+                        if (check_half(state->dest, 0)) state->flags.h = 1; \
+                        state->flags.n = 1; \
+                        break;
+#define SUB_8_REG(dest, rsrc) SUB_8(dest, state->rsrc)
+#define SBC_8(dest, src) SUB_8(dest, src + state->flags.c)
+#define SBC_8_REG(dest, rsrc) SBC_8(dest, state->rsrc)
+
+#define AND_8(dest, src) state->dest &= src; \
+                        if (state->dest == 0) state->flags.z = 1; \
+                        state->flags.n = 0; \
+                        state->flags.h = 1; \
+                        state->flags.c = 0; \
+                        break;
+#define AND_8_REG(dest, rsrc) AND_8(dest, state->rsrc);
+
+#define OR_8(dest, src) state->dest |= src; \
+                        if (state->dest == 0) state->flags.z = 1; \
+                        state->flags.n = 0; \
+                        state->flags.h = 0; \
+                        state->flags.c = 0; \
+                        break;
+#define OR_8_REG(dest, rsrc) OR_8(dest, state->rsrc);
+
+#define XOR_8(dest, src) state->dest ^= src; \
+                        if (state->dest == 0) state->flags.z = 1; \
+                        state->flags.n = 0; \
+                        state->flags.h = 0; \
+                        state->flags.c = 0; \
+                        break;
+#define XOR_8_REG(dest, rsrc) XOR_8(dest, state->rsrc);
+
+#define CP_8(dest, src) offset = state->dest - src; \
+                        state->flags.n = 1; \
+                        if (offset == 0) state->flags.z = 1; \
+                        if (offset < 0) state->flags.c = 1; \
+                        if (check_half(offset, 0)) state->flags.h = 1; \
+                        break;
+#define CP_8_REG(dest, rsrc) CP_8(dest, state->rsrc);
+                        
+#define PUSH_16(data) state->sp -= 2; \
+                      write_16(state->sp, state->code, data); \
+                      break;
+#define PUSH_8(data) state->sp -= 1; \
+                     write_8(state->sp, state->code, data); \
+                     break;
+
+#define POP_8(dest) dest = read_8(state->sp, state->code); \
+                    state->sp += 1; \
+                    break;
+
+#define POP_16(dest) dest = read_16(state->sp, state->code); \
+                     state->sp += 2; \
+                     break;
+
+#define CALL(dest) PUSH_16(state->pc + 1); state->pc = dest; \
+                   break;
+#define RET() POP_16(state->pc); break;
+#define ILLEGAL(inst) print("Illegal instruction %x\n", inst); exit(1); break;
 
     // Main loop
     for (;;) {
@@ -613,8 +657,352 @@ void execute_program(GBState *state) {
                 break;
             case 0x7F:
                 LD_REG(a, a);
+            case 0x80:
+                ADD_8_REG(a, bc.w.h);
+            case 0x81:
+                ADD_8_REG(a, bc.w.l);
+            case 0x82:
+                ADD_8_REG(a, de.w.h);
+            case 0x83: 
+                ADD_8_REG(a, de.w.l);
+            case 0x84:
+                ADD_8_REG(a, hl.w.h);
+            case 0x85:
+                ADD_8_REG(a, hl.w.l);
+            case 0x86:
+                ADD_8(a, read_8(state->hl.dw, state->code));
+            case 0x87: 
+                ADD_8_REG(a, a);
+            case 0x88:
+                ADC_8_REG(a, bc.w.h);
+            case 0x89:
+                ADC_8_REG(a, bc.w.l);
+            case 0x8A:
+                ADC_8_REG(a, de.w.h);
+            case 0x8B:
+                ADC_8_REG(a, de.w.l);
+            case 0x8C:
+                ADC_8_REG(a, hl.w.h);
+            case 0x8D:
+                ADC_8_REG(a, hl.w.l);
+            case 0x8E:
+                ADC_8(a, read_8(state->hl.dw, state->code));
+            case 0x8F:
+                ADC_8_REG(a, a);
+            case 0x90:
+                SUB_8_REG(a, bc.w.h);
+            case 0x91:
+                SUB_8_REG(a, bc.w.l);
+            case 0x92:
+                SUB_8_REG(a, de.w.h);
+            case 0x93:
+                SUB_8_REG(a, de.w.l);
+            case 0x94:
+                SUB_8_REG(a, hl.w.h);
+            case 0x95:
+                SUB_8_REG(a, hl.w.l);
+            case 0x96:
+                SUB_8(a, read_8(state->hl.dw, state->code));
+            case 0x97:
+                SUB_8_REG(a, a);
+            case 0x98:
+                SBC_8_REG(a, bc.w.h);
+            case 0x99:
+                SBC_8_REG(a, bc.w.l);
+            case 0x9A:
+                SBC_8_REG(a, de.w.h);
+            case 0x9B:
+                SBC_8_REG(a, de.w.l);
+            case 0x9C:
+                SBC_8_REG(a, hl.w.h);
+            case 0x9D:
+                SBC_8_REG(a, hl.w.l);
+            case 0x9E:
+                SBC_8(a, read_8(state->hl.dw, state->code));
+            case 0x9F:
+                SBC_8_REG(a, a);
+            case 0xA0:
+                AND_8_REG(a, bc.w.h);
+            case 0xA1:
+                AND_8_REG(a, bc.w.l);
+            case 0xA2:
+                AND_8_REG(a, de.w.h);
+            case 0xA3: 
+                AND_8_REG(a, de.w.l);
+            case 0xA4:
+                AND_8_REG(a, hl.w.h);
+            case 0xA5:
+                AND_8_REG(a, hl.w.l);
+            case 0xA6:
+                AND_8(a, read_8(state->hl.dw, state->code));
+            case 0xA7:
+                AND_8_REG(a, a);
+            case 0xA8:
+                XOR_8_REG(a, bc.w.h);
+            case 0xA9:
+                XOR_8_REG(a, bc.w.l);
+            case 0xAA:
+                XOR_8_REG(a, de.w.h);
+            case 0xAB:
+                XOR_8_REG(a, de.w.l);
+            case 0xAC:
+                XOR_8_REG(a, hl.w.h);
+            case 0xAD:
+                XOR_8_REG(a, hl.w.l);
+            case 0xAE:
+                XOR_8(a, read_8(state->hl.dw, state->code));
+            case 0xAF:
+                CP_8_REG(a, a);
+            case 0xB0:
+                OR_8_REG(a, bc.w.h);
+            case 0xB1:
+                OR_8_REG(a, bc.w.l);
+            case 0xB2:
+                OR_8_REG(a, de.w.h);
+            case 0xB3:
+                OR_8_REG(a, de.w.l);
+            case 0xB4:
+                OR_8_REG(a, hl.w.h);
+            case 0xB5:
+                OR_8_REG(a, hl.w.l);
+            case 0xB6:
+                OR_8(a, read_8(state->hl.dw, state->code));
+            case 0xB7:
+                OR_8_REG(a, a);
+            case 0xB8:
+                CP_8_REG(a, bc.w.h);
+            case 0xB9:
+                CP_8_REG(a, bc.w.l);
+            case 0xBA:
+                CP_8_REG(a, de.w.h);
+            case 0xBB:
+                CP_8_REG(a, de.w.l);
+            case 0xBC:
+                CP_8_REG(a, hl.w.h);
+            case 0xBD:
+                CP_8_REG(a, hl.w.l);
+            case 0xBE:
+                CP_8(a, read_8(state->hl.dw, state->code));
+            case 0xBF:
+                CP_8_REG(a, a);
+            case 0xC0:
+                // RET NZ
+                if (state->flags.z == 0) {
+                    RET()
+                }
+                break;
+            case 0xC1:
+                // POP BC
+                POP_16(state->bc.dw);
+            case 0xC2:
+                // JP NZ a16
+                if (state->flags.z == 0) {
+                    state->pc = (WORD)opcode[1];
+                }
+                break;
+            case 0xC3:
+                // JP a16
+                state->pc = (WORD)opcode[1];
+                break;
+            case 0xC4:
+                if (state->flags.z == 0) {
+                    CALL((WORD)opcode[1]);
+                }
+                break;
+            case 0xC5:
+                PUSH_16(state->bc.dw);
+                break;
+            case 0xC6:
+                ADD_8(a, opcode[1]);
+            case 0xC7:
+                CALL((WORD)0x0000);
+            case 0xC8:
+                if (state->flags.z == 1) {
+                    RET();
+                }
+                break;
+            case 0xC9:
+                RET();
+            case 0xCA:
+                if (state->flags.z == 1) {
+                    state->pc = (WORD)opcode[1];
+                }
+                break;
+            case 0xCB:
+                //HANDLE_PREFIX_INSTR
+                break;
+            case 0xCC:
+                if (state->flags.z == 1) {
+                    CALL((WORD)opcode[1]);
+                }
+                break;
+            case 0xCD:
+                CALL((WORD)opcode[1]);
+            case 0xCE:
+                ADC_8(a, opcode[1]);
+            case 0xCF:
+                CALL((WORD)0x0008);
+            case 0xD0:
+                if (state->flags.c == 0) {
+                    RET();
+                }
+                break;
+            case 0xD1:
+                POP_16(state->de.dw);
+            case 0xD2:
+                if (state->flags.c == 0) {
+                    state->pc = (WORD)opcode[1];
+                }
+                break;
+            case 0xD3:
+                ILLEGAL(0xD3);
+            case 0xD4:
+                if (state->flags.c == 0) {
+                    CALL((WORD)opcode[1]);
+                }
+                break;
+            case 0xD5:
+                PUSH_16(state->de.dw);
+            case 0xD6:
+                SUB_8(a, opcode[1]);
+            case 0xD7:
+                CALL((WORD)0x0010);
+            case 0xD8:
+                if (state->flags.c == 1) {
+                    RET();
+                }
+                break;
+            case 0xD9:
+                state->flags.ime = 1;
+                RET();
+            case 0xDA:
+                if (state->flags.c == 1) {
+                    state->pc = (WORD)opcode[1];
+                }
+                break;
+            case 0xDB:
+               ILLEGAL(0xDB);
+            case 0xDC:
+                if (state->flags.c == 1) {
+                    CALL((WORD)opcode[1]);
+                }
+                break;
+            case 0xDD:
+                ILLEGAL(0xDD);
+            case 0xDE:
+                SBC_8(a, opcode[1]);
+            case 0xDF:
+                CALL((WORD)0x0018);
+                break;
+            case 0xE0:
+                write_8((WORD)(0xFF00 + opcode[1]), state->code, state->a);
+                break;
+            case 0xE1:
+                state->hl.dw = read_16(state->sp, state->code);
+                state->sp += 2;
+                break;
+            case 0xE2:
+                write_8((WORD)(0xFF00 + state->bc.w.l), state->code, state->a);
+                break;
+            case 0xE3:
+                ILLEGAL(0xE3);
+            case 0xE4:
+                ILLEGAL(0xE4);
+            case 0xE5:
+                PUSH_16(state->hl.dw);
+            case 0xE6:
+                AND_8(a, opcode[1]);
+            case 0xE7:
+                CALL((WORD)0x0020);
+            case 0xE8:
+                offset = (char)opcode[1];
+                if (check_half(state->sp, offset)) {
+                    state->flags.h = 1;
+                }
+                if (check_carry_16(state->sp, offset)) {
+                    state->flags.c = 1;
+                }
+                state->flags.z = 0;
+                state->flags.n = 0;
+                state->sp += (WORD)offset;
+                break;
+            case 0xE9:
+                state->pc = state->hl.dw;
+                break;
+            case 0xEA:
+                write_8((WORD)opcode[1], state->code, state->a);
+                break;
+            case 0xEB:
+                ILLEGAL(0xEB);
+            case 0xEC:
+                ILLEGAL(0xEB);
+            case 0xED:
+                ILLEGAL(0xED);
+            case 0xEE:
+                XOR_8(a, opcode[1]);
+            case 0xEF:
+                CALL((WORD)0x0028);
+            case 0xF0:
+                state->a = read_8((WORD)(0xFF00+opcode[1]), state->code);
+                break;
+            case 0xF1:
+                POP_8(scratch);
+                state->flags.z = (bit_7(scratch)>>7);
+                state->flags.n = (bit_6(scratch)>>6);
+                state->flags.h = (bit_5(scratch)>>5);
+                state->flags.c = (bit_4(scratch)>>4);
 
-
+                POP_8(state->a);
+                break;
+            case 0xF2:
+                state->a = read_8((WORD)(0xFF00+state->bc.w.l), state->code);
+                break;
+            case 0xF3:
+                state->flags.ime = 0;
+                break;
+            case 0xF4:
+                ILLEGAL(0xF4);
+            case 0xF5:
+                scratch = ((state->flags.z << 7) 
+                         | (state->flags.n << 6)
+                         | (state->flags.h << 5)
+                         | (state->flags.c << 4));
+                PUSH_8(scratch);
+                PUSH_8(state->a);
+                break;
+            case 0xF6:
+                OR_8(a, opcode[1]);
+            case 0xF7:
+                CALL((WORD)0x0030);
+            case 0xF8:
+                offset = (char)opcode[1];
+                if (check_carry_16(state->sp, (WORD)offset)) {
+                    state->flags.c = 1;
+                }
+                if (check_half(state->sp, (WORD)offset)) {
+                    state->flags.h = 1;
+                }
+                state->flags.z = 0;
+                state->flags.n = 0;
+                state->hl.dw = state->sp + (WORD)offset;
+                break;
+            case 0xF9:
+                state->sp = state->hl.dw;
+                break;
+            case 0xFA:
+                state->a = read_8((WORD)opcode[1], state->code);
+                break;
+            case 0xFB:
+                state->flags.ime = 1;
+                break;
+            case 0xFC:
+                ILLEGAL(0xFC);
+            case 0xFD:
+                ILLEGAL(0xFD);
+            case 0xFE:
+                CP_8(a, opcode[1]);
+            case 0xFF:
+                CALL((WORD)0x0038);
         }
     }
 
