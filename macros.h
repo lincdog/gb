@@ -25,9 +25,9 @@ static char GAMEBOY_LOGO[] = {
                 state->flags.n = 0;
 
 #define ADD_16_REG(dest, src) \
-    state->flags.c = check_carry_16(state->hl.dw, state->bc.dw); \
-    state->flags.h = check_half(state->hl.dw, state->bc.dw); \
-    state->flags.n = 0; state->hl.dw += state->bc.dw;
+    state->flags.c = check_carry_16(state->dest, state->src); \
+    state->flags.h = check_half(state->dest, state->src); \
+    state->flags.n = 0; state->dest += state->src;
 
 #define LD_REG(dest, src) state->dest = state->src;
 #define MEM_REG(dest, src) write_8(state->dest, state->code, state->src);
@@ -96,9 +96,9 @@ static char GAMEBOY_LOGO[] = {
 #define POP_16(dest) dest = read_16(state->sp, state->code); \
                      state->sp += 2;
 
-#define CALL(dest) PUSH_16(state->pc + 1); state->pc = dest; goto instruction_fetch;\
+#define CALL(dest) PUSH_16(state->pc + 1); return dest; 
 
-#define RET() POP_16(state->pc); goto instruction_fetch; 
+#define RET() POP_16(state->pc); return state->pc;
 
 #define L_ROT(data, ...) state->flags.c = (bit_7(data)>>7); \
                     data = ((data << 1) | state->flags.c); \
