@@ -18,6 +18,7 @@
 #define bit_1(x) ((x) & 0x02)
 #define bit_0(x) ((x) & 0x01)
 
+#define get_le_word(ptr) (WORD)(ptr[1] | (ptr[2]<<8))
 
 typedef union {
     struct {
@@ -29,7 +30,7 @@ typedef union {
 
 enum EXEC_STATE {READY, IM_8, IM_16_LSB, IM_16_MSB, CB};
 
-typedef struct GBFlags {
+typedef struct {
     BYTE z;
     BYTE n;
     BYTE h;
@@ -45,9 +46,11 @@ typedef struct {
     reg hl;
     WORD sp;
     WORD pc;
-    struct GBFlags flags;
+    GBFlags flags;
     
     BYTE *code;
 } GBState;
+
+void print_state_info(GBState *, char);
 
 #endif // GB_BASE

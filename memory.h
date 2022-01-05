@@ -150,7 +150,7 @@ struct GBIORegs {
     BLANK(7D);
     BLANK(7E);
     BLANK(7F);
-    BYTE __7f_to_fe[127];
+    BYTE stack[127];
     BYTE int_enable;
 };
 
