@@ -116,6 +116,11 @@ void execute_prefix_inst(GBState *state, BYTE opcode) {
 }
 
 WORD execute_instruction(GBState *state, BYTE *opcode) {
+    /* Executes the instruction pointed to by opcode with
+    the machine state state, and returns the new value of 
+    PC. Advances PC ONLY to interpret immediate data.
+    */
+
     char offset, input;
     BYTE scratch;
 
@@ -158,7 +163,7 @@ WORD execute_instruction(GBState *state, BYTE *opcode) {
             break;
         case 0x08:
             // Load immediate 16 bit address with SP
-            write_16((WORD)opcode[1], state->code, state->sp);
+            write_16(get_le_word(opcode), state->code, state->sp);
             state->pc += 2;
             break;
         case 0x09:
@@ -271,7 +276,7 @@ WORD execute_instruction(GBState *state, BYTE *opcode) {
             state->pc += 1;
 
             if (state->flags.z == 0) {
-                return state->pc + (WORD)offset;
+                return state->pc + offset + 1;
                 //goto instruction_fetch;
             }
 
@@ -321,7 +326,7 @@ WORD execute_instruction(GBState *state, BYTE *opcode) {
             state->pc += 1;
             
             if (state->flags.z == 1) {
-                return state->pc + offset;
+                return state->pc + offset + 1;
                 //goto instruction_fetch;
             }
 
@@ -356,7 +361,7 @@ WORD execute_instruction(GBState *state, BYTE *opcode) {
             offset = (char)opcode[1];
             state->pc += 1;
             if (state->flags.c == 0) {
-                return state->pc + offset;
+                return state->pc + offset + 1;
                 //goto instruction_fetch;
             }
             break;
@@ -398,7 +403,7 @@ WORD execute_instruction(GBState *state, BYTE *opcode) {
             offset = (char)opcode[1];
             state->pc += 1;
             if (state->flags.c == 1) {
-                return state->pc + offset;
+                return state->pc + offset + 1;
             }
             break;
         case 0x39:
@@ -1157,16 +1162,13 @@ int write_8(WORD addr, BYTE *code, BYTE data) {
 }
 
 int write_16(WORD addr, BYTE *code, WORD data) {
-    code[addr] = data >> 8;
-    code[addr+1] = data & 0xFF;
+    code[addr] = data & 0xFF;
+    code[addr+1] = data >> 8;
 
     return 2;
 }
 
-GBState *initialize_state(void) {
-
-    BYTE *code = malloc(32767);
-    GBState *state = malloc(sizeof(GBState));
+void reset_registers(GBState *state) {
     state->sp = 0xFFFE;
     state->pc = 0;
 
@@ -1184,26 +1186,18 @@ GBState *initialize_state(void) {
     state->flags.z = 0;
     state->flags.ime = 0;
     state->flags.wants_ime = 0;
-    
+}
+
+GBState *initialize_state(void) {
+
+    BYTE *code = malloc(32767);
+    GBState *state = malloc(sizeof(GBState));
+    reset_registers(state);
+        
     state->code = memset(code, 0, 32767);
-
-    FILE *fp;
-    fp = fopen("gb-bootroms/bin/dmg.bin", "r");
-
-    int n_read = fread(code, 1, 258, fp);
-    printf("n read: %d\n",
-        n_read);
-    
-    for (int i = 0; i < n_read; i++) {
-        if (i % 16 == 0) {
-            printf("\n%02x\t", i);
-        }
-        printf("%02x ", code[i]);
-    }
-    printf("\n");
-
-    fclose(fp);
-
+    memcpy(&state->code[0x104], 
+        &GAMEBOY_LOGO, 
+        sizeof(GAMEBOY_LOGO));
     return state;
 }
 
@@ -1235,10 +1229,40 @@ void print_state_info(GBState *state, char print_io_reg) {
     
 }
 
+#ifdef GB_MAIN
+
 int main(void) {
     GBState *state = initialize_state();
+
+    FILE *fp;
+    fp = fopen("gb-bootroms/bin/dmg.bin", "r");
+
+    int n_read = fread(state->code, 1, 258, fp);
+    printf("n read: %d\n",
+        n_read);
+    
+    for (int i = 0; i < n_read; i++) {
+        if (i % 16 == 0) {
+            printf("\n%02x\t", i);
+        }
+        printf("%02x ", state->code[i]);
+    }
+    printf("\n");
+
+    for (int i = 0x100; i < 0x133; i++) {
+        if (i % 16 == 0) {
+            printf("\n%02x\t", i);
+        }
+        printf("%02x ", state->code[i]); 
+    }
+
+    fclose(fp);
+
     print_state_info(state, 1);
+
     execute_program(state);
 
     return 0;
 }
+
+#endif

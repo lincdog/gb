@@ -1,6 +1,8 @@
 #ifndef GB_BASE
 #define GB_BASE
 
+#include <stdint.h>
+
 #define WORD uint16_t
 #define BYTE uint8_t
 #define START_ADDR 0x100
@@ -52,5 +54,6 @@ typedef struct {
 } GBState;
 
 void print_state_info(GBState *, char);
+WORD execute_instruction(GBState *, BYTE *);
 
 #endif // GB_BASE
