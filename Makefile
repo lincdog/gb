@@ -1,4 +1,6 @@
-all: gb.c
+all: build test
+
+build: gb.c
 	gcc -o gb -DGB_MAIN gb.c
 
 test: gb_test.c

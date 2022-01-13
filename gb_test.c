@@ -248,6 +248,35 @@ int test_instruction(
                                             __TEST(start+5, dest, hl.w.l); \
                                             __TEST(start+7, dest, a);
 
+#define TEST_LD_IMM_16(op, dest, ...) STAGE_TEST(op, 0xEF, 0xBE); \
+                                post_state->dest = (0xBE << 8) + 0xEF; \
+                                RUN_TEST_NONJMP(3);
+
+#define TEST_PM_16(op, dest, offset, ...) STAGE_TEST(op, 0, 0); \
+                                    test_state->dest = 0x100; \
+                                    post_state->dest = 0x100 + offset; \
+                                    RUN_TEST_NONJMP(1);
+
+#define TEST_PM_8(op, dest, offset, ...) STAGE_TEST(op, 0, 0); \
+                                        test_state->dest = 0x10; \
+                                        post_state->dest = 0x10 + offset; \
+                                        SET_ZNHC(0, (offset<0), check_half(post_state->dest, 0), 0); \
+                                        RUN_TEST_NONJMP(1);                                          
+
+#define TEST_ADD_16(op, src, dest, ...) STAGE_TEST(op, 0, 0); \
+                                        test_state->dest = 0x0108;\
+                                        test_state->src = 0x0204; \
+                                        post_state->dest = 0x108; \
+                                        post_state->src = 0x0204; \
+                                        post_state->dest += post_state->src; \
+                                        SET_ZNHC(0, 0, check_half(post_state->dest, 0), 0); \
+                                        RUN_TEST_NONJMP(1);
+
+#define TEST_16REGS(start, __TEST, ...) __TEST(start, bc.dw, __VA_ARGS__); \
+                                        __TEST(start+0x10, de.dw, __VA_ARGS__); \
+                                        __TEST(start+0x20, hl.dw, __VA_ARGS__); \
+                                        __TEST(start+0x30, sp, __VA_ARGS__);
+
 int main(void) {
 
     BYTE opcode[3] = {0, 0, 0};
@@ -257,9 +286,20 @@ int main(void) {
     post_state = initialize_state();
     RUN_TEST_NONJMP(1);
 
-    STAGE_TEST(0x01, 0x10, 0x12);
-    post_state->bc.dw = (0x12 << 8) + 0x10;
-    RUN_TEST_NONJMP(3);
+    TEST_16REGS(0x01, TEST_LD_IMM_16);
+    TEST_16REGS(0x03, TEST_PM_16, 1);
+    TEST_PM_8(0x04, bc.w.h, 1);
+    TEST_PM_8(0x05, bc.w.h, -1);
+    TEST_PM_8(0x0C, bc.w.l, 1);
+    TEST_PM_8(0x0D, bc.w.l, -1);
+
+    TEST_16REGS(0x0B, TEST_PM_16, -1);
+    TEST_16REGS(0x09, TEST_ADD_16, hl.dw);
+
+    TEST_PM_8(0x14, de.w.h, 1);
+    TEST_PM_8(0x15, de.w.h, -1);
+    TEST_PM_8(0x1C, de.w.l, 1);
+    TEST_PM_8(0x1D, de.w.l, -1);
 
     // 8 bit loads row 1
     TEST_LD_8REGS(0x40, bc.w.h, TEST_LD_8);
@@ -315,6 +355,7 @@ int main(void) {
     TEST_OP_8REGS(0xE8, TEST_SET_5);
     TEST_OP_8REGS(0xF0, TEST_SET_6);
     TEST_OP_8REGS(0xF8, TEST_SET_7);
+    // End prefix instructions
 
     return 0;
 }
