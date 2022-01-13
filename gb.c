@@ -515,7 +515,7 @@ WORD execute_instruction(GBState *state, BYTE *opcode) {
             state->de.w.h = read_8(state->hl.dw, state->code);
             break;
         case 0x57:
-            LD_REG(bc.w.h, a);
+            LD_REG(de.w.h, a);
             break;
         case 0x58:
             LD_REG(de.w.l, bc.w.h);
@@ -530,10 +530,10 @@ WORD execute_instruction(GBState *state, BYTE *opcode) {
             LD_REG(de.w.l, de.w.l);
             break;
         case 0x5C:
-            LD_REG(bc.w.l, hl.w.h);
+            LD_REG(de.w.l, hl.w.h);
             break;
         case 0x5D:
-            LD_REG(bc.w.l, hl.w.l);
+            LD_REG(de.w.l, hl.w.l);
             break;
         case 0x5E:
             state->de.w.l = read_8(state->hl.dw, state->code);
@@ -1122,11 +1122,8 @@ void execute_program(GBState *state) {
 
     BYTE *opcode;
 
-    int n_executed = 0;
-
     // Main loop
     for (;;) {
-        n_executed += 1;
 
         if (state->pc > 0x0a) {
             input = getchar();
