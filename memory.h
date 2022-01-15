@@ -15,6 +15,7 @@
 #define is_banked_ram(x) REGION_CHECK(x, 0xA000, 0xBFFF)
 #define is_wram(x) REGION_CHECK(x, 0xC000, 0xDFFF)
 #define is_eram(x) REGION_CHECK(x, 0xE000, 0xFDFF)
+#define is_oam(x) REGION_CHECK(x, 0xFE00, 0xFE9F)
 #define is_ioreg(x) REGION_CHECK(x, 0xFF00, 0xFF7F)
 #define is_unusable(x) (is_eram(x) || REGION_CHECK(x, 0xFEA0, 0xFEFF))
 #define is_hram(x) REGION_CHECK(x, 0xFF80, 0xFFFE)
@@ -153,6 +154,7 @@ struct GBIORegs {
     BYTE stack[127];
     BYTE int_enable;
 };
+
 
 /* Function prototypes */
 BYTE read_8(WORD addr, BYTE *code);

@@ -1132,6 +1132,11 @@ void execute_program(GBState *state) {
 
         opcode = &state->code[state->pc];
         state->pc = execute_instruction(state, opcode);
+        HANDLE_INTERRUPT(0);
+        HANDLE_INTERRUPT(1);
+        HANDLE_INTERRUPT(2);
+        HANDLE_INTERRUPT(3);
+        HANDLE_INTERRUPT(4);
 
         if (state->flags.wants_ime > 0) {
             state->flags.wants_ime -= 1;

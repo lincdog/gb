@@ -8,6 +8,16 @@ static char GAMEBOY_LOGO[] = {
     0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
 };
 
+#define IRQ_VBLANK(x) (x & 0x1)
+#define IRQ_LCDSTAT(x) (x & 0x2)
+#define IRQ_TIMER(x) (x & 0x4)
+#define IRQ_SERIAL(x) (x & 0x8)
+#define IRQ_JOYPAD(x) (x & 0x10)
+
+const WORD irq_addrs[] = {
+    0x40, 0x48, 0x50, 0x58, 0x60
+};
+
 #define check_half(a, b) ((((a)+(b)) & 0x1F) > 9)
 #define check_carry_16(a, b) (((int)(a) + (int)(b)) > 0xFFFF)
 #define check_carry_8(a, b) (((WORD)(a) + (WORD)(b)) > 0xFF)
@@ -203,6 +213,16 @@ static char GAMEBOY_LOGO[] = {
         case 0xE: SET_BIT(target, 5); break;\
         case 0xF: SET_BIT(target, 7) break;\
     }
+
+
+#define HANDLE_INTERRUPT(bit_index) if (state->flags.ime && \
+                            (read_8(0xFFFF, state->code)&(1<<bit_index))) { \
+                            scratch = read_8(0xFF0F, state->code); \
+                            write_8(0xFF0F, state->code, scratch ^ (1 << bit_index)); \
+                            state->flags.ime = 0; state->flags.wants_ime = 0; \
+                            CALL(irq_addrs[bit_index]); }
+
+
 
 #endif // GB_MACROS
   

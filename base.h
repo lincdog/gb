@@ -30,7 +30,9 @@ typedef union {
     WORD dw;
 } reg;
 
-enum EXEC_STATE {READY, IM_8, IM_16_LSB, IM_16_MSB, CB};
+enum CPU_STATE {READY, IM_8, IM_16_LSB, IM_16_MSB, CB};
+enum PPU_STATE {HBLANK, VBLANK, OAMSCAN, DRAW};
+enum PPU_FIFO_STATE {FETCH_TILE, FETCH_DATA_LOW, FETCH_DATA_HIGH, SLEEP, PUSH};
 
 typedef struct {
     BYTE z;
@@ -55,5 +57,67 @@ typedef struct {
 
 void print_state_info(GBState *, char);
 WORD execute_instruction(GBState *, BYTE *);
+
+#define CPU_FREQ 4194304
+#define M_CYCLE 1048576
+#define CPU_PER_M 4
+#define CPU_PERIOD_S  (float)(1.0 / (float)CPU_FREQ)
+#define CPU_PERIOD_MS (float)(1000.0 / (float)CPU_FREQ)
+#define CPU_PERIOD_US (float)(1000000.0 / (float)CPU_FREQ)
+
+#define PPU_FREQ CPU_FREQ
+#define PPU_PERIOD_S CPU_PERIOD_S
+#define PPU_PERIOD_MS CPU_PERIOD_MS
+#define PPU_PERIOD_US CPU_PERIOD_US
+#define PPU_PER_SCANLINE 456
+#define SCANLINE_PER_FRAME 154
+
+#define HSYNC_FREQ 9198
+#define HSYNC_PERIOD_S  (float)(1.0 / (float)HSYNC_FREQ)
+#define HSYNC_PERIOD_MS (float)(1000.0 / (float)HSYNC_FREQ)
+#define HSYNC_PERIOD_US (float)(1000000.0 / (float)HSYNC_FREQ)
+#define CPU_PER_HSYNC (float)(HSYNC_PERIOD_US / CPU_PERIOD_US)
+
+#define VSYNC_FREQ 59.73
+#define VSYNC_PERIOD_S  (float)(1.0 / (float)VSYNC_FREQ)
+#define VSYNC_PERIOD_MS (float)(1000.0 / (float)VSYNC_FREQ)
+#define VSYNC_PERIOD_US (float)(1000000.0 / (float)VSYNC_FREQ)
+#define CPU_PER_VSYNC (float)(VSYNC_PERIOD_US / CPU_PERIOD_US)
+#define HSYNC_PER_VSYNC (float)(VSYNC_PERIOD_US / HSYNC_PERIOD_US)
+
+#define DIV_REG_FREQ 16384
+#define DIV_REG_PERIOD_S  (float)(1.0 / (float)DIV_REG_FREQ)
+#define DIV_REG_PERIOD_MS (float)(1000.0 / (float)DIV_REG_FREQ)
+#define DIV_REG_PERIOD_US (float)(1000000.0 / (float)DIV_REG_FREQ)
+#define CPU_PER_DIV_REG (float)(DIV_REG_PERIOD_US / CPU_PERIOD_US)
+
+const int TIMA_FREQS[] = {
+    CPU_FREQ >> 10,
+    CPU_FREQ >> 4,
+    CPU_FREQ >> 6,
+    CPU_FREQ >> 8
+};
+const int TIMA_PERIODS_CPUS[] = {
+    1024,
+    16,
+    64,
+    256
+};
+
+#define BASE_FREQ CPU_FREQ
+#define BASE_PERIOD_S CPU_PERIOD_S
+#define BASE_PERIOD_MS CPU_PERIOD_MS
+#define BASE_PERIOD_US CPU_PERIOD_US
+#define BASE_PER_CPU 1
+#define BASE_PER_PPU 1
+#define BASE_PER_SCANLINE PPU_PER_SCANLINE
+#define BASE_PER_HSYNC (BASE_PER_CPU * CPU_PER_HSYNC)
+#define BASE_PER_VSYNC (BASE_PER_PPU * CPU_PER_VSYNC)
+#define BASE_PER_M 4
+
+typedef struct {
+    int timer;
+    void (*execute)(GBState *);
+} GBEvent;
 
 #endif // GB_BASE

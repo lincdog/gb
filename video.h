@@ -27,4 +27,11 @@ const SDL_Color colors[] = {
     {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0x00 }
 };
 
+typedef enum {
+    HBlank=0,
+    VBlank=1,
+    SearchingOAM=2,
+    TransferringToLCD=3
+} LCDStatus;
+
 #endif // GB_VIDEO
