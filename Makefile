@@ -1,14 +1,14 @@
 all: build video test
 
-build: gb.c
-	gcc -o gb -DGB_MAIN gb.c
+build: gb.c cpu.c
+	gcc -o gb -DGB_MAIN gb.c cpu.c
 
-test: gb_test.c
-	gcc -o gb_test gb_test.c
-	./gb_test
+test: cpu_test.c
+	gcc -o cpu_test cpu_test.c
+	./cpu_test
 
 clean:
-	rm -f gb gb_test video
+	rm -f gb cpu_test video
 
 VIDEO_CFLAGS := `sdl2-config --libs --cflags` -lSDL2_image 
 video: video.c

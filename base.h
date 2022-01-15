@@ -55,8 +55,13 @@ typedef struct {
     BYTE *code;
 } GBState;
 
-void print_state_info(GBState *, char);
-WORD execute_instruction(GBState *, BYTE *);
+typedef struct {
+    GBState *cpu_state;
+    
+} EventState;
+
+//void print_state_info(GBState *, char);
+//WORD execute_instruction(GBState *, BYTE *);
 
 #define CPU_FREQ 4194304
 #define M_CYCLE 1048576
@@ -90,19 +95,6 @@ WORD execute_instruction(GBState *, BYTE *);
 #define DIV_REG_PERIOD_MS (float)(1000.0 / (float)DIV_REG_FREQ)
 #define DIV_REG_PERIOD_US (float)(1000000.0 / (float)DIV_REG_FREQ)
 #define CPU_PER_DIV_REG (float)(DIV_REG_PERIOD_US / CPU_PERIOD_US)
-
-const int TIMA_FREQS[] = {
-    CPU_FREQ >> 10,
-    CPU_FREQ >> 4,
-    CPU_FREQ >> 6,
-    CPU_FREQ >> 8
-};
-const int TIMA_PERIODS_CPUS[] = {
-    1024,
-    16,
-    64,
-    256
-};
 
 #define BASE_FREQ CPU_FREQ
 #define BASE_PERIOD_S CPU_PERIOD_S
