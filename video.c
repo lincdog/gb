@@ -1,4 +1,5 @@
 #include "base.h"
+#include "video.h"
 #include <stdlib.h>
 
 #include <SDL.h>
@@ -27,16 +28,9 @@ int unpack_tile(const BYTE *data, BYTE *data_unpacked) {
     return 64;
 }
 
-static const BYTE test_tile[] = {
-    0xFF, 0x00, 0x7E, 0xFF, 
-    0x85, 0x81, 0x89, 0x83,
-    0x93, 0x85, 0xA5, 0x8B, 
-    0xC9, 0x97, 0x7E, 0xFF
-};
-
 void print_unpacked(const BYTE *packed) {
     BYTE *unpacked;
-    unpacked = calloc(64 * sizeof(BYTE), 0);
+    unpacked = malloc(64 * sizeof(BYTE));
     if (unpacked == NULL) {
         printf("Error on allocating unpacked buffer");
         exit(1);
@@ -57,7 +51,8 @@ void print_unpacked(const BYTE *packed) {
 
 SDL_Surface *make_tile_surface(const BYTE *packed) {
     BYTE *unpacked;
-    unpacked = calloc(64 * sizeof(BYTE), 0);
+
+    unpacked = malloc(64 * sizeof(BYTE));
     if (unpacked == NULL) {
         printf("Error on allocating unpacked buffer");
         exit(1);
@@ -82,12 +77,6 @@ SDL_Surface *make_tile_surface(const BYTE *packed) {
         return NULL;
     }
 
-    const SDL_Color colors[4] = {
-        {.r = 255, .g = 255, .b = 255, .a = 255 },
-        {.r = 200, .g = 200, .b = 200, .a = 0   },
-        {.r = 100, .g = 100, .b = 100, .a = 0   },
-        {.r = 0,   .g = 0,   .b = 0,   .a = 0   }
-    };
     if (SDL_SetPaletteColors(surface->format->palette, colors, 0, 4) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
             "Couldn't set palette colors: %s\n", SDL_GetError());
@@ -117,7 +106,7 @@ int main(int argc, char *argv[]) {
     window = SDL_CreateWindow("SDL_CreateTexture",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        160, 144,
+        512, 512,
         SDL_WINDOW_RESIZABLE
     );
 
@@ -125,7 +114,7 @@ int main(int argc, char *argv[]) {
     r.h = 5;
 
     renderer = SDL_CreateRenderer(window, -1, 0);
-
+    /*
     texture = SDL_CreateTexture(
         renderer, 
         SDL_PIXELFORMAT_RGBA8888, 
@@ -133,28 +122,32 @@ int main(int argc, char *argv[]) {
         160, 
         144
     );
+    */
 
     test_surface = make_tile_surface(test_tile);
     test_texture = SDL_CreateTextureFromSurface(renderer, test_surface);
+
+    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0x00);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, test_texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
 
     while (1) {
         SDL_PollEvent(&event);
         if(event.type == SDL_QUIT)
             break;
 
-        r.x = rand() % 500;
-        r.y = rand() % 500;
+        //r.x = rand() % 500;
+        //r.y = rand() % 500;
 
-        SDL_SetRenderTarget(renderer, test_texture);
-        SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0x00);
+        //SDL_SetRenderTarget(renderer, test_texture);
+        //SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
         //SDL_RenderClear(renderer);
 
         //SDL_RenderDrawRect(renderer,&r);
         //SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0x00);
         //SDL_RenderFillRect(renderer, &r);
-        SDL_SetRenderTarget(renderer, NULL);
-        SDL_RenderCopy(renderer, test_texture, NULL, NULL);
-        SDL_RenderPresent(renderer);
+        //SDL_SetRenderTarget(renderer, NULL);
     }
 
     free(test_surface->pixels);

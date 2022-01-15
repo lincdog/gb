@@ -1228,13 +1228,13 @@ void print_state_info(GBState *state, char print_io_reg) {
 
 #ifdef GB_MAIN
 
-int main(void) {
+int main(int argc, char *argv[]) {
     GBState *state = initialize_state();
 
     FILE *fp;
     fp = fopen("gb-bootroms/bin/dmg.bin", "r");
 
-    int n_read = fread(state->code, 1, 258, fp);
+    int n_read = fread(state->code, 1, 0x100, fp);
     printf("n read: %d\n",
         n_read);
     

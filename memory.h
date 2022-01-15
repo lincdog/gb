@@ -53,7 +53,7 @@ struct GBIORegs {
     BYTE nr32; //       1C
     BYTE nr33; //       1D
     BYTE nr34; //       1E
-    BLANK(1F); //        1F
+    BLANK(1F); //       1F
     BYTE nr41; //       20
     BYTE nr42; //       21
     BYTE nr43; //       22
