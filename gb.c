@@ -1,10 +1,11 @@
 #include "base.h"
 #include "cpu.h"
+#include "mem.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 
-void execute_program(GBState *state) {
+void execute_program(CPUState *state) {
 
     char offset, input;
     BYTE scratch;
@@ -37,7 +38,7 @@ void execute_program(GBState *state) {
 #ifdef GB_MAIN
 
 int main(int argc, char *argv[]) {
-    GBState *state = initialize_state();
+    CPUState *state = initialize_state();
 
     FILE *fp;
     fp = fopen("gb-bootroms/bin/dmg.bin", "r");

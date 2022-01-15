@@ -12,8 +12,8 @@
     }
 
 int test_instruction(
-    GBState *test_state,
-    GBState *post_state, 
+    CPUState *test_state,
+    CPUState *post_state, 
     BYTE *opcode,
     int opcode_length,
     WORD post_pc
@@ -280,7 +280,7 @@ int main(void) {
 
     BYTE opcode[3] = {0, 0, 0};
 
-    GBState *test_state, *post_state;
+    CPUState *test_state, *post_state;
     test_state = initialize_state();
     post_state = initialize_state();
     RUN_TEST_NONJMP(1);

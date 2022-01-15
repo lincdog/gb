@@ -41,7 +41,7 @@ typedef struct {
     BYTE c;
     BYTE ime;
     BYTE wants_ime;
-} GBFlags;
+} CPUFlags;
 
 typedef struct {
     BYTE a;
@@ -50,18 +50,22 @@ typedef struct {
     reg hl;
     WORD sp;
     WORD pc;
-    GBFlags flags;
+    CPUFlags flags;
     
     BYTE *code;
-} GBState;
+} CPUState;
 
 typedef struct {
-    GBState *cpu_state;
-    
-} EventState;
+    int timer;
+    void (*execute)(void *);
+} GBEvent;
 
-//void print_state_info(GBState *, char);
-//WORD execute_instruction(GBState *, BYTE *);
+typedef struct {
+    CPUState *cpu_state;
+    GBEvent **events;
+    WORD (*read_mem)(void*, WORD);
+    int (*write_mem)(void*, WORD, WORD);
+} GBState;
 
 #define CPU_FREQ 4194304
 #define M_CYCLE 1048576
@@ -107,9 +111,5 @@ typedef struct {
 #define BASE_PER_VSYNC (BASE_PER_PPU * CPU_PER_VSYNC)
 #define BASE_PER_M 4
 
-typedef struct {
-    int timer;
-    void (*execute)(GBState *);
-} GBEvent;
 
 #endif // GB_BASE

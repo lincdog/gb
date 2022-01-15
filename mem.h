@@ -157,9 +157,10 @@ struct GBIORegs {
 
 
 /* Function prototypes */
-BYTE read_8(WORD addr, BYTE *code);
-WORD read_16(WORD addr, BYTE *code);
-int write_8(WORD addr, BYTE *code, BYTE data);
-int write_16(WORD addr, BYTE *code, WORD data);
+
+BYTE read_8(WORD, BYTE *);
+WORD read_16(WORD, BYTE *);
+int write_8(WORD, BYTE *, BYTE);
+int write_16(WORD, BYTE *, WORD);
 
 #endif // GB_MEMORY

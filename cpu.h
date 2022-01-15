@@ -2,11 +2,11 @@
 #define GB_CPU
 #include "base.h"
 
-void execute_prefix_inst(GBState *, BYTE);
-WORD execute_instruction(GBState *, BYTE *);
-GBState *initialize_state(void);
-void reset_registers(GBState *);
-void print_state_info(GBState *, char);
+void execute_prefix_inst(CPUState *, BYTE);
+WORD execute_instruction(CPUState *, BYTE *);
+CPUState *initialize_state(void);
+void reset_registers(CPUState *);
+void print_state_info(CPUState *, char);
 
 static char GAMEBOY_LOGO[] = {
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,

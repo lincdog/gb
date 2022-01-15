@@ -1,10 +1,10 @@
 all: build video test
 
-build: gb.c cpu.c
-	gcc -o gb -DGB_MAIN gb.c cpu.c
+build: gb.c cpu.c mem.c
+	gcc -o gb -DGB_MAIN gb.c cpu.c mem.c
 
-test: cpu_test.c
-	gcc -o cpu_test cpu_test.c
+test: cpu_test.c mem.c
+	gcc -o cpu_test cpu_test.c mem.c
 	./cpu_test
 
 clean:

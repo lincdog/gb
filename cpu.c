@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "base.h"
-#include "memory.h"
+#include "mem.h"
 #include "cpu.h"
 
 /*
@@ -41,12 +41,8 @@ const WORD irq_addrs[] = {
     0x40, 0x48, 0x50, 0x58, 0x60
 };
 
-void execute_prefix_inst(GBState *state, BYTE opcode) {
+void execute_prefix_inst(CPUState *state, BYTE opcode) {
     BYTE scratch;
-    //BYTE opcode = *_opcode;
-
-    //printf("---Got opcode %02x (%x %x)\n", 
-    //    opcode, ls_nib(opcode), ms_nib(opcode));
 
     switch (ls_nib(opcode)) {
         case 0x0:
@@ -135,7 +131,7 @@ void execute_prefix_inst(GBState *state, BYTE opcode) {
     }
 }
 
-WORD execute_instruction(GBState *state, BYTE *opcode) {
+WORD execute_instruction(CPUState *state, BYTE *opcode) {
     /* Executes the instruction pointed to by opcode with
     the machine state state, and returns the new value of 
     PC. Advances PC ONLY to interpret immediate data.
@@ -1135,28 +1131,7 @@ WORD execute_instruction(GBState *state, BYTE *opcode) {
     return state->pc + 1;
 }
 
-
-BYTE read_8(WORD addr, BYTE *code) {
-    return code[addr];
-}
-WORD read_16(WORD addr, BYTE *code) {
-    return (WORD)(code[addr] | (code[addr+1] << 8));
-}
-
-int write_8(WORD addr, BYTE *code, BYTE data) {
-    code[addr] = data;
-
-    return 1;
-}
-
-int write_16(WORD addr, BYTE *code, WORD data) {
-    code[addr] = data & 0xFF;
-    code[addr+1] = data >> 8;
-
-    return 2;
-}
-
-void reset_registers(GBState *state) {
+void reset_registers(CPUState *state) {
     state->sp = 0xFFFE;
     state->pc = 0;
 
@@ -1176,10 +1151,10 @@ void reset_registers(GBState *state) {
     state->flags.wants_ime = 0;
 }
 
-GBState *initialize_state(void) {
+CPUState *initialize_state(void) {
 
     BYTE *code = malloc(32767);
-    GBState *state = malloc(sizeof(GBState));
+    CPUState *state = malloc(sizeof(CPUState));
     reset_registers(state);
         
     state->code = memset(code, 0, 32767);
@@ -1189,7 +1164,7 @@ GBState *initialize_state(void) {
     return state;
 }
 
-void print_state_info(GBState *state, char print_io_reg) {
+void print_state_info(CPUState *state, char print_io_reg) {
     printf("pc: %02x \ninst: %02x \nsp: %02x\n", 
         state->pc, state->code[state->pc], state->sp);
     printf("\ta: %02x \n\tb: %02x \n\tc: %02x\n", 
