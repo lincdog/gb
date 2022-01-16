@@ -51,7 +51,7 @@ typedef struct {
     WORD sp;
     WORD pc;
     CPUFlags flags;
-    
+    enum CPU_STATE s;
     BYTE *code;
 } CPUState;
 
@@ -61,10 +61,16 @@ typedef struct {
 } GBEvent;
 
 typedef struct {
+    enum PPU_STATE s;
+    enum PPU_FIFO_STATE fs;
+} PPUState;
+
+typedef struct {
     CPUState *cpu_state;
+    PPUState *ppu_state;
     GBEvent **events;
-    WORD (*read_mem)(void*, WORD);
-    int (*write_mem)(void*, WORD, WORD);
+    WORD (*read_mem)(void*, WORD, int);
+    int (*write_mem)(void*, WORD, WORD, int);
 } GBState;
 
 #define CPU_FREQ 4194304
