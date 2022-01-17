@@ -30,7 +30,14 @@ typedef union {
     WORD dw;
 } reg;
 
-enum CPU_STATE {READY, IM_8, IM_16_LSB, IM_16_MSB, CB};
+enum CPU_STATE {
+    READY,
+    IM_8_UNSIGNED,
+    IM_8_SIGNED,
+    IM_16_LSB, 
+    IM_16_MSB, 
+    PREFIX,
+};
 enum PPU_STATE {HBLANK, VBLANK, OAMSCAN, DRAW};
 enum PPU_FIFO_STATE {FETCH_TILE, FETCH_DATA_LOW, FETCH_DATA_HIGH, SLEEP, PUSH};
 

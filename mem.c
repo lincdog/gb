@@ -20,3 +20,11 @@ int write_16(WORD addr, BYTE *code, WORD data) {
 
     return 2;
 }
+
+BYTE read_mem(GBState *state, WORD addr) {
+    return 0;
+}
+
+BYTE write_mem(GBState *state, WORD addr, BYTE data) {
+    return 0;
+}

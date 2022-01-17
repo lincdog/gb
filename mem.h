@@ -155,7 +155,6 @@ struct GBIORegs {
     BYTE int_enable;
 };
 
-
 /* Function prototypes */
 
 BYTE read_8(WORD, BYTE *);

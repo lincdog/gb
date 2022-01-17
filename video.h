@@ -12,6 +12,9 @@ typedef struct {
     BYTE flags;
 } SpriteAttr;
 
+typedef struct {
+    SpriteAttr oam_attrs[40];
+} OAMAttrTable;
 
 const BYTE test_tile[] = {
     0xFF, 0x00, 0x7E, 0xFF, 
@@ -33,5 +36,10 @@ typedef enum {
     SearchingOAM=2,
     TransferringToLCD=3
 } LCDStatus;
+
+// If LCDC.4 == 1:
+#define TILE_INDEX_TO_ADDR_8000(__i) (WORD)(0x8000 + 0x10 * (BYTE)__i)
+// If LCDC.4 == 0:
+#define TILE_INDEX_TO_ADDR_8800(__i) (WORD)(0x9000 + 0x10 * (char)__i)
 
 #endif // GB_VIDEO

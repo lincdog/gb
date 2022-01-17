@@ -6,26 +6,65 @@
 //#include <SDL_image.h>
 //#include <SDL_timer.h>
 
-int unpack_tile(const BYTE *data, BYTE *data_unpacked) {
+int unpack_tile(const BYTE *data, BYTE *data_unpacked, BYTE flags) {
+
+    int x_flip = 0, y_flip = 0, p_num = 0;
+    y_flip = bit_6(flags);
+    x_flip = bit_5(flags);
+
+    p_num = bit_4(flags);
 
     BYTE tmp1, tmp2;
+    char x_base, x_add, y_base, y_add, row_base;
+    if (x_flip) {
+        x_base = 7;
+        x_add = -1;
+    } else {
+        x_base = 0;
+        x_add = 1;
+    }
 
-    for (int i = 0; i < 16; i += 2) {
-        tmp1 = data[i];
-        tmp2 = data[i+1];
+    if (y_flip) {
+        y_base = 7;
+        y_add = -1;
+    } else {
+        y_base = 0;
+        y_add = 1;
+    }
 
-        data_unpacked[4*i + 0] = (bit_7(tmp1)>>7) | (bit_7(tmp2)>>6);
-        data_unpacked[4*i + 1] = (bit_6(tmp1)>>6) | (bit_6(tmp2)>>5);
-        data_unpacked[4*i + 2] = (bit_5(tmp1)>>5) | (bit_5(tmp2)>>4);
-        data_unpacked[4*i + 3] = (bit_4(tmp1)>>4) | (bit_4(tmp2)>>3);
-        data_unpacked[4*i + 4] = (bit_3(tmp1)>>3) | (bit_3(tmp2)>>2);
-        data_unpacked[4*i + 5] = (bit_2(tmp1)>>2) | (bit_2(tmp2)>>1);
-        data_unpacked[4*i + 6] = (bit_1(tmp1)>>1) | (bit_1(tmp2)>>0);
-        data_unpacked[4*i + 7] = (bit_0(tmp1)>>0) | (bit_0(tmp2)<<1);
+    for (int i = 0; i < 8; i++) {
+        tmp1 = data[2*i];
+        tmp2 = data[2*i+1];
+        row_base = 8*(y_base + y_add*i) + x_base;
+
+        // This fills in one row per iteration of the 8x8 sprite
+        // To flip Y, we start at the bottom of the 8x8 buffer
+        // To flip X, we take the bits from right (lsb) to left (msb)
+        // in each packed byte
+
+        data_unpacked[row_base] = (bit_7(tmp1)>>7) | (bit_7(tmp2)>>6);
+        data_unpacked[row_base + 1*x_add] = (bit_6(tmp1)>>6) | (bit_6(tmp2)>>5);
+        data_unpacked[row_base + 2*x_add] = (bit_5(tmp1)>>5) | (bit_5(tmp2)>>4);
+        data_unpacked[row_base + 3*x_add] = (bit_4(tmp1)>>4) | (bit_4(tmp2)>>3);
+        data_unpacked[row_base + 4*x_add] = (bit_3(tmp1)>>3) | (bit_3(tmp2)>>2);
+        data_unpacked[row_base + 5*x_add] = (bit_2(tmp1)>>2) | (bit_2(tmp2)>>1);
+        data_unpacked[row_base + 6*x_add] = (bit_1(tmp1)>>1) | (bit_1(tmp2)>>0);
+        data_unpacked[row_base + 7*x_add] = (bit_0(tmp1)>>0) | (bit_0(tmp2)<<1);
          
     }
 
     return 64;
+}
+
+BYTE *lookup_tile(BYTE ind, BYTE *mem) {
+    WORD addr;
+    addr = TILE_INDEX_TO_ADDR_8000(ind);
+
+    return &mem[addr];
+}
+
+BYTE *lookup_obj_tile(SpriteAttr *attr, BYTE *mem) {
+    return lookup_tile(attr->index, mem);
 }
 
 void print_unpacked(const BYTE *packed) {
@@ -36,7 +75,7 @@ void print_unpacked(const BYTE *packed) {
         exit(1);
     }
 
-    unpack_tile(packed, unpacked);
+    unpack_tile(packed, unpacked, 0x20);
 
     for (int i = 0; i < 64; i++) {
         if (i % 8 == 0) {
@@ -58,7 +97,7 @@ SDL_Surface *make_tile_surface(const BYTE *packed) {
         exit(1);
     }
 
-    unpack_tile(packed, unpacked); 
+    unpack_tile(packed, unpacked, 0x40); 
 
     SDL_Surface *surface;
     surface = SDL_CreateRGBSurfaceFrom(
