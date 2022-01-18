@@ -1131,37 +1131,52 @@ WORD execute_instruction(CPUState *state, BYTE *opcode) {
     return state->pc + 1;
 }
 
-void reset_registers(CPUState *state) {
-    state->sp = 0xFFFE;
-    state->pc = 0;
+void reset_registers(CPUState *cpu) {
+    cpu->sp = 0xFFFE;
+    cpu->pc = 0;
 
-    state->a = 1;
-    state->bc.w.h = 0;
-    state->bc.w.l = 0x13;
-    state->de.w.h = 0;
-    state->de.w.l = 0xD8;
-    state->hl.w.h = 0x01;
-    state->hl.w.l = 0x4D;
+    cpu->a = 1;
+    cpu->bc.w.h = 0;
+    cpu->bc.w.l = 0x13;
+    cpu->de.w.h = 0;
+    cpu->de.w.l = 0xD8;
+    cpu->hl.w.h = 0x01;
+    cpu->hl.w.l = 0x4D;
 
-    state->flags.z = 0;
-    state->flags.n = 0;
-    state->flags.h = 0;
-    state->flags.z = 0;
-    state->flags.ime = 0;
-    state->flags.wants_ime = 0;
+    cpu->flags.z = 0;
+    cpu->flags.n = 0;
+    cpu->flags.h = 0;
+    cpu->flags.z = 0;
+    cpu->flags.ime = 0;
+    cpu->flags.wants_ime = 0;
+
 }
 
-CPUState *initialize_state(void) {
+void reset_pipeline(CPUState *cpu) {
+    cpu->opcode = 0;
+    cpu->counter = 0;
+
+    cpu->addr = cpu->pc;
+    cpu->reg_dest = NULL;
+    cpu->src = NULL;
+    cpu->_data.dw = 0;
+
+    cpu->pipeline = malloc(8 * sizeof(void *));
+    memset(cpu->pipeline, 8, NULL);
+}
+
+CPUState *initialize_cpu(void) {
 
     BYTE *code = malloc(32767);
-    CPUState *state = malloc(sizeof(CPUState));
-    reset_registers(state);
+    CPUState *cpu = malloc(sizeof(CPUState));
+    reset_registers(cpu);
+    reset_pipeline(cpu);
         
-    state->code = memset(code, 0, 32767);
-    memcpy(&state->code[0x104], 
+    cpu->code = memset(code, 0, 32767);
+    memcpy(&cpu->code[0x104], 
         &GAMEBOY_LOGO, 
         sizeof(GAMEBOY_LOGO));
-    return state;
+    return cpu;
 }
 
 void print_state_info(CPUState *state, char print_io_reg) {
@@ -1191,3 +1206,42 @@ void print_state_info(CPUState *state, char print_io_reg) {
     }
     
 }
+
+/*
+ - write: (reg)pointer dest or (addr)mem dest; byte data
+ - read: addr/pointer dest; addr/pointer src
+ - check condition
+ - nop
+
+*/
+
+static inline void _write_reg(GBState *state) {
+    *(state->cpu->reg_dest) = *(state->cpu->src);
+}
+
+static inline void _write_mem(GBState *state) {
+    write_mem(state, state->cpu->addr, *(state->cpu->src));
+}
+
+static inline void _read_reg(GBState *state) {
+    state->cpu->_data.w.l = *(state->cpu->src);
+}
+static inline void _read_reg_h(GBState *state) {
+    state->cpu->_data.w.h = ((reg *)(state->cpu->src))->w.h;
+}
+
+static inline void _advance_pc(GBState *state) {
+    state->cpu->pc++;
+}
+
+static inline void _fetch_inst(GBState *state) {
+    state->cpu->addr = state->cpu->pc;
+    state->cpu->opcode = read_mem(state, state->cpu->addr);
+}
+
+void cpu_m_cycle(GBState *state) {
+    CPUState *cpu = state->cpu;
+    //CPUStep *pipeline = state->cpu_pipeline;
+    
+}
+void read

@@ -4,8 +4,9 @@
 
 void execute_prefix_inst(CPUState *, BYTE);
 WORD execute_instruction(CPUState *, BYTE *);
-CPUState *initialize_state(void);
+CPUState *initialize_cpu(void);
 void reset_registers(CPUState *);
+void reset_pipeline(CPUState *);
 void print_state_info(CPUState *, char);
 
 static char GAMEBOY_LOGO[] = {

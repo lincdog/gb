@@ -34,6 +34,21 @@ void execute_program(CPUState *state) {
 
 }
 
+GBState *initialize_gb(void) {
+    GBState *state = malloc(sizeof(GBState));
+    state->cpu_state = initialize_cpu();
+    
+}
+
+void main_loop(GBState *state) {
+    int clock = 0;
+    while (1) {
+        // check clock % 4; fetch instruction
+        // check clock % 4; execute current instruction 
+        // run PPU code
+        // check interrupts
+    }
+}
 
 #ifdef GB_MAIN
 
