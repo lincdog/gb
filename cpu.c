@@ -6,18 +6,6 @@
 #include "mem.h"
 #include "cpu.h"
 
-/*
-union {
-    struct {
-        unsigned char FIXED[32767];
-        unsigned char HOME[32767];
-        unsigned char VRAM[16383];
-    } section;
-    struct {
-
-    }
-} ADDR;*/
-
 const int TIMA_FREQS[] = {
     CPU_FREQ >> 10,
     CPU_FREQ >> 4,
@@ -139,28 +127,33 @@ void print_state_info(GBState *state, char print_io_reg) {
 */
 
 /* Copy data from a src register to a dest register */
-static inline void _copy_reg(GBState *state) {
+CYCLE_FUNC(_copy_reg) {
     *(state->cpu->reg_dest) = *(state->cpu->reg_src);
 }
-static inline void _add_reg_data1(GBState *state) {
+CYCLE_FUNC(_add_reg_data1) {
     state->cpu->result = *(state->cpu->reg_dest) + state->cpu->data1;
     *(state->cpu->reg_dest) += state->cpu->data1;
 }
-static inline void _sub_reg_data1(GBState *state) {
+CYCLE_FUNC(_sub_reg_data1) {
     state->cpu->result = *(state->cpu->reg_dest) - state->cpu->data1;
     *(state->cpu->reg_dest) -= state->cpu->data1;
 }
-static inline void _add_reg_reg(GBState *state) {
+CYCLE_FUNC(_add_reg_reg) {
     state->cpu->result = *(state->cpu->reg_dest) + *(state->cpu->reg_src);
     *(state->cpu->reg_dest) += *(state->cpu->reg_src);
 }
-static inline void _sub_reg_reg(GBState *state) {
+CYCLE_FUNC(_sub_reg_reg) {
     state->cpu->result = *(state->cpu->reg_dest) - *(state->cpu->reg_src);
     *(state->cpu->reg_dest) -= *(state->cpu->reg_src);
 }
-
+CYCLE_FUNC(_inc_data1) {
+    state->cpu->data1++;
+}
+CYCLE_FUNC(_dec_data1) {
+    state->cpu->data1--;
+}
 /* Copy data from intermediate store to a register */
-static inline void _write_reg_data(GBState *state) {
+CYCLE_FUNC(_write_reg_data) {
     if (state->cpu->is_16_bit)
         *(WORD*)(state->cpu->reg_dest) = b2w(state->cpu->data1, state->cpu->data2);
     else
@@ -168,53 +161,53 @@ static inline void _write_reg_data(GBState *state) {
 }
 
 /* Write data from a src register to a memory address */
-static inline void _write_mem_reg_l(GBState *state) {
+CYCLE_FUNC(_write_mem_reg_l) {
     write_mem(state, state->cpu->addr, *(state->cpu->reg_src));
 }
-static inline void _write_mem_reg_h(GBState *state) {
+CYCLE_FUNC(_write_mem_reg_h) {
    write_mem(state, state->cpu->addr, *(state->cpu->reg_src + 1)); 
 }
-static inline void _set_addr_from_data(GBState *state) {
+CYCLE_FUNC(_write_mem_data1) {
+    write_mem(state, state->cpu->addr, state->cpu->data1);
+}
+CYCLE_FUNC(_set_addr_from_data) {
     state->cpu->addr = b2w(state->cpu->data1, state->cpu->data2);
 }
 /* Read data from src register to intermediate store */
-static inline void _read_reg_l(GBState *state) {
+CYCLE_FUNC(_read_reg_l) {
     state->cpu->data1 = *(state->cpu->reg_src);
 }
 /* Read data from src register to high byte of intermediate store */
-static inline void _read_reg_h(GBState *state) {
+CYCLE_FUNC(_read_reg_h) {
     state->cpu->data2 = *(state->cpu->reg_src + 1);
 }
 /* Read data from memory to intermediate store */
-static inline void _read_mem_l(GBState *state) {
+CYCLE_FUNC(_read_mem_l) {
     state->cpu->data1 = read_mem(state, state->cpu->addr);
 }
-static inline void _read_mem_h(GBState *state) {
+CYCLE_FUNC(_read_mem_h) {
     state->cpu->data2 = read_mem(state, state->cpu->addr + 1);
 }
-static inline void _read_mem_h_and_store(GBState *state) {
+CYCLE_FUNC(_read_mem_h_and_store) {
     _read_mem_h(state);
     _write_reg_data(state); 
 }
-/* Increment the program counter */
-static inline void _advance_pc(GBState *state) {
-    reg_pc(state->cpu)++;
-}
-static inline void _decrement_sp(GBState *state) {
+
+CYCLE_FUNC(_decrement_sp) {
     reg_sp(state->cpu)--;
 }
 
-static inline void _nop(GBState *state) {
+CYCLE_FUNC(_nop) {
     
 }
 
-static inline void _fetch_inst(GBState *state) {
+CYCLE_FUNC(_fetch_inst) {
     state->cpu->addr = reg_pc(state->cpu);
     state->cpu->opcode = read_mem(state, state->cpu->addr);
     reg_pc(state->cpu)++;
 }
 
-static inline void _check_flags(GBState *state) {
+CYCLE_FUNC(_check_flags) {
     CPUState *cpu = state->cpu;
     CPUFlags cur_flags = cpu->flags;
     CPUFlags chk_flags = cpu->check_flags;
@@ -336,6 +329,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[0] = &_rlc_reg;
             break;
         case 0x08:
+            // FIXME ld (nn), SP
             cpu->reg_src = &reg_sp(cpu);
             cpu->addr = reg_pc(cpu);
             cpu->is_16_bit = 1;
@@ -357,7 +351,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->reg_dest = &reg_a(cpu);
             cpu->addr = reg_bc(cpu);
             cpu->pipeline[0] = &_read_mem_l;
-            cpu->pipeline[1] = &_write_mem_data;
+            cpu->pipeline[1] = &_write_reg_data;
             break;
         case 0x0B:
             cpu->reg_dest = &reg_bc(cpu);
@@ -386,7 +380,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0x0F:
             cpu->reg_dest = &reg_a(cpu);
-            cpu->pipeline[0] = &_rr_reg;
+            cpu->pipeline[0] = &_rrc_reg;
             break;
         case 0x10:
             cpu->pipeline[0] = &_do_stop;
@@ -446,19 +440,494 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[1] = &_nop;
             cpu->pipeline[2] = &_add_reg_data_signed;
             break;
-        case 0x19:
-
+       case 0x19:
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->reg_src = &reg_de(cpu);
+            cpu->is_16_bit = 1;
+            CHECK_FLAGS(cpu, NOCHANGE, CLEAR, CHECK, CHECK);
+            cpu->pipeline[0] = &_nop; // TODO Actually do two 8 bit ops?
+            cpu->pipeline[1] = &_add_reg_reg;
+            break;
         case 0x1A:
-
+            cpu->reg_dest = &reg_a(cpu);
+            cpu->addr = reg_de(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data;
+            break;
         case 0x1B:
-
+            cpu->reg_dest = &reg_de(cpu);
+            cpu->data1 = 1;
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_nop;
+            cpu->pipeline[1] = &_sub_reg_reg;
+            break;
         case 0x1C:
-
+            cpu->reg_dest = &reg_e(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+            cpu->pipeline[0] = &_add_reg_data1;
+            break;
         case 0x1D:
-
+            cpu->reg_dest = &reg_c(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, SET, CHECK, NOCHANGE);
+            cpu->pipeline[0] = &_sub_reg_data1;
+            break;
         case 0x1E:
-
+            cpu->reg_dest = &reg_e(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data;
+            break;
         case 0x1F:
+            cpu->reg_dest = &reg_a(cpu);
+            cpu->pipeline[0] = &_rr_reg;
+            break; 
+        case 0x20:
+            // Conditional jump: JR NZ
+            cpu->reg_dest = &reg_pc(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_nop;
+            if (cpu->flags.z == CLEAR) {
+                cpu->pipeline[2] = &_add_reg_data_signed;
+            }
+            break;
+         case 0x21:
+            cpu->addr = reg_pc(cpu);
+            cpu->is_16_bit = 1;
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_read_mem_h;
+            cpu->pipeline[2] = &_write_reg_data;
+            break;
+        case 0x22:
+            cpu->addr = reg_hl(cpu);
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->reg_src = &reg_a(cpu);
+            cpu->pipeline[0] = &_nop; // TODO use cycle loading BC val to addr
+            cpu->pipeline[1] = &_write_mem_l_inc_dest;
+            break;
+        case 0x23:
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->is_16_bit = 1;
+            cpu->data1 = 1;
+            cpu->pipeline[0] = &_nop;
+            cpu->pipeline[1] = &_add_reg_data1;
+            break;
+        case 0x24:
+            cpu->reg_dest = &reg_h(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+
+            cpu->pipeline[0] = &_add_reg_data1;
+            break;
+        case 0x25:
+            cpu->reg_dest = &reg_h(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+
+            cpu->pipeline[0] = &_sub_reg_data1;
+            break;
+        case 0x26:
+            cpu->reg_dest = &reg_h(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data;
+            break;
+        case 0x27:
+            //DAA
+            cpu->reg_dest = &reg_a(cpu);
+            CHECK_FLAGS(cpu, CHECK, NOCHANGE, CLEAR, CHECK);
+            cpu->pipeline[0] = &_do_da;
+            break;
+        case 0x28:
+            cpu->reg_dest = &reg_pc(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_nop;
+            if (cpu->flags.z == SET) {
+                cpu->pipeline[2] = &_add_reg_data_signed;
+            }
+            break; 
+        case 0x29:
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->reg_src = &reg_hl(cpu);
+            cpu->is_16_bit = 1;
+            CHECK_FLAGS(cpu, NOCHANGE, CLEAR, CHECK, CHECK);
+            cpu->pipeline[0] = &_nop; // TODO Actually do two 8 bit ops?
+            cpu->pipeline[1] = &_add_reg_reg;
+            break;
+        case 0x2A:
+            cpu->reg_dest = &reg_a(cpu);
+            cpu->reg_src = &reg_hl(cpu);
+            cpu->addr = reg_hl(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data_inc_src;
+            break;
+        case 0x2B:
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->data1 = 1;
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_nop;
+            cpu->pipeline[1] = &_sub_reg_reg;
+            break;
+        case 0x2C:
+            cpu->reg_dest = &reg_l(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+            cpu->pipeline[0] = &_add_reg_data1;
+            break;
+        case 0x2D:
+            cpu->reg_dest = &reg_l(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, SET, CHECK, NOCHANGE);
+            cpu->pipeline[0] = &_sub_reg_data1;
+            break;
+        case 0x2E:
+            cpu->reg_dest = &reg_l(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data;
+            break;
+        case 0x2F:
+            cpu->reg_dest = &reg_a(cpu);
+            CHECK_FLAGS(cpu, NOCHANGE, SET, SET, NOCHANGE);
+            cpu->pipeline[0] = &_do_cpl;
+            break;
+        case 0x30:
+            cpu->reg_dest = &reg_pc(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_nop;
+            if (cpu->flags.c == CLEAR) {
+                cpu->pipeline[2] = &_add_reg_data_signed;
+            }
+            break;
+        case 0x31:
+            cpu->addr = reg_pc(cpu);
+            cpu->is_16_bit = 1;
+            cpu->reg_dest = &reg_sp(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_read_mem_h;
+            cpu->pipeline[2] = &_write_reg_data;
+            break;
+        case 0x32:
+            cpu->addr = reg_hl(cpu);
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->reg_src = &reg_a(cpu);
+            cpu->pipeline[0] = &_nop; // TODO use cycle loading BC val to addr
+            cpu->pipeline[1] = &_write_mem_l_dec_dest;
+            break;
+        case 0x33:
+            cpu->reg_dest = &reg_sp(cpu);
+            cpu->is_16_bit = 1;
+            cpu->data1 = 1;
+            cpu->pipeline[0] = &_nop;
+            cpu->pipeline[1] = &_add_reg_data1;
+            break;
+        case 0x34:
+            cpu->addr = reg_hl(cpu);
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_inc_data1;
+            cpu->pipeline[2] = &_write_mem_data1;
+            break;
+        case 0x35:
+            cpu->addr = &reg_hl(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_dec_data1;
+            cpu->pipeline[2] = &_write_mem_data1; 
+            break;
+        case 0x36:
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->pipeline[0] = &_nop;
+            cpu->pipeline[1] = &_read_mem_l;
+            // Writes data1 to the address specified by *(cpu->reg_dest)
+            cpu->pipeline[2] = &_write_data1_to_dest;
+            break;
+        case 0x37:
+            //SCF
+            CHECK_FLAGS(cpu, NOCHANGE, CLEAR, CLEAR, SET);
+            cpu->pipeline[0] = &_check_flags;
+            break;
+        case 0x38:
+            cpu->reg_dest = &reg_pc(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_nop;
+            if (cpu->flags.c == SET) {
+                cpu->pipeline[2] = &_add_reg_data_signed;
+            }
+            break; 
+        case 0x39:
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->reg_src = &reg_sp(cpu);
+            cpu->is_16_bit = 1;
+            CHECK_FLAGS(cpu, NOCHANGE, CLEAR, CHECK, CHECK);
+            cpu->pipeline[0] = &_nop; // TODO Actually do two 8 bit ops?
+            cpu->pipeline[1] = &_add_reg_reg;
+            break;
+        case 0x3A:
+            cpu->reg_dest = &reg_a(cpu);
+            cpu->reg_src = &reg_hl(cpu);
+            cpu->addr = reg_hl(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data_dec_src;
+            break;
+        case 0x3B:
+            cpu->reg_dest = &reg_sp(cpu);
+            cpu->data1 = 1;
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_nop;
+            cpu->pipeline[1] = &_sub_reg_reg;
+            break;
+        case 0x3C:
+            cpu->reg_dest = &reg_a(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+            cpu->pipeline[0] = &_add_reg_data1;
+            break;
+        case 0x3D:
+            cpu->reg_dest = &reg_a(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, SET, CHECK, NOCHANGE);
+            cpu->pipeline[0] = &_sub_reg_data1;
+            break;
+        case 0x3E:
+            cpu->reg_dest = &reg_a(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data;
+            break;
+        case 0x3F:
+            // CCF
+            CHECK_FLAGS(cpu, NOCHANGE, CLEAR, CLEAR, FLIP);
+            cpu->pipeline[0] = &_do_ccf;
+            break;
+        case 0x40:
+            LD_REG(cpu, b, b);
+            break;
+        case 0x41:
+            LD_REG(cpu, b, c);
+            break;
+        case 0x42:
+            LD_REG(cpu, b, d);
+            break;
+        case 0x43:
+            LD_REG(cpu, b, e);
+            break;
+        case 0x44:
+            LD_REG(cpu, b, h);
+            break;
+        case 0x45:
+            LD_REG(cpu, b, l);
+            break;
+        case 0x46:
+            LD_REG_HL(cpu, b);
+            break;
+        case 0x47:
+            LD_REG(cpu, b, a);
+            break;
+        case 0x48:
+            LD_REG(cpu, c, b);
+            break;
+        case 0x49:
+            LD_REG(cpu, c, c);
+            break;
+        case 0x4A:
+            LD_REG(cpu, c, d);
+            break;
+        case 0x4B:
+            LD_REG(cpu, c, e);
+            break;
+        case 0x4C:
+            LD_REG(cpu, c, h);
+            break;
+        case 0x4D:
+            LD_REG(cpu, c, l);
+            break;
+        case 0x4E:
+            LD_REG_HL(cpu, c);
+            break;
+        case 0x4F:
+            LD_REG(cpu, c, a);
+            break;
+        case 0x50:
+            LD_REG(cpu, d, b);
+            break;
+        case 0x51:
+            LD_REG(cpu, d, c);
+            break;
+        case 0x52:
+            LD_REG(cpu, d, d);
+            break;
+        case 0x53:
+            LD_REG(cpu, d, e);
+            break;
+        case 0x54:
+            LD_REG(cpu, d, h);
+            break;
+        case 0x55:
+            LD_REG(cpu, d, l);
+            break;
+        case 0x56:
+            LD_REG_HL(cpu, d);
+            break;
+        case 0x57:
+            LD_REG(cpu, d, a);
+            break;
+        case 0x58:
+            LD_REG(cpu, e, b);
+            break;
+        case 0x59:
+            LD_REG(cpu, e, c);
+            break;
+        case 0x5A:
+            LD_REG(cpu, e, d);
+            break;
+        case 0x5B:
+            LD_REG(cpu, e, e);
+            break;
+        case 0x5C:
+            LD_REG(cpu, e, h);
+            break;
+        case 0x5D:
+            LD_REG(cpu, e, l);
+            break;
+        case 0x5E:
+            LD_REG_HL(cpu, e);
+            break;
+        case 0x5F:
+            LD_REG(cpu, e, a);
+            break;
+        case 0x60:
+            LD_REG(cpu, h, b);
+            break;
+        case 0x61:
+            LD_REG(cpu, h, c);
+            break;
+        case 0x62:
+            LD_REG(cpu, h, d);
+            break;
+        case 0x63:
+            LD_REG(cpu, h, e);
+            break;
+        case 0x64:
+            LD_REG(cpu, h, h);
+            break;
+        case 0x65:
+            LD_REG(cpu, h, l);
+            break;
+        case 0x66:
+            LD_REG_HL(cpu, h);
+            break;
+        case 0x67:
+            LD_REG(cpu, h, a);
+            break;
+        case 0x68:
+            LD_REG(cpu, l, b);
+            break;
+        case 0x69:
+            LD_REG(cpu, l, c);
+            break;
+        case 0x6A:
+            LD_REG(cpu, l, d);
+            break;
+        case 0x6B:
+            LD_REG(cpu, l, e);
+            break;
+        case 0x6C:
+            LD_REG(cpu, l, h);
+            break;
+        case 0x6D:
+            LD_REG(cpu, l, l);
+            break;
+        case 0x6E:
+            LD_REG_HL(cpu, l);
+            break;
+        case 0x6F:
+            LD_REG(cpu, l, a);
+            break;
+        case 0x70:
+            LD_HL_REG(cpu, b);
+            break;
+        case 0x71:
+            LD_HL_REG(cpu, c);
+            break;
+        case 0x72:
+            LD_HL_REG(cpu, d);
+            break;
+        case 0x73:
+            LD_HL_REG(cpu, e);
+            break;
+        case 0x74:
+            LD_HL_REG(cpu, h);
+            break;
+        case 0x75:
+            LD_HL_REG(cpu, l);
+            break;
+        case 0x76:
+            // TODO HALT
+            cpu->pipeline[0] = &_do_halt;
+            break;
+        case 0x77:
+            LD_HL_REG(cpu, a);
+            break;
+        case 0x78:
+            LD_REG(cpu, a, b);
+            break;
+        case 0x79:
+            LD_REG(cpu, a, c);
+            break;
+        case 0x7A:
+            LD_REG(cpu, a, d);
+            break;
+        case 0x7B:
+            LD_REG(cpu, a, e);
+            break;
+        case 0x7C:
+            LD_REG(cpu, a, h);
+            break;
+        case 0x7D:
+            LD_REG(cpu, a, l);
+            break;
+        case 0x7E:
+            LD_REG_HL(cpu, a);
+            break;
+        case 0x7F:
+            LD_REG(cpu, a, a);
+            break;
+        case 0x80:
+            ADD_8_REG(cpu, a, b);
+            break;
+        case 0x81:
+            ADD_8_REG(cpu, a, c);
+            break;
+        case 0x82:
+            ADD_8_REG(cpu, a, d);
+            break;
+        case 0x83:
+            ADD_8_REG(cpu, a, e);
+            break;
+        case 0x84:
+            ADD_8_REG(cpu, a, h);
+            break;
+        case 0x85:
+            ADD_8_REG(cpu, a, l);
+            break;
+        case 0x86:
+            
+
     }
+
     
 }
