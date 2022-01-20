@@ -70,14 +70,14 @@ typedef struct {
 } CPUFlags;
 
 typedef struct __attribute__ ((packed)) {
-    BYTE a;
     BYTE f;
-    BYTE b;
+    BYTE a;
     BYTE c;
-    BYTE d;
+    BYTE b;
     BYTE e;
-    BYTE h;
+    BYTE d;
     BYTE l;
+    BYTE h;
     WORD sp;
     WORD pc;
 } CPURegs;
@@ -85,19 +85,6 @@ typedef struct __attribute__ ((packed)) {
 #define rr(__x) *(WORD *)__x
 #define w(__x) ((WORD *)&__x)
 #define w_v(__x) (*w(__x))
-#define reg_a(__cpu) (__cpu)->r.a
-#define reg_b(__cpu) (__cpu)->r.b
-#define reg_c(__cpu) (__cpu)->r.c
-#define reg_bc(__cpu) w_v((__cpu)->r.c)
-#define reg_d(__cpu) (__cpu)->r.d
-#define reg_e(__cpu) (__cpu)->r.e
-#define reg_de(__cpu) w_v((__cpu)->r.e)
-#define reg_h(__cpu) (__cpu)->r.h
-#define reg_l(__cpu) (__cpu)->r.l
-#define reg_hl(__cpu) w_v((__cpu)->r.l)
-#define reg_sp(__cpu) (__cpu)->r.sp
-#define reg_pc(__cpu) (__cpu)->r.pc
-#define b2w(__lsb, __msb) ((WORD)__lsb | (((WORD)__msb)<<8))
 
 typedef struct __attribute__ ((packed)) {
     /*BYTE a;

@@ -4,7 +4,7 @@
 #include "base.h"
 
 /* Memory mapping */
-#define REGION_CHECK(x, lb, ub) (((WORD)(x)>=lb)&&((WORD)(x)<=ub)))
+#define REGION_CHECK(x, lb, ub) (((WORD)(x)>=lb)&&((WORD)(x)<=ub))
 
 #define is_fixed_rom(x) REGION_CHECK(x, 0x0000, 0x3FFF)
 #define is_rom_selector(x) REGION_CHECK(x, 0x2000, 0x3FFF)
@@ -29,6 +29,6 @@ int write_8(WORD, BYTE *, BYTE);
 int write_16(WORD, BYTE *, WORD);
 
 BYTE read_mem(GBState *, WORD);
-BYTE write_mem(GBState *, WORD, BYTE);
+int write_mem(GBState *, WORD, BYTE);
 
 #endif // GB_MEMORY

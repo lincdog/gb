@@ -44,7 +44,7 @@ const WORD irq_addrs[] = {
 void reset_registers(CPUState *cpu) {
     reg_sp(cpu) = 0xFFFE;
     reg_pc(cpu) = 0;
-    
+
     reg_a(cpu) = 1;
     reg_b(cpu) = 0;
     reg_c(cpu) = 0x13;
@@ -149,7 +149,7 @@ static inline void _add_reg_reg(GBState *state) {
 /* Copy data from intermediate store to a register */
 static inline void _write_reg_imm(GBState *state) {
     if (state->cpu->is_16_bit)
-        *(state->cpu->reg_dest) = b2w(state->cpu->data1, state->cpu->data2);
+        *(WORD*)(state->cpu->reg_dest) = b2w(state->cpu->data1, state->cpu->data2);
     else
         *(state->cpu->reg_dest) = state->cpu->data1;
 }
@@ -239,7 +239,7 @@ void cpu_m_cycle(GBState *state) {
     BYTE opcode = cpu->opcode;
     // counter is index into pipeline 
     if (cpu->pipeline[cpu->counter] == NULL) {
-        cpu->counter = 0;
+        reset_pipeline(cpu);
         _fetch_inst(state);
         cpu_setup_pipeline(state, cpu->opcode);
     } else {
@@ -253,7 +253,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
 
     switch (opcode) {
         case 0x00:
-            cpu->pipeline[0] = &_advance_pc;
+            cpu->pipeline[0] = NULL;
             break;
         case 0x01:
             cpu->addr = reg_pc(cpu);

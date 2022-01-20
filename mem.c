@@ -22,9 +22,28 @@ int write_16(WORD addr, BYTE *code, WORD data) {
 }
 
 BYTE read_mem(GBState *state, WORD addr) {
+    if ((addr & 0xFF00)==0xFF00) {
+        return ((BYTE *)state->io_regs)[addr & 0xFF];
+    } else {
+        // TODO: Check PPU status for locks
+        return state->code[addr];
+    }
     return 0;
 }
 
-BYTE write_mem(GBState *state, WORD addr, BYTE data) {
-    return 0;
+int write_mem(GBState *state, WORD addr, BYTE data) {
+    int status;
+
+    if (is_rom(addr)) {
+        status = 0;
+    } else if (is_rom_selector(addr)) {
+        // do rom select
+        status = 2;
+    } else {
+        // TODO: Check PPU etc for locks, other roms
+        state->code[addr] = data;
+        status = 1;
+    }
+
+    return status;
 }

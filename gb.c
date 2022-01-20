@@ -54,9 +54,9 @@ void teardown_gb(GBState *state) {
     free(state);
 }
 
-void main_loop(GBState *state) {
+void main_loop(GBState *state, int n_cycles) {
     int clock = 0;
-    while (1) {
+    while ((n_cycles < 0) || (clock < n_cycles)) {
         if (clock % 4 == 0) {
             cpu_m_cycle(state);
         }
@@ -74,6 +74,12 @@ void main_loop(GBState *state) {
 
 int main(int argc, char *argv[]) {
     GBState *state = initialize_gb();
+    state->code[0] = 0x00;
+    state->code[1] = 0x01;
+    state->code[2] = 0xAD;
+    state->code[3] = 0xDE;
+
+    main_loop(state, 32);
     /*
     FILE *fp;
     fp = fopen("gb-bootroms/bin/dmg.bin", "r");
