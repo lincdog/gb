@@ -97,6 +97,7 @@ typedef struct __attribute__ ((packed)) {
     CPUFlags flags;
 
     enum CPU_STATE state;
+    BYTE changes_flags; // Flag to indicate check_flags should be examined
     CPUFlags check_flags;
     int result; // Result of operation, for flag checks
     BYTE is_16_bit; // Flag to indicate 16 bit store/load

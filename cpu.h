@@ -18,6 +18,27 @@ static char GAMEBOY_LOGO[] = {
     0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
 };
 
+#define reg_a(__cpu) (__cpu)->r.a
+#define reg_b(__cpu) (__cpu)->r.b
+#define reg_c(__cpu) (__cpu)->r.c
+#define reg_bc(__cpu) w_v((__cpu)->r.c)
+#define reg_d(__cpu) (__cpu)->r.d
+#define reg_e(__cpu) (__cpu)->r.e
+#define reg_de(__cpu) w_v((__cpu)->r.e)
+#define reg_h(__cpu) (__cpu)->r.h
+#define reg_l(__cpu) (__cpu)->r.l
+#define reg_hl(__cpu) w_v((__cpu)->r.l)
+#define reg_sp(__cpu) (__cpu)->r.sp
+#define reg_pc(__cpu) (__cpu)->r.pc
+#define b2w(__lsb, __msb) ((WORD)__lsb | (((WORD)__msb)<<8))
+
+#define CHECK_FLAGS(__cpu, __z, __n, __h, __c) \
+    __cpu->changes_flags = 1; \
+    __cpu->check_flags.z = __z; \
+    __cpu->check_flags.n = __n; \
+    __cpu->check_flags.h = __h; \
+    __cpu->check_flags.c = __c;
+
 #define check_half(a, b) ((((a)+(b)) & 0x1F) > 9)
 #define check_carry_16(a, b) (((int)(a) + (int)(b)) > 0xFFFF)
 #define check_carry_8(a, b) (((WORD)(a) + (WORD)(b)) > 0xFF)

@@ -65,7 +65,12 @@ void reset_registers(CPUState *cpu) {
 void reset_pipeline(CPUState *cpu) {
     cpu->state = READY;
     cpu->check_flags = (CPUFlags){
-        CLEAR, CLEAR, CLEAR, CLEAR, CLEAR, 0
+        .z=NOCHANGE, 
+        .n=NOCHANGE, 
+        .h=NOCHANGE, 
+        .c=NOCHANGE, 
+        .ime=NOCHANGE, 
+        .wants_ime=0
     };
     cpu->result = 0;
     cpu->is_16_bit = 0;
@@ -141,13 +146,21 @@ static inline void _add_reg_data1(GBState *state) {
     state->cpu->result = *(state->cpu->reg_dest) + state->cpu->data1;
     *(state->cpu->reg_dest) += state->cpu->data1;
 }
+static inline void _sub_reg_data1(GBState *state) {
+    state->cpu->result = *(state->cpu->reg_dest) - state->cpu->data1;
+    *(state->cpu->reg_dest) -= state->cpu->data1;
+}
 static inline void _add_reg_reg(GBState *state) {
     state->cpu->result = *(state->cpu->reg_dest) + *(state->cpu->reg_src);
     *(state->cpu->reg_dest) += *(state->cpu->reg_src);
 }
+static inline void _sub_reg_reg(GBState *state) {
+    state->cpu->result = *(state->cpu->reg_dest) - *(state->cpu->reg_src);
+    *(state->cpu->reg_dest) -= *(state->cpu->reg_src);
+}
 
 /* Copy data from intermediate store to a register */
-static inline void _write_reg_imm(GBState *state) {
+static inline void _write_reg_data(GBState *state) {
     if (state->cpu->is_16_bit)
         *(WORD*)(state->cpu->reg_dest) = b2w(state->cpu->data1, state->cpu->data2);
     else
@@ -155,8 +168,14 @@ static inline void _write_reg_imm(GBState *state) {
 }
 
 /* Write data from a src register to a memory address */
-static inline void _write_mem(GBState *state) {
+static inline void _write_mem_reg_l(GBState *state) {
     write_mem(state, state->cpu->addr, *(state->cpu->reg_src));
+}
+static inline void _write_mem_reg_h(GBState *state) {
+   write_mem(state, state->cpu->addr, *(state->cpu->reg_src + 1)); 
+}
+static inline void _set_addr_from_data(GBState *state) {
+    state->cpu->addr = b2w(state->cpu->data1, state->cpu->data2);
 }
 /* Read data from src register to intermediate store */
 static inline void _read_reg_l(GBState *state) {
@@ -175,7 +194,7 @@ static inline void _read_mem_h(GBState *state) {
 }
 static inline void _read_mem_h_and_store(GBState *state) {
     _read_mem_h(state);
-    _write_reg_imm(state); 
+    _write_reg_data(state); 
 }
 /* Increment the program counter */
 static inline void _advance_pc(GBState *state) {
@@ -186,7 +205,7 @@ static inline void _decrement_sp(GBState *state) {
 }
 
 static inline void _nop(GBState *state) {
-
+    
 }
 
 static inline void _fetch_inst(GBState *state) {
@@ -237,59 +256,209 @@ void cpu_m_cycle(GBState *state) {
     CPUState *cpu = state->cpu;
     // Make a copy of the pending opcode before fetching the next one
     BYTE opcode = cpu->opcode;
-    // counter is index into pipeline 
+    // counter is index into pipeline; if NULL,
+    // no further actions are queued and we fetch an opcode.
     if (cpu->pipeline[cpu->counter] == NULL) {
+        // Clear the counter, set all func ptrs to NULL, 
+        // clear result, 16 bit flag
         reset_pipeline(cpu);
+        // Read next instructin from memory at current PC location
+        // load it into cpu->opcode and *increment PC*
         _fetch_inst(state);
+        // Set up cycle queue based on this opcode
         cpu_setup_pipeline(state, cpu->opcode);
     } else {
+        // Execute the next cycle step of the current queue
         (*cpu->pipeline[cpu->counter])(state);
+        // Increment the cycle counter
         cpu->counter++;
     }
 }
 
 void cpu_setup_pipeline(GBState *state, BYTE opcode) {
+    /* Fill the CPU cycle queue with function pointers and set 
+    emulator-level flags needed to execute the opcode argument.
+    Note that this is done right after fetching the instruction,
+    in the same "cpu M cycle", but the first pipeline function is 
+    executed in the next cpu M cycle.
+    */
     CPUState *cpu = state->cpu;
 
     switch (opcode) {
         case 0x00:
-            cpu->pipeline[0] = NULL;
+            cpu->pipeline[0] = &_nop;
             break;
         case 0x01:
             cpu->addr = reg_pc(cpu);
             cpu->reg_dest = &reg_bc(cpu);
             cpu->is_16_bit = 1;
             cpu->pipeline[0] = &_read_mem_l;
-            cpu->pipeline[1] = &_read_mem_h_and_store;
-            cpu->pipeline[2] = NULL;
+            cpu->pipeline[1] = &_read_mem_h;
+            cpu->pipeline[2] = &_write_reg_data;
             break;
         case 0x02:
             cpu->addr = reg_bc(cpu);
             cpu->reg_src = &reg_a(cpu);
-            cpu->pipeline[0] = &_write_mem;
-            cpu->pipeline[1] = NULL;
+            cpu->pipeline[0] = &_nop; // TODO use cycle loading BC val to addr
+            cpu->pipeline[1] = &_write_mem_l;
             break;
         case 0x03:
             cpu->reg_dest = &reg_bc(cpu);
             cpu->is_16_bit = 1;
             cpu->data1 = 1;
             
-            cpu->pipeline[0] = &_add_reg_data1;
-            cpu->pipeline[1] = NULL;
+            cpu->pipeline[0] = &_nop;
+            cpu->pipeline[1] = &_add_reg_data1;
             break;
         case 0x04:
-        case 0x05:
-        case 0x06:
-        case 0x07:
-        case 0x08:
-        case 0x09:
-        case 0x0A:
-        case 0x0B:
-        case 0x0C:
-        case 0x0D:
-        case 0x0E:
-        case 0x0F:
+            cpu->reg_dest = &reg_b(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+
+            cpu->pipeline[0] = &_add_reg_data1;
             break;
+        case 0x05:
+            cpu->reg_dest = &reg_b(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, SET, CHECK, NOCHANGE);
+            
+            cpu->pipeline[0] = &_sub_reg_data1;
+            break;
+        case 0x06:
+            cpu->reg_dest = &reg_b(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data;
+            break;
+        case 0x07:
+            cpu->reg_dest = &reg_a(cpu);
+            CHECK_FLAGS(cpu, CLEAR, CLEAR, CLEAR, CHECK);
+            cpu->pipeline[0] = &_rlc_reg;
+            break;
+        case 0x08:
+            cpu->reg_src = &reg_sp(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_read_mem_h;
+            cpu->pipeline[2] = &_set_addr_from_data;
+            cpu->pipeline[3] = &_write_mem_l;
+            cpu->pipeline[4] = &_write_mem_h;
+            break;
+        case 0x09:
+            cpu->reg_dest = &reg_hl(cpu);
+            cpu->reg_src = &reg_bc(cpu);
+            cpu->is_16_bit = 1;
+            CHECK_FLAGS(cpu, NOCHANGE, CLEAR, CHECK, CHECK);
+            cpu->pipeline[0] = &_nop; // TODO Actually do two 8 bit ops?
+            cpu->pipeline[1] = &_add_reg_reg;
+            break;
+        case 0x0A:
+            cpu->reg_dest = &reg_a(cpu);
+            cpu->addr = reg_bc(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_mem_data;
+            break;
+        case 0x0B:
+            cpu->reg_dest = &reg_bc(cpu);
+            cpu->data1 = 1;
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_nop;
+            cpu->pipeline[1] = &_sub_reg_reg;
+            break;
+        case 0x0C:
+            cpu->reg_dest = &reg_c(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+            cpu->pipeline[0] = &_add_reg_data1;
+            break;
+        case 0x0D:
+            cpu->reg_dest = &reg_c(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, SET, CHECK, NOCHANGE);
+            cpu->pipeline[0] = &_sub_reg_data1;
+            break;
+        case 0x0E:
+            cpu->reg_dest = &reg_c(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data;
+            break;
+        case 0x0F:
+            cpu->reg_dest = &reg_a(cpu);
+            cpu->pipeline[0] = &_rr_reg;
+            break;
+        case 0x10:
+            cpu->pipeline[0] = &_do_stop;
+            break;
+        case 0x11:
+            cpu->addr = reg_pc(cpu);
+            cpu->is_16_bit = 1;
+            cpu->reg_dest = &reg_de(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_read_mem_h;
+            cpu->pipeline[2] = &_write_reg_data;
+            break;
+        case 0x12:
+            cpu->addr = reg_de(cpu);
+            cpu->reg_src = &reg_a(cpu);
+            cpu->pipeline[0] = &_nop; // TODO use cycle loading BC val to addr
+            cpu->pipeline[1] = &_write_mem_l;
+            break;
+        case 0x13:
+            cpu->reg_dest = &reg_de(cpu);
+            cpu->is_16_bit = 1;
+            cpu->data1 = 1;
+            cpu->pipeline[0] = &_nop;
+            cpu->pipeline[1] = &_add_reg_data1;
+            break;
+        case 0x14:
+            cpu->reg_dest = &reg_d(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+
+            cpu->pipeline[0] = &_add_reg_data1;
+            break;
+        case 0x15:
+            cpu->reg_dest = &reg_d(cpu);
+            cpu->data1 = 1;
+            CHECK_FLAGS(cpu, CHECK, CLEAR, CHECK, NOCHANGE);
+
+            cpu->pipeline[0] = &_sub_reg_data1;
+            break;
+        case 0x16:
+            cpu->reg_dest = &reg_d(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_write_reg_data;
+            break;
+        case 0x17:
+            cpu->reg_dest = &reg_a(cpu);
+            CHECK_FLAGS(cpu, CLEAR, CLEAR, CLEAR, CHECK);
+            cpu->pipeline[0] = &_rl_reg;
+            break;
+
+        case 0x18:
+            cpu->reg_dest = &reg_pc(cpu);
+            cpu->addr = reg_pc(cpu);
+            cpu->is_16_bit = 1;
+            cpu->pipeline[0] = &_read_mem_l;
+            cpu->pipeline[1] = &_nop;
+            cpu->pipeline[2] = &_add_reg_data_signed;
+            break;
+        case 0x19:
+
+        case 0x1A:
+
+        case 0x1B:
+
+        case 0x1C:
+
+        case 0x1D:
+
+        case 0x1E:
+
+        case 0x1F:
     }
     
 }
