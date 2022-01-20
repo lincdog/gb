@@ -5,9 +5,12 @@
 void execute_prefix_inst(CPUState *, BYTE);
 WORD execute_instruction(CPUState *, BYTE *);
 CPUState *initialize_cpu(void);
+void teardown_cpu(CPUState *);
 void reset_registers(CPUState *);
 void reset_pipeline(CPUState *);
-void print_state_info(CPUState *, char);
+void cpu_m_cycle(GBState *);
+void cpu_setup_pipeline(GBState *, BYTE);
+void print_state_info(GBState *, char);
 
 static char GAMEBOY_LOGO[] = {
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
@@ -91,21 +94,21 @@ static char GAMEBOY_LOGO[] = {
 
 #define CP_8_REG(dest, rsrc) CP_8(dest, state->rsrc);
                         
-#define PUSH_16(data) state->sp -= 2; \
-                      write_16(state->sp, state->code, data); \
+#define PUSH_16(data) state->r.sp -= 2; \
+                      write_16(state->r.sp, state->code, data); \
 
-#define PUSH_8(data) state->sp -= 1; \
-                     write_8(state->sp, state->code, data); \
+#define PUSH_8(data) state->r.sp -= 1; \
+                     write_8(state->r.sp, state->code, data); \
 
-#define POP_8(dest) dest = read_8(state->sp, state->code); \
-                    state->sp += 1;
+#define POP_8(dest) dest = read_8(state->r.sp, state->code); \
+                    state->r.sp += 1;
 
-#define POP_16(dest) dest = read_16(state->sp, state->code); \
-                     state->sp += 2;
+#define POP_16(dest) dest = read_16(state->r.sp, state->code); \
+                     state->r.sp += 2;
 
-#define CALL(dest) PUSH_16(state->pc + 1); return dest; 
+#define CALL(dest) PUSH_16(state->r.pc + 1); return dest; 
 
-#define RET() POP_16(state->pc); return state->pc;
+#define RET() POP_16(state->r.pc); return state->r.pc;
 
 #define L_ROT(data, ...) state->flags.c = (bit_7(data)>>7); \
                     data = ((data << 1) | state->flags.c); \
@@ -164,9 +167,9 @@ static char GAMEBOY_LOGO[] = {
                     state->flags.h = 0; \
                     state->flags.c = 0;
 
-#define OP_ON_HL(OP, ...) scratch = read_8(state->hl.dw, state->code); \
+#define OP_ON_HL(OP, ...) scratch = read_8(dw_v(state->r.l), state->code); \
                     OP(scratch, __VA_ARGS__); \
-                    write_8(state->hl.dw, state->code, scratch); \
+                    write_8(dw_v(state->r.l), state->code, scratch); \
 
 #define ILLEGAL(inst) printf("Illegal instruction %x\n", inst); exit(1);
 

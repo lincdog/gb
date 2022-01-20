@@ -52,32 +52,75 @@ enum PPU_FIFO_STATE {
     PUSH
 };
 
-typedef struct {
-    BYTE z;
-    BYTE n;
-    BYTE h;
-    BYTE c;
-    BYTE ime;
-    BYTE wants_ime;
-} CPUFlags;
+enum CPU_FLAG {
+    CLEAR=0,
+    SET=1,
+    CHECK,
+    NOCHANGE,
+    FLIP
+};
 
 typedef struct {
+    enum CPU_FLAG z;
+    enum CPU_FLAG n;
+    enum CPU_FLAG h;
+    enum CPU_FLAG c;
+    enum CPU_FLAG ime;
+    char wants_ime;
+} CPUFlags;
+
+typedef struct __attribute__ ((packed)) {
     BYTE a;
+    BYTE f;
+    BYTE b;
+    BYTE c;
+    BYTE d;
+    BYTE e;
+    BYTE h;
+    BYTE l;
+    WORD sp;
+    WORD pc;
+} CPURegs;
+
+#define rr(__x) *(WORD *)__x
+#define w(__x) ((WORD *)&__x)
+#define w_v(__x) (*w(__x))
+#define reg_a(__cpu) (__cpu)->r.a
+#define reg_b(__cpu) (__cpu)->r.b
+#define reg_c(__cpu) (__cpu)->r.c
+#define reg_bc(__cpu) w_v((__cpu)->r.c)
+#define reg_d(__cpu) (__cpu)->r.d
+#define reg_e(__cpu) (__cpu)->r.e
+#define reg_de(__cpu) w_v((__cpu)->r.e)
+#define reg_h(__cpu) (__cpu)->r.h
+#define reg_l(__cpu) (__cpu)->r.l
+#define reg_hl(__cpu) w_v((__cpu)->r.l)
+#define reg_sp(__cpu) (__cpu)->r.sp
+#define reg_pc(__cpu) (__cpu)->r.pc
+#define b2w(__lsb, __msb) ((WORD)__lsb | (((WORD)__msb)<<8))
+
+typedef struct __attribute__ ((packed)) {
+    /*BYTE a;
     reg bc;
     reg de;
     reg hl;
     WORD sp;
-    WORD pc;
+    WORD pc;*/
+    CPURegs r;
     CPUFlags flags;
+
     enum CPU_STATE state;
+    CPUFlags check_flags;
+    int result; // Result of operation, for flag checks
+    BYTE is_16_bit; // Flag to indicate 16 bit store/load
     BYTE opcode; // Opcode pending execution
-    BYTE counter; // Pipeline stage counter
     BYTE *reg_dest; // Pointer to destination register
-    BYTE *src; // Pointer to source data
-    reg _data; // 8 or 16 bit data
+    BYTE *reg_src; // Pointer to source data
+    BYTE data1; // 8 bit data (lsb)
+    BYTE data2; // 8 bit data (msb)
     WORD addr; // 16 bit address to read/write from/to
-    BYTE *code;
-    void **pipeline; // List of function pointers
+    BYTE counter; // Pipeline stage counter
+    void (*pipeline[8]) (void *); // List of function pointers
 } CPUState;
 
 typedef struct {
