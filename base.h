@@ -33,7 +33,10 @@ typedef union {
 enum CPU_STATE {
     PREINIT,
     READY,
-    PREFIX
+    PREFIX,
+    INTERRUPT,
+    HALT,
+    STOP
 };
 enum PPU_STATE {
     HBLANK, 
@@ -99,7 +102,7 @@ typedef struct __attribute__ ((packed)) {
     int result; // Result of operation, for flag checks
     BYTE is_16_bit; // Flag to indicate 16 bit store/load
     BYTE opcode; // Opcode pending execution
-    BYTE *reg_dest; // Pointer to destination register
+    BYTE *reg_dest; // Pointer to destination data
     BYTE *reg_src; // Pointer to source data
     BYTE data1; // 8 bit data (lsb)
     BYTE data2; // 8 bit data (msb)
