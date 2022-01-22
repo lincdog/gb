@@ -1487,6 +1487,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[3] = &_write_reg_data;
             break;
         case 0xC4:
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->pipeline[0] = &_read_imm_l;
@@ -1517,6 +1518,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0xC7:
             // RST 00
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->data1 = 0x00;
@@ -1567,6 +1569,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[0] = &_nop;
             break;
         case 0xCC:
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->pipeline[0] = &_read_imm_l;
@@ -1580,12 +1583,15 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             }
             break;
         case 0xCD:
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->pipeline[0] = &_read_imm_l;
             cpu->pipeline[1] = &_read_imm_h;
             cpu->pipeline[2] = &_nop;     
             cpu->pipeline[3] = &_dec_sp_2;
+            // FIXME Can't do this because _read_imm_* overwrite addr
+            // Need special function that uses sp as addr
             cpu->addr = reg_sp(cpu) - 2;
             cpu->pipeline[4] = &_write_mem_reg_16;
             cpu->pipeline[5] = &_write_reg_data;
@@ -1599,6 +1605,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0xCF:
             // RST 08
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->data1 = 0x08;
@@ -1645,6 +1652,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             ILLEGAL_INST(cpu, 0xD3);
             break;
         case 0xD4:
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->pipeline[0] = &_read_imm_l;
@@ -1675,6 +1683,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0xD7:
             // RST 10
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->data1 = 0x10;
@@ -1724,6 +1733,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             ILLEGAL_INST(cpu, 0xDB);
             break;
         case 0xDC:
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->pipeline[0] = &_read_imm_l;
@@ -1748,6 +1758,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0xDF:
             // RST 18
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->data1 = 0x18;
@@ -1804,6 +1815,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0xE7:
             // RST 20
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->data1 = 0x20;
@@ -1855,6 +1867,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0xEF:
             // RST 28
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->data1 = 0x28;
@@ -1917,6 +1930,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0xF7:
             // RST 30
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->data1 = 0x30;
@@ -1969,6 +1983,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0xFF:
             // RST 38
+            cpu->reg_src = &reg_pc(cpu);
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
             cpu->data1 = 0x38;

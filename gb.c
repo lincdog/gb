@@ -38,6 +38,7 @@ void execute_program(CPUState *cpu) {
 GBState *initialize_gb(void) {
     GBState *state = malloc(sizeof(GBState));
     state->cpu = initialize_cpu();
+    state->counter = 0;
 
     BYTE *code = malloc(32767);
     state->code = memset(code, 0, 32767);
@@ -54,11 +55,17 @@ void teardown_gb(GBState *state) {
     free(state);
 }
 
+int _dummy(void) { return 1; }
+
 void main_loop(GBState *state, int n_cycles) {
-    int clock = 0;
-    while ((n_cycles < 0) || (clock < n_cycles)) {
-        if (clock % 4 == 0) {
+    
+    while ((n_cycles < 0) || (state->counter < n_cycles)) {
+        if (state->counter % 4 == 0) {
             cpu_m_cycle(state);
+        }
+
+        if (state->cpu->r.pc > 34) {
+            _dummy();
         }
 
         // check clock % 4; fetch instruction
@@ -66,7 +73,7 @@ void main_loop(GBState *state, int n_cycles) {
         // run PPU code
         // check interrupts
 
-        clock++;
+        state->counter++;
     }
 }
 

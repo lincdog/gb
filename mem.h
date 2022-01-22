@@ -31,4 +31,11 @@ int write_16(WORD, BYTE *, WORD);
 BYTE read_mem(GBState *, WORD);
 int write_mem(GBState *, WORD, BYTE);
 
+typedef struct {
+    char *name;
+    WORD addr;
+    BYTE (*read)(GBState *);
+    BYTE (*write)(GBState *, BYTE);
+} IOReg;
+
 #endif // GB_MEMORY
