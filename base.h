@@ -31,12 +31,9 @@ typedef union {
 } reg;
 
 enum CPU_STATE {
+    PREINIT,
     READY,
-    IM_8_UNSIGNED,
-    IM_8_SIGNED,
-    IM_16_LSB, 
-    IM_16_MSB, 
-    PREFIX,
+    PREFIX
 };
 enum PPU_STATE {
     HBLANK, 

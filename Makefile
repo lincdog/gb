@@ -1,5 +1,5 @@
 CC := gcc
-CFLAGS := -Wall
+CFLAGS := -Wall -Wno-incompatible-function-pointer-types -ferror-limit=2000
 
 all: build video test
 

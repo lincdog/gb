@@ -52,6 +52,7 @@ CYCLE_FUNC(_add_reg_data_signed);
 CYCLE_FUNC(_write_mem_l_inc_dest);
 CYCLE_FUNC(_write_mem_l_dec_dest);
 CYCLE_FUNC(_write_data1_to_dest);
+CYCLE_FUNC(_set_addr_from_data_io);
 
 static char GAMEBOY_LOGO[] = {
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
@@ -84,25 +85,34 @@ static char GAMEBOY_LOGO[] = {
 #define check_carry_16(a, b) (((int)(a) + (int)(b)) > 0xFFFF)
 #define check_carry_8(a, b) (((WORD)(a) + (WORD)(b)) > 0xFF)
 #define check_sub(a, b) ((b) > (a));
+
+BYTE flags_to_byte(CPUState *);
+void set_flags_from_byte(CPUState *, BYTE);
+
 /* NEW instruction macros */
-#define REG_OP(__op, __dest, __src) \
+#define ILLEGAL_INST(__cpu, __inst) \
+    printf("ILLEGAL INSTRUCTION " # __inst "\n"); \
+    __cpu->pipeline[0] = &_nop;
+
+
+#define REG_OP(__cpu, __op, __dest, __src) \
     __cpu->reg_dest = &reg_ ## __dest(__cpu); \
     __cpu->reg_src = &reg_ ## __src(__cpu); \
     __cpu->pipeline[0] = &__op; 
 
-#define OP_REG_HL(__op, __dest) \
+#define OP_REG_HL(__cpu, __op, __dest) \
     __cpu->reg_dest = &reg_ ## __dest(__cpu); \
     __cpu->addr = reg_hl(__cpu); \
     __cpu->pipeline[0] = &_read_mem_l; \
     __cpu->pipeline[1] = &__op; 
 
-#define OP_HL_REG(__op, __src) \
+#define OP_HL_REG(__cpu, __op, __src) \
     __cpu->reg_src = &reg_ ## __src(__cpu); \
     __cpu->addr = reg_hl(__cpu); \
     __cpu->pipeline[0] = &_nop; \
     __cpu->pipeline[1] = &__op;
 
-#define LD_REG(__cpu, __dest, __src) REG_OP(_copy_reg, __dest, __src)
+#define LD_REG(__cpu, __dest, __src) REG_OP(__cpu, _copy_reg, __dest, __src)
 /* \
     __cpu->reg_dest = &reg_ ## __dest(__cpu); \
     __cpu->reg_src = &reg_ ## __src(__cpu); \
@@ -121,53 +131,69 @@ static char GAMEBOY_LOGO[] = {
     __cpu->pipeline[0] = &_nop; \
     __cpu->pipeline[1] = &_write_mem_reg_l;
 
+#define ADD_8_HL(__cpu, __dest) \
+    OP_REG_HL(__cpu, _add_reg_data1, __dest) \
+    CHECK_FLAGS(__cpu, CHECK, CLEAR, CHECK, CHECK);
+
 #define ADD_8_REG(__cpu, __src, __dest) \
-    __cpu->reg_dest = &reg_ ## __src(__cpu); \
-    __cpu->reg_src = &reg_ ## __dest(__cpu); \
-    CHECK_FLAGS(__cpu, CHECK, CLEAR, CHECK, CHECK); \
-    __cpu->pipeline[0] = &_add_reg_reg;
+    REG_OP(__cpu, _add_reg_reg, __src, __dest); \
+    CHECK_FLAGS(__cpu, CHECK, CLEAR, CHECK, CHECK);
+
+#define ADC_8_HL(__cpu, __dest) \
+    OP_REG_HL(__cpu, _adc_reg_data1, __dest) \
+    CHECK_FLAGS(__cpu, CHECK, CLEAR, CHECK, CHECK);
 
 #define ADC_8_REG(__cpu, __src, __dest) \
-    __cpu->reg_dest = &reg_ ## __src(__cpu); \
-    __cpu->reg_src = &reg_ ## __dest(__cpu); \
-    CHECK_FLAGS(__cpu, CHECK, CLEAR, CHECK, CHECK); \
-    __cpu->pipeline[0] = &_adc_reg_reg;
+    REG_OP(__cpu, _adc_reg_reg, __src, __dest); \
+    CHECK_FLAGS(__cpu, CHECK, CLEAR, CHECK, CHECK);
+
+#define SUB_8_HL(__cpu, __dest) \
+    OP_REG_HL(__cpu, _sub_reg_data1, __dest) \
+    CHECK_FLAGS(__cpu, CHECK, SET, CHECK, CHECK);
 
 #define SUB_8_REG(__cpu, __src, __dest) \
-    __cpu->reg_dest = &reg_ ## __src(__cpu); \
-    __cpu->reg_src = &reg_ ## __dest(__cpu); \
-    CHECK_FLAGS(__cpu, CHECK, SET, CHECK, CHECK); \
-    __cpu->pipeline[0] = &_sub_reg_reg;
+    REG_OP(__cpu, _sub_reg_reg, __src, __dest); \
+    CHECK_FLAGS(__cpu, CHECK, SET, CHECK, CHECK);
+
+#define SBC_8_HL(__cpu, __dest) \
+    OP_REG_HL(__cpu, _sbc_reg_data1, __dest) \
+    CHECK_FLAGS(__cpu, CHECK, SET, CHECK, CHECK);
 
 #define SBC_8_REG(__cpu, __src, __dest) \
-    __cpu->reg_dest = &reg_ ## __src(__cpu); \
-    __cpu->reg_src = &reg_ ## __dest(__cpu); \
-    CHECK_FLAGS(__cpu, CHECK, SET, CHECK, CHECK); \
-    __cpu->pipeline[0] = &_sbc_reg_reg;
+    REG_OP(__cpu, _sbc_reg_reg, __src, __dest); \
+    CHECK_FLAGS(__cpu, CHECK, SET, CHECK, CHECK);
+
+#define AND_8_HL(__cpu, __dest) \
+    OP_REG_HL(__cpu, _and_reg_data1, __dest) \
+    CHECK_FLAGS(__cpu, CHECK, CLEAR, SET, CLEAR);
 
 #define AND_8_REG(__cpu, __src, __dest) \
-    __cpu->reg_dest = &reg_ ## __src(__cpu); \
-    __cpu->reg_src = &reg_ ## __dest(__cpu); \
+    REG_OP(__cpu, _and_reg_reg, __src, __dest); \
     CHECK_FLAGS(__cpu, CHECK, CLEAR, SET, CLEAR); \
-    __cpu->pipeline[0] = &_and_reg_reg;
+
+#define OR_8_HL(__cpu, __dest) \
+    OP_REG_HL(__cpu, _or_reg_data1, __dest) \
+    CHECK_FLAGS(__cpu, CHECK, CLEAR, CLEAR, CLEAR);
 
 #define OR_8_REG(__cpu, __src, __dest) \
-    __cpu->reg_dest = &reg_ ## __src(__cpu); \
-    __cpu->reg_src = &reg_ ## __dest(__cpu); \
-    CHECK_FLAGS(__cpu, CHECK, CLEAR, CLEAR, CLEAR); \
-    __cpu->pipeline[0] = &_or_reg_reg;
+    REG_OP(__cpu, _or_reg_reg, __src, __dest); \
+    CHECK_FLAGS(__cpu, CHECK, CLEAR, CLEAR, CLEAR);
+
+#define XOR_8_HL(__cpu, __dest) \
+    OP_REG_HL(__cpu, _xor_reg_data1, __dest) \
+    CHECK_FLAGS(__cpu, CHECK, CLEAR, CLEAR, CLEAR);
 
 #define XOR_8_REG(__cpu, __src, __dest) \
-    __cpu->reg_dest = &reg_ ## __src(__cpu); \
-    __cpu->reg_src = &reg_ ## __dest(__cpu); \
-    CHECK_FLAGS(__cpu, CHECK, CLEAR, CLEAR, CLEAR); \
-    __cpu->pipeline[0] = &_xor_reg_reg;
+    REG_OP(__cpu, _xor_reg_reg, __src, __dest); \
+    CHECK_FLAGS(__cpu, CHECK, CLEAR, CLEAR, CLEAR);
+
+#define ADD_8_HL(__cpu, __dest) \
+    OP_REG_HL(__cpu, _cp_reg_data1, __dest) \
+    CHECK_FLAGS(__cpu, CHECK, SET, CHECK, CHECK);
 
 #define CP_8_REG(__cpu, __src, __dest) \
-    __cpu->reg_dest = &reg_ ## __src(__cpu); \
-    __cpu->reg_src = &reg_ ## __dest(__cpu); \
+    REG_OP(__cpu, _cp_reg_reg, __src, __dest); \
     CHECK_FLAGS(__cpu, CHECK, SET, CHECK, CHECK); \
-    __cpu->pipeline[0] = &_cp_reg_reg;
 
 /* OLD Instruction macros 
 #define INC_8(r) r += 1; \
