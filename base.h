@@ -106,6 +106,7 @@ typedef struct __attribute__ ((packed)) {
     BYTE *reg_src; // Pointer to source data
     BYTE data1; // 8 bit data (lsb)
     BYTE data2; // 8 bit data (msb)
+    int8_t offset;
     WORD addr; // 16 bit address to read/write from/to
     BYTE counter; // Pipeline stage counter
     void (*pipeline[8]) (void *); // List of function pointers

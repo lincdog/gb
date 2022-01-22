@@ -74,19 +74,12 @@ void main_loop(GBState *state, int n_cycles) {
 
 int main(int argc, char *argv[]) {
     GBState *state = initialize_gb();
-    state->code[0] = 0x00;
-    state->code[1] = 0x01;
-    state->code[2] = 0xAD;
-    state->code[3] = 0xDE;
-
-    main_loop(state, 32);
-    /*
+    
     FILE *fp;
     fp = fopen("gb-bootroms/bin/dmg.bin", "r");
 
     int n_read = fread(state->code, 1, 0x100, fp);
-    printf("n read: %d\n",
-        n_read);
+    printf("n read: %d\n", n_read);
     
     for (int i = 0; i < n_read; i++) {
         if (i % 16 == 0) {
@@ -107,8 +100,8 @@ int main(int argc, char *argv[]) {
 
     print_state_info(state, 1);
 
-    execute_program(state);
-    */
+    main_loop(state, -1);
+    
 
     teardown_gb(state);
     return 0;

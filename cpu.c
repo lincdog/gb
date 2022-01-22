@@ -51,7 +51,7 @@ void reset_registers(CPUState *cpu) {
 }
 
 void reset_pipeline(CPUState *cpu) {
-    cpu->state = READY;
+    //cpu->state = READY;
     cpu->check_flags = (CPUFlags){
         .z=NOCHANGE, 
         .n=NOCHANGE, 
@@ -68,6 +68,7 @@ void reset_pipeline(CPUState *cpu) {
     cpu->reg_src = NULL;
     cpu->data1 = 0;
     cpu->data2 = 0;
+    cpu->offset = 0;
 
     cpu->addr = reg_pc(cpu);
     cpu->counter = 0;
@@ -513,10 +514,10 @@ CYCLE_FUNC(_set_pc_from_data) {
 }
 CYCLE_FUNC(_add_reg_signed_data) {
     state->cpu->result = *(WORD*)(state->cpu->reg_dest) 
-        + (signed)state->cpu->data1; 
+        + (signed)state->cpu->offset; 
     state->cpu->is_16_bit = 1;
     _check_flags(state);
-    *(WORD*)(state->cpu->reg_dest) += (signed)state->cpu->data1;
+    *(WORD*)(state->cpu->reg_dest) += (signed)state->cpu->offset;
 }
 CYCLE_FUNC(_inc_hl) {
     reg_hl(state->cpu)++;
@@ -539,14 +540,19 @@ CYCLE_FUNC(_do_halt) {
 CYCLE_FUNC(_do_stop) {
     state->cpu->state = STOP;
 }
+CYCLE_FUNC(_read_imm_offset) {
+    state->cpu->addr = reg_pc(state->cpu);
+    state->cpu->offset = (signed)read_mem(state, state->cpu->addr);
+    reg_pc(state->cpu)++;
+}
 CYCLE_FUNC(_read_imm_l) {
     state->cpu->addr = reg_pc(state->cpu);
-    _read_mem_l(state);
+    state->cpu->data1 = read_mem(state, state->cpu->addr);
     reg_pc(state->cpu)++;
 }
 CYCLE_FUNC(_read_imm_h) {
     state->cpu->addr = reg_pc(state->cpu);
-    _read_mem_h(state);
+    state->cpu->data2 = read_mem(state, state->cpu->addr);
     reg_pc(state->cpu)++;
 }
 
@@ -611,13 +617,14 @@ are no further pipelined actions after this.
 */
 void cpu_m_cycle(GBState *state) {
     CPUState *cpu = state->cpu;
-    enum CPU_STATE cpu_state = cpu->state;
 
-    if (cpu_state != PREINIT) {
+    if (cpu->state != PREINIT) {
         // Execute the next cycle step of the current queue
         (*cpu->pipeline[cpu->counter])(state);
         // Increment the cycle counter
         cpu->counter++;
+    } else {
+        cpu->state = READY;
     }
 
     if (cpu->flags.wants_ime == 2) {
@@ -638,11 +645,12 @@ void cpu_m_cycle(GBState *state) {
         // Read next instruction from memory at current PC location
         // load it into cpu->opcode and *increment PC*
         _fetch_inst(state);
-        if (cpu_state == READY) {
+        if (cpu->state == READY) {
             // Set up cycle queue based on this opcode
             cpu_setup_pipeline(state, cpu->opcode);
-        } else if (cpu_state == PREFIX) {
+        } else if (cpu->state == PREFIX) {
             cpu_setup_prefix_pipeline(state, cpu->opcode);
+            cpu->state = READY;
         }
     } 
 }
@@ -801,7 +809,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0x18:
             cpu->reg_dest = &reg_pc(cpu);
-            cpu->pipeline[0] = &_read_imm_l;
+            cpu->pipeline[0] = &_read_imm_offset;
             cpu->pipeline[1] = &_nop;
             cpu->pipeline[2] = &_add_reg_signed_data;
             break;
@@ -851,7 +859,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             // Conditional jump: JR NZ
             cpu->reg_dest = &reg_pc(cpu);
             cpu->is_16_bit = 1;
-            cpu->pipeline[0] = &_read_imm_l;
+            cpu->pipeline[0] = &_read_imm_offset;
             cpu->pipeline[1] = &_nop;
             if (cpu->flags.z == CLEAR) {
                 cpu->pipeline[2] = &_add_reg_signed_data;
@@ -902,7 +910,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0x28:
             cpu->reg_dest = &reg_pc(cpu);
-            cpu->pipeline[0] = &_read_imm_l;
+            cpu->pipeline[0] = &_read_imm_offset;
             cpu->pipeline[1] = &_nop;
             if (cpu->flags.z == SET) {
                 cpu->pipeline[2] = &_add_reg_signed_data;
@@ -952,7 +960,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0x30:
             cpu->reg_dest = &reg_pc(cpu);
-            cpu->pipeline[0] = &_read_imm_l;
+            cpu->pipeline[0] = &_read_imm_offset;
             cpu->pipeline[1] = &_nop;
             if (cpu->flags.c == CLEAR) {
                 cpu->pipeline[2] = &_add_reg_signed_data;
@@ -1008,7 +1016,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0x38:
             cpu->reg_dest = &reg_pc(cpu);
-            cpu->pipeline[0] = &_read_imm_l;
+            cpu->pipeline[0] = &_read_imm_offset;
             cpu->pipeline[1] = &_nop;
             if (cpu->flags.c == SET) {
                 cpu->pipeline[2] = &_add_reg_signed_data;
@@ -1810,7 +1818,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             // ADD SP, r8
             // 4 cycles
             cpu->reg_dest = &reg_sp(cpu);
-            cpu->pipeline[0] = &_read_imm_l;
+            cpu->pipeline[0] = &_read_imm_offset;
             CHECK_FLAGS(cpu, CLEAR, CLEAR, CHECK, CHECK);
             cpu->pipeline[1] = &_nop;
             cpu->pipeline[2] = &_nop;
@@ -1924,7 +1932,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->reg_src = &reg_sp(cpu);
             cpu->is_16_bit = 1;
             CHECK_FLAGS(cpu, CLEAR, CLEAR, CHECK, CHECK);
-            cpu->pipeline[0] = &_read_imm_l;
+            cpu->pipeline[0] = &_read_imm_offset;
             cpu->pipeline[1] = &_copy_reg_16;
             cpu->pipeline[2] = &_add_reg_signed_data;
             break;
