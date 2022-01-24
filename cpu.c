@@ -808,10 +808,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[0] = &_rl_reg;
             break;
         case 0x18:
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->pipeline[0] = &_read_imm_offset;
-            cpu->pipeline[1] = &_nop;
-            cpu->pipeline[2] = &_add_reg_signed_data;
+            COND_REL_JMP(cpu, 1);
             break;
        case 0x19:
             cpu->reg_dest = &reg_hl(cpu);
@@ -857,13 +854,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break; 
         case 0x20:
             // Conditional jump: JR NZ
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->is_16_bit = 1;
-            cpu->pipeline[0] = &_read_imm_offset;
-            cpu->pipeline[1] = &_nop;
-            if (cpu->flags.z == CLEAR) {
-                cpu->pipeline[2] = &_add_reg_signed_data;
-            }
+            COND_REL_JMP(cpu, cpu->flags.z == CLEAR);
             break;
          case 0x21:
             cpu->is_16_bit = 1;
@@ -909,12 +900,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[0] = &_do_da;
             break;
         case 0x28:
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->pipeline[0] = &_read_imm_offset;
-            cpu->pipeline[1] = &_nop;
-            if (cpu->flags.z == SET) {
-                cpu->pipeline[2] = &_add_reg_signed_data;
-            }
+            COND_REL_JMP(cpu, cpu->flags.z == SET);
             break; 
         case 0x29:
             cpu->reg_dest = &reg_hl(cpu);
@@ -959,12 +945,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[0] = &_do_cpl;
             break;
         case 0x30:
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->pipeline[0] = &_read_imm_offset;
-            cpu->pipeline[1] = &_nop;
-            if (cpu->flags.c == CLEAR) {
-                cpu->pipeline[2] = &_add_reg_signed_data;
-            }
+            COND_REL_JMP(cpu, cpu->flags.c == CLEAR);
             break;
         case 0x31:
             cpu->is_16_bit = 1;
@@ -1015,12 +996,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[0] = &_check_flags;
             break;
         case 0x38:
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->pipeline[0] = &_read_imm_offset;
-            cpu->pipeline[1] = &_nop;
-            if (cpu->flags.c == SET) {
-                cpu->pipeline[2] = &_add_reg_signed_data;
-            }
+            COND_REL_JMP(cpu, cpu->flags.c == SET);
             break; 
         case 0x39:
             cpu->reg_dest = &reg_hl(cpu);
@@ -1458,22 +1434,10 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[2] = &_inc_sp_2;
             break;
         case 0xC2:
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->is_16_bit = 1;
-            cpu->pipeline[0] = &_read_imm_l;
-            cpu->pipeline[1] = &_read_imm_h;
-            cpu->pipeline[2] = &_nop;
-            if (cpu->flags.z == CLEAR) {
-                cpu->pipeline[3] = &_write_reg_data;
-            }
+            COND_ABS_JMP(cpu, cpu->flags.z == CLEAR);
             break;
         case 0xC3:
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->is_16_bit = 1;
-            cpu->pipeline[0] = &_read_imm_l;
-            cpu->pipeline[1] = &_read_imm_h;
-            cpu->pipeline[2] = &_nop;
-            cpu->pipeline[3] = &_write_reg_data;
+            COND_ABS_JMP(cpu, 1);
             break;
         case 0xC4:
             CONDITIONAL_CALL(cpu, cpu->flags.z == CLEAR);
@@ -1505,14 +1469,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             CONDITIONAL_RET(cpu, 1);
             break;
         case 0xCA:
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->is_16_bit = 1;
-            cpu->pipeline[0] = &_read_imm_l;
-            cpu->pipeline[1] = &_read_imm_h;
-            cpu->pipeline[2] = &_nop;
-            if (cpu->flags.z == SET) {
-                cpu->pipeline[3] = &_write_reg_data;
-            }
+            COND_ABS_JMP(cpu, cpu->flags.z == SET);
             break; 
         case 0xCB:
             //PREFIX
@@ -1548,14 +1505,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[2] = &_inc_sp_2;
             break;
         case 0xD2:
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->is_16_bit = 1;
-            cpu->pipeline[0] = &_read_imm_l;
-            cpu->pipeline[1] = &_read_imm_h;
-            cpu->pipeline[2] = &_nop;
-            if (cpu->flags.c == CLEAR) {
-                cpu->pipeline[3] = &_write_reg_data;
-            }
+            COND_ABS_JMP(cpu, cpu->flags.c == CLEAR);
             break; 
         case 0xD3:
             ILLEGAL_INST(cpu, 0xD3);
@@ -1597,14 +1547,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[3] = &_inc_sp_2_enable_ints;
             break;
         case 0xDA:
-            cpu->reg_dest = &reg_pc(cpu);
-            cpu->is_16_bit = 1;
-            cpu->pipeline[0] = &_read_imm_l;
-            cpu->pipeline[1] = &_read_imm_h;
-            cpu->pipeline[2] = &_nop;
-            if (cpu->flags.c == SET) {
-                cpu->pipeline[3] = &_write_reg_data;
-            }
+            COND_ABS_JMP(cpu, cpu->flags.c == SET);
             break;  
         case 0xDB:
             ILLEGAL_INST(cpu, 0xDB);

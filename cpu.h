@@ -2,8 +2,6 @@
 #define GB_CPU
 #include "base.h"
 
-void execute_prefix_inst(CPUState *, BYTE);
-WORD execute_instruction(CPUState *, BYTE *);
 CPUState *initialize_cpu(void);
 void teardown_cpu(CPUState *);
 void reset_registers(CPUState *);
@@ -245,7 +243,25 @@ void set_flags_from_byte(CPUState *, BYTE);
     } else { \
         __cpu->pipeline[1] = &_nop; \
     }
-    
+
+#define COND_REL_JMP(__cpu, __condition) \
+    __cpu->reg_dest = &reg_pc(__cpu); \
+    __cpu->is_16_bit = 1; \
+    __cpu->pipeline[0] = &_nop; \
+    __cpu->pipeline[1] = &_read_imm_offset; \
+    if (__condition) { \
+        __cpu->pipeline[2] = &_add_reg_signed_data; \
+    }
+
+#define COND_ABS_JMP(__cpu, __condition) \
+    __cpu->reg_dest = &reg_pc(__cpu); \
+    __cpu->is_16_bit = 1; \
+    __cpu->pipeline[0] = &_nop; \
+    __cpu->pipeline[1] = &_read_imm_l; \
+    __cpu->pipeline[2] = &_read_imm_h; \
+    if (__condition) { \
+        __cpu->pipeline[3] = &_write_reg_data; \
+    }
 /* OLD INSTRUCTION MACROS
 #define CP_8_REG(dest, rsrc) CP_8(dest, state->rsrc);
                         
