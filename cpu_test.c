@@ -51,14 +51,15 @@ typedef struct {
 void test_instruction(CPUTestState *tstate) {
     int failure = 0;
 
+    
     printf("Testing opcode %02x", tstate->opcode[0]);
     if (tstate->opcode_length == 2) {
         printf(" [%02x]", tstate->opcode[1]);
     } else if (tstate->opcode_length == 3) {
         printf(" [%02x %02x]", tstate->opcode[1], tstate->opcode[2]);
     }
-    printf("\n----------------\n");
-
+    printf("\n");
+    
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
 
@@ -130,7 +131,7 @@ void stage_test(
     int n_m_cycles, 
     int opcode_length
 ) {
-    if (op0 == 0x36)
+    if (op0 == 0xCB && op1 == 0x06)
         _test_dummy();
 
     tstate->opcode_length = opcode_length;
@@ -155,8 +156,8 @@ void stage_test(
     else
         tstate->covered_opcodes[tstate->n_tests++] = op0;
 
-    memset(&tstate->test_state->code[MEM_CHECK_START], 0, MEM_CHECK_SIZE);
-    memset(&tstate->post_state->code[MEM_CHECK_START], 0, MEM_CHECK_SIZE);
+    memset(tstate->test_state->code, 0xFF, 0x10000);
+    memset(tstate->post_state->code, 0xFF, 0x10000);
 
     for (int i = 0; i < tstate->opcode_length; i++) {
         tstate->test_state->code[i] = tstate->opcode[i];
@@ -178,164 +179,6 @@ post state, to which the test state is compared after executing the cycles. */
     __post->flags.h = __h; \
     __post->flags.c = __c;
 
-#define TEST_RLC(op, dest) STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001001; \
-                            post_state->dest = 0b00010011; \
-                            SET_ZNHC(0, 0, 0, 1); \
-                            RUN_TEST_NONJMP(2); \
-                            STAGE_PREFIX(op); \
-                            test_state->dest = 0b01000000; \
-                            post_state->dest = 0b10000000; \
-                            SET_ZNHC(0, 0, 0, 0); \
-                            RUN_TEST_NONJMP(2);
-
-#define TEST_RL(op, dest) STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001001; \
-                            test_state->flags.c = 1; \
-                            post_state->dest = 0b00010011; \
-                            SET_ZNHC(0, 0, 0, 1); \
-                            RUN_TEST_NONJMP(2); \
-                            STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001001; \
-                            test_state->flags.c = 0; \
-                            post_state->dest = 0b00010010; \
-                            SET_ZNHC(0, 0, 0, 1); \
-                            RUN_TEST_NONJMP(2); \
-                            STAGE_PREFIX(op); \
-                            test_state->dest = 0b00001001; \
-                            test_state->flags.c = 1; \
-                            post_state->dest = 0b00010011; \
-                            SET_ZNHC(0, 0, 0, 0); \
-                            RUN_TEST_NONJMP(2);
-
-#define TEST_RRC(op, dest) STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001001; \
-                            post_state->dest = 0b11000100; \
-                            SET_ZNHC(0, 0, 0, 1); \
-                            RUN_TEST_NONJMP(2); \
-                            STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001000; \
-                            post_state->dest = 0b01000100; \
-                            SET_ZNHC(0, 0, 0, 0); \
-                            RUN_TEST_NONJMP(2); 
-
-#define TEST_RR(op, dest) STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001000; \
-                            test_state->flags.c = 1; \
-                            post_state->dest = 0b11000100; \
-                            SET_ZNHC(0, 0, 0, 0); \
-                            RUN_TEST_NONJMP(2); \
-                            STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001001; \
-                            test_state->flags.c = 1; \
-                            post_state->dest = 0b11000100; \
-                            SET_ZNHC(0, 0, 0, 1); \
-                            RUN_TEST_NONJMP(2); 
-
-#define TEST_SLA(op, dest) STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001001; \
-                            post_state->dest = 0b00010010; \
-                            SET_ZNHC(0, 0, 0, 1); \
-                            RUN_TEST_NONJMP(2); \
-                            STAGE_PREFIX(op); \
-                            test_state->dest = 0b01001100; \
-                            post_state->dest = 0b10011000; \
-                            SET_ZNHC(0, 0, 0, 0); \
-                            RUN_TEST_NONJMP(2);
-
-#define TEST_SRA(op, dest) STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001011; \
-                            post_state->dest = 0b11000101; \
-                            SET_ZNHC(0, 0, 0, 1); \
-                            RUN_TEST_NONJMP(2); \
-                            STAGE_PREFIX(op); \
-                            test_state->dest = 0b00011000; \
-                            post_state->dest = 0b00001100; \
-                            SET_ZNHC(0, 0, 0, 0); \
-                            RUN_TEST_NONJMP(2);
-
-#define TEST_SRL(op, dest) STAGE_PREFIX(op); \
-                            test_state->dest = 0b10001011; \
-                            post_state->dest = 0b01000101; \
-                            SET_ZNHC(0, 0, 0, 1); \
-                            RUN_TEST_NONJMP(2); \
-                            STAGE_PREFIX(op); \
-                            test_state->dest = 0b00011000; \
-                            post_state->dest = 0b00001100; \
-                            SET_ZNHC(0, 0, 0, 0); \
-                            RUN_TEST_NONJMP(2);
-
-#define TEST_SWAP(op, dest) STAGE_PREFIX(op); \
-                            test_state->dest = 0b10011111; \
-                            post_state->dest = 0b11111001; \
-                            SET_ZNHC(0, 0, 0, 0); \
-                            RUN_TEST_NONJMP(2);
-
-#define TEST_BIT_N(op, dest, __n) STAGE_PREFIX(op); \
-                                    test_state->dest = (1 << __n); \
-                                    post_state->dest = (1 << __n); \
-                                    SET_ZNHC(0, 0, 1, 0); \
-                                    RUN_TEST_NONJMP(2); \
-                                    STAGE_PREFIX(op); \
-                                    test_state->dest = (0xFF - (1 << __n)); \
-                                    post_state->dest = (0xFF - (1 << __n)); \
-                                    SET_ZNHC(1, 0, 1, 0); \
-                                    RUN_TEST_NONJMP(2);
-
-#define TEST_BIT_0(op, dest) TEST_BIT_N(op, dest, 0)
-#define TEST_BIT_1(op, dest) TEST_BIT_N(op, dest, 1)
-#define TEST_BIT_2(op, dest) TEST_BIT_N(op, dest, 2)
-#define TEST_BIT_3(op, dest) TEST_BIT_N(op, dest, 3)
-#define TEST_BIT_4(op, dest) TEST_BIT_N(op, dest, 4)
-#define TEST_BIT_5(op, dest) TEST_BIT_N(op, dest, 5)
-#define TEST_BIT_6(op, dest) TEST_BIT_N(op, dest, 6)
-#define TEST_BIT_7(op, dest) TEST_BIT_N(op, dest, 7)
-
-#define TEST_RES_N(op, dest, __n) STAGE_PREFIX(op); \
-                                    test_state->dest = 0b11111111; \
-                                    post_state->dest = 0b11111111 - (1 << __n); \
-                                    RUN_TEST_NONJMP(2); \
-                                    STAGE_PREFIX(op); \
-                                    test_state->dest = 0; \
-                                    post_state->dest = 0; \
-                                    RUN_TEST_NONJMP(2);
-
-#define TEST_RES_0(op, dest) TEST_RES_N(op, dest, 0)
-#define TEST_RES_1(op, dest) TEST_RES_N(op, dest, 1)
-#define TEST_RES_2(op, dest) TEST_RES_N(op, dest, 2)
-#define TEST_RES_3(op, dest) TEST_RES_N(op, dest, 3)
-#define TEST_RES_4(op, dest) TEST_RES_N(op, dest, 4)
-#define TEST_RES_5(op, dest) TEST_RES_N(op, dest, 5)
-#define TEST_RES_6(op, dest) TEST_RES_N(op, dest, 6)
-#define TEST_RES_7(op, dest) TEST_RES_N(op, dest, 7)
-
-#define TEST_SET_N(op, dest, __n) STAGE_PREFIX(op); \
-                                    test_state->dest = 0; \
-                                    post_state->dest = (1 << __n); \
-                                    RUN_TEST_NONJMP(2); \
-                                    STAGE_PREFIX(op); \
-                                    test_state->dest = 0b11111111; \
-                                    post_state->dest = 0b11111111; \
-                                    RUN_TEST_NONJMP(2);
-
-#define TEST_SET_0(op, dest) TEST_SET_N(op, dest, 0)
-#define TEST_SET_1(op, dest) TEST_SET_N(op, dest, 1)
-#define TEST_SET_2(op, dest) TEST_SET_N(op, dest, 2)
-#define TEST_SET_3(op, dest) TEST_SET_N(op, dest, 3)
-#define TEST_SET_4(op, dest) TEST_SET_N(op, dest, 4)
-#define TEST_SET_5(op, dest) TEST_SET_N(op, dest, 5)
-#define TEST_SET_6(op, dest) TEST_SET_N(op, dest, 6)
-#define TEST_SET_7(op, dest) TEST_SET_N(op, dest, 7)
-                             
-
-#define TEST_ADD_16(op, src, dest, ...) STAGE_TEST(op, 0, 0); \
-                                        test_state->dest = 0x0108;\
-                                        test_state->src = 0x0204; \
-                                        post_state->dest = 0x108; \
-                                        post_state->src = 0x0204; \
-                                        post_state->dest += post_state->src; \
-                                        SET_ZNHC(0, 0, check_half(post_state->dest, 0), 0); \
-                                        RUN_TEST_NONJMP(1);
 
 CPUTestState *initialize_cpu_tests(GBState *test_state, GBState *post_state) {
 
@@ -1195,6 +1038,579 @@ void run_math_reg_8(CPUTestState *tstate) {
     BYTE *test_mem = tstate->test_state->code;
     BYTE *post_mem = tstate->post_state->code;
 
+    /* Row 1: ADD, ADC */
+    DO_TEST(tstate, 0x80, 0x00, 0x00, 1, 1,
+        reg_b(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_b(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6C;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x80, 0x00, 0x00, 1, 1,
+        reg_b(test_cpu) = 0xEE;
+        reg_a(test_cpu) = 0x12;
+        reg_b(post_cpu) = 0xEE;
+        reg_a(post_cpu) = 0x00;
+        SET_ZNHC(post_cpu, SET, CLEAR, CLEAR, SET);
+    )
+    DO_TEST(tstate, 0x81, 0x00, 0x00, 1, 1,
+        reg_c(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_c(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6C;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x82, 0x00, 0x00, 1, 1,
+        reg_d(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_d(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6C;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x83, 0x00, 0x00, 1, 1,
+        reg_e(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_e(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6C;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x84, 0x00, 0x00, 1, 1,
+        reg_h(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_h(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6C;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x85, 0x00, 0x00, 1, 1,
+        reg_l(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_l(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6C;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x86, 0x00, 0x00, 1, 2,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x11;
+        reg_a(test_cpu) = 0x3A;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x11;
+        reg_a(post_cpu) = 0x4B;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x87, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x3A;
+        reg_a(post_cpu) = 0x74;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x88, 0x00, 0x00, 1, 1,
+        reg_b(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_b(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6C;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x88, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_b(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_b(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6D;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x89, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_c(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_c(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6D;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x8A, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_d(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_d(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6D;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x8B, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_e(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_e(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6D;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x8C, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_h(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_h(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6D;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x8D, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_l(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_l(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x6D;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x8E, 0x00, 0x00, 1, 2,
+        test_cpu->flags.c = SET;
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x11;
+        reg_a(test_cpu) = 0x3A;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x11;
+        reg_a(post_cpu) = 0x4C;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0x8F, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_a(test_cpu) = 0x3A;
+        reg_a(post_cpu) = 0x75;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+
+    /* Row 2: SUB, SBC */
+    DO_TEST(tstate, 0x90, 0x00, 0x00, 1, 1,
+        reg_b(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_b(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x08;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x90, 0x00, 0x00, 1, 1,
+        reg_b(test_cpu) = 0xEE;
+        reg_a(test_cpu) = 0x12;
+        reg_b(post_cpu) = 0xEE;
+        reg_a(post_cpu) = 0x24;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, SET);
+    )
+    DO_TEST(tstate, 0x91, 0x00, 0x00, 1, 1,
+        reg_c(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_c(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x08;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x92, 0x00, 0x00, 1, 1,
+        reg_d(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_d(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x08;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x93, 0x00, 0x00, 1, 1,
+        reg_e(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_e(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x08;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x94, 0x00, 0x00, 1, 1,
+        reg_h(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_h(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x08;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x95, 0x00, 0x00, 1, 1,
+        reg_l(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_l(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x08;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x96, 0x00, 0x00, 1, 2,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x11;
+        reg_a(test_cpu) = 0x3A;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x11;
+        reg_a(post_cpu) = 0x29;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x97, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x3A;
+        reg_a(post_cpu) = 0x0;
+        SET_ZNHC(post_cpu, SET, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x98, 0x00, 0x00, 1, 1,
+        reg_b(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_b(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x08;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x98, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_b(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_b(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x07;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x99, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_c(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_c(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x07;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x9A, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_d(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_d(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x07;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x9B, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_e(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_e(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x07;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x9C, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_h(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_h(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x07;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x9D, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_l(test_cpu) = 0x32;
+        reg_a(test_cpu) = 0x3A;
+        reg_l(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x07;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x9E, 0x00, 0x00, 1, 2,
+        test_cpu->flags.c = SET;
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x11;
+        reg_a(test_cpu) = 0x3A;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x11;
+        reg_a(post_cpu) = 0x28;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0x9F, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_a(test_cpu) = 0x3A;
+        reg_a(post_cpu) = 0xFF;
+        SET_ZNHC(post_cpu, CLEAR, SET, SET, SET);
+    ); 
+    DO_TEST(tstate, 0x9F, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x3A;
+        reg_a(post_cpu) = 0x00;
+        SET_ZNHC(post_cpu, SET, SET, CLEAR, CLEAR);
+    ); 
+
+    /* Row 3: AND, XOR */
+
+    DO_TEST(tstate, 0xA0, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xFB;
+        reg_b(test_cpu) = 0x0F;
+        reg_b(post_cpu) = 0x0F;
+        reg_a(post_cpu) = 0x0B;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xA1, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xFB;
+        reg_c(test_cpu) = 0x0F;
+        reg_c(post_cpu) = 0x0F;
+        reg_a(post_cpu) = 0x0B;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xA2, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xFB;
+        reg_d(test_cpu) = 0x0F;
+        reg_d(post_cpu) = 0x0F;
+        reg_a(post_cpu) = 0x0B;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xA3, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xFB;
+        reg_e(test_cpu) = 0x0F;
+        reg_e(post_cpu) = 0x0F;
+        reg_a(post_cpu) = 0x0B;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xA4, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xFB;
+        reg_h(test_cpu) = 0x0F;
+        reg_h(post_cpu) = 0x0F;
+        reg_a(post_cpu) = 0x0B;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xA5, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xFB;
+        reg_l(test_cpu) = 0x0F;
+        reg_l(post_cpu) = 0x0F;
+        reg_a(post_cpu) = 0x0B;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xA6, 0x00, 0x00, 1, 2,
+        reg_a(test_cpu) = 0xFB;
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0xF0;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0xF0;
+        reg_a(post_cpu) = 0xF0;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xA7, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xFB;
+        reg_a(post_cpu) = 0xFB;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xA8, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xAA;
+        reg_b(test_cpu) = 0x55;
+        reg_b(post_cpu) = 0x55;
+        reg_a(post_cpu) = 0xFF;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xA9, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xAA;
+        reg_c(test_cpu) = 0x55;
+        reg_c(post_cpu) = 0x55;
+        reg_a(post_cpu) = 0xFF;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xAA, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xAA;
+        reg_d(test_cpu) = 0x55;
+        reg_d(post_cpu) = 0x55;
+        reg_a(post_cpu) = 0xFF;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xAB, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xAA;
+        reg_e(test_cpu) = 0x55;
+        reg_e(post_cpu) = 0x55;
+        reg_a(post_cpu) = 0xFF;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xAC, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xAA;
+        reg_h(test_cpu) = 0x55;
+        reg_h(post_cpu) = 0x55;
+        reg_a(post_cpu) = 0xFF;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xAD, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xAA;
+        reg_l(test_cpu) = 0x55;
+        reg_l(post_cpu) = 0x55;
+        reg_a(post_cpu) = 0xFF;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xAE, 0x00, 0x00, 1, 2,
+        reg_a(test_cpu) = 0xAA;
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x55;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x55;
+        reg_a(post_cpu) = 0xFF;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xAF, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xAA;
+        reg_a(post_cpu) = 0x00;
+        SET_ZNHC(post_cpu, SET, CLEAR, CLEAR, CLEAR);
+    );
+
+    /* Row 3: OR and CP */
+    DO_TEST(tstate, 0xB0, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_b(test_cpu) = 0x32;
+        reg_b(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x33;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xB1, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_c(test_cpu) = 0x32;
+        reg_c(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x33;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xB2, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_d(test_cpu) = 0x32;
+        reg_d(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x33;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xB3, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_e(test_cpu) = 0x32;
+        reg_e(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x33;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xB4, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_h(test_cpu) = 0x32;
+        reg_h(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x33;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xB5, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_l(test_cpu) = 0x32;
+        reg_l(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x33;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xB6, 0x00, 0x00, 1, 2,
+        reg_a(test_cpu) = 0x03;
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x32;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x32;
+        reg_a(post_cpu) = 0x33;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xB7, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xB8, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_b(test_cpu) = 0x32;
+        reg_b(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xB9, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_c(test_cpu) = 0x32;
+        reg_c(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xBA, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_d(test_cpu) = 0x32;
+        reg_d(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xBB, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_e(test_cpu) = 0x32;
+        reg_e(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xBC, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_h(test_cpu) = 0x32;
+        reg_h(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xBD, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_l(test_cpu) = 0x32;
+        reg_l(post_cpu) = 0x32;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xBE, 0x00, 0x00, 1, 2,
+        reg_a(test_cpu) = 0x03;
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x32;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x32;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xBF, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, SET, SET, CLEAR, CLEAR);
+    );
+}
+
+void run_math_imm_8(CPUTestState *tstate) {
+    CPUState *test_cpu = tstate->test_cpu;
+    CPUState *post_cpu = tstate->post_cpu;
+    BYTE *test_mem = tstate->test_state->code;
+    BYTE *post_mem = tstate->post_state->code; 
+
+    /* ADD d8 */
+    DO_TEST(tstate, 0xC6, 0x10, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x10;
+        reg_a(post_cpu) = 0x20;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    /* SUB d8 */
+    DO_TEST(tstate, 0xD6, 0x10, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x10;
+        reg_a(post_cpu) = 0x00;
+        SET_ZNHC(post_cpu, SET, SET, CLEAR, CLEAR);
+    );
+    /* AND d8 */
+    DO_TEST(tstate, 0xE6, 0xF, 0x00, 2, 2,
+        reg_a(test_cpu) = 0b10011100;
+        reg_a(post_cpu) = 0b00001100;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    /* OR d8 */
+    DO_TEST(tstate, 0xF6, 0xF0, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x0E;
+        reg_a(post_cpu) = 0xFE;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    /* ADC d8 */
+    DO_TEST(tstate, 0xCE, 0x10, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x10;
+        reg_a(post_cpu) = 0x20;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCE, 0x10, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x10;
+        test_cpu->flags.c = SET;
+        reg_a(post_cpu) = 0x21;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    /* SBC d8 */
+    DO_TEST(tstate, 0xDE, 0x10, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x20;
+        reg_a(post_cpu) = 0x10;
+        SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xDE, 0x10, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x20;
+        test_cpu->flags.c = SET;
+        reg_a(post_cpu) = 0x0F;
+        SET_ZNHC(post_cpu, CLEAR, SET, SET, CLEAR);
+    );
+    /* XOR d8 */
+    DO_TEST(tstate, 0xEE, 0xF, 0x00, 2, 2,
+        reg_a(test_cpu) = 0b10011100;
+        reg_a(post_cpu) = 0b10010011;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    /* CP d8 */
+    DO_TEST(tstate, 0xFE, 0xF0, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x0E;
+        reg_a(post_cpu) = 0x0E;
+        SET_ZNHC(post_cpu, CLEAR, SET, SET, SET);
+    );
 }
 
 void run_push_reg_16(CPUTestState *tstate) {
@@ -1553,17 +1969,201 @@ void run_call(CPUTestState *tstate) {
 
 }
 
-
-
-void run_tests(CPUTestState *tstate) {
+void run_ioreg_ops(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
     BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *post_mem = tstate->post_state->code; 
+
+    // LDH (a8), A
+    DO_TEST(tstate, 0xE0, 0x10, 0x00, 2, 3,
+        reg_a(test_cpu) = 0xDE;
+        reg_a(post_cpu) = 0xDE;
+        post_mem[0xFF10] = 0xDE;
+    );
+    // LD (C), A
+    DO_TEST(tstate, 0xE2, 0x00, 0x00, 1, 2,
+        reg_a(test_cpu) = 0xDE;
+        reg_a(post_cpu) = 0xDE;
+        reg_c(test_cpu) = 0x12;
+        reg_c(post_cpu) = 0x12;
+        post_mem[0xFF12] = 0xDE;
+    );
+    // LDH A, (a8)
+    DO_TEST(tstate, 0xF0, 0x10, 0x00, 2, 3,
+        reg_a(test_cpu) = 0xBE;
+        test_mem[0xFF10] = 0xDE;
+        post_mem[0xFF10] = 0xDE;
+        reg_a(post_cpu) = 0xDE;
+    );
+    // LD A, (C)
+    DO_TEST(tstate, 0xF2, 0x00, 0x00, 1, 2,
+        reg_a(test_cpu) = 0xBE;
+        reg_c(test_cpu) = 0x12;
+        test_mem[0xFF12] = 0xDE;
+        post_mem[0xFF12] = 0xDE;
+        reg_c(post_cpu) = 0x12;
+        reg_a(post_cpu) = 0xDE;
+    );
+}
+
+void run_misc(CPUTestState *tstate) {
+    CPUState *test_cpu = tstate->test_cpu;
+    CPUState *post_cpu = tstate->post_cpu;
+    BYTE *test_mem = tstate->test_state->code;
+    BYTE *post_mem = tstate->post_state->code; 
 
     /* NOP */
     DO_TEST(tstate, 0x00, 0x00, 0x00, 1, 1, );
+    /* LD (a16), SP */
+    DO_TEST(tstate, 0x08, 0x10, 0x80, 3, 5,
+        reg_sp(test_cpu) = 0xDEAD;
+        reg_sp(post_cpu) = 0xDEAD;
+        post_mem[0x8010] = 0xAD;
+        post_mem[0x8011] = 0xDE;
+    );
+    /* DI and EI */
+    DO_TEST(tstate, 0xF3, 0x00, 0x00, 1, 1,
+        test_cpu->flags.ime = SET;
+        post_cpu->flags.ime = CLEAR;
+    );
+    DO_TEST(tstate, 0xFB, 0x00, 0x00, 1, 1,
+        test_cpu->flags.ime = CLEAR;
+        post_cpu->flags.wants_ime = 1;
+    );
+    
+    /* ADD SP, r8 */
+    DO_TEST(tstate, 0xE8, 0x11, 0x00, 2, 4,
+        reg_sp(test_cpu) = 0xFFF0;
+        reg_sp(post_cpu) = 0x01;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xE8, -32, 0x00, 2, 4,
+        reg_sp(test_cpu) = 0xFFF0;
+        reg_sp(post_cpu) = 0xFFD0;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    /* LD HL, SP + r8 */
+    DO_TEST(tstate, 0xF8, 0x11, 0x00, 2, 3,
+        reg_sp(test_cpu) = 0xFFF0;
+        reg_hl(test_cpu) = 0xDEAD;
+        reg_sp(post_cpu) = 0xFFF0;
+        reg_hl(post_cpu) = 0x0001;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xF8, -32, 0x00, 2, 3,
+        reg_sp(test_cpu) = 0xFFF0;
+        reg_hl(test_cpu) = 0xDEAD;
+        reg_sp(post_cpu) = 0xFFF0;
+        reg_hl(post_cpu) = 0xFFD0;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    /* LD SP, HL */
+    DO_TEST(tstate, 0xF9, 0x00, 0x00, 1, 2,
+        reg_hl(test_cpu) = 0xDEAD;
+        reg_hl(post_cpu) = 0xDEAD;
+        reg_sp(post_cpu) = 0xDEAD;
+    );
 
+    /* LD (a16), A */
+    DO_TEST(tstate, 0xEA, 0x10, 0x80, 3, 4,
+        reg_a(test_cpu) = 0xDE;
+        reg_a(post_cpu) = 0xDE;
+        post_mem[0x8010] = 0xDE;
+    );
+    /* LD A, (a16) */
+    DO_TEST(tstate, 0xFA, 0x10, 0x80, 3, 4,
+        reg_a(test_cpu) = 0xBE;
+        test_mem[0x8010] = 0xDE;
+        post_mem[0x8010] = 0xDE;
+        reg_a(post_cpu) = 0xDE;
+    );
+
+    /* SCF */
+    DO_TEST(tstate, 0x37, 0x00, 0x00, 1, 1,
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+
+    /* CPL */
+    DO_TEST(tstate, 0x2F, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0b01101001;
+        SET_ZNHC(post_cpu, CLEAR, SET, SET, CLEAR);
+        reg_a(post_cpu) = 0b10010110;
+    )
+
+    /* CCF */
+    DO_TEST(tstate, 0x3F, 0x00, 0x00, 1, 1,
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0x3F, 0x00, 0x00, 1, 1,
+        SET_ZNHC(test_cpu, CLEAR, SET, SET, CLEAR);
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+
+    /* RLCA */
+    DO_TEST(tstate, 0x07, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xBC;
+        reg_a(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0x07, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x7C;
+        reg_a(post_cpu) = 0xF8;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+
+    /* RLA */
+    DO_TEST(tstate, 0x17, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0xBC;
+        reg_a(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0x17, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_a(test_cpu) = 0xBC;
+        reg_a(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0x17, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_a(test_cpu) = 0x7C;
+        reg_a(post_cpu) = 0xF9;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+
+    /* RRCA */
+    DO_TEST(tstate, 0x0F, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x74;
+        reg_a(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR)
+    );
+    DO_TEST(tstate, 0x0F, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x75;
+        reg_a(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+
+    /* RRA */
+    DO_TEST(tstate, 0x1F, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x74;
+        reg_a(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR)
+    );
+    DO_TEST(tstate, 0x1F, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x75;
+        reg_a(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    ); 
+    DO_TEST(tstate, 0x1F, 0x00, 0x00, 1, 1,
+        test_cpu->flags.c = SET;
+        reg_a(test_cpu) = 0x74;
+        reg_a(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+}
+
+void run_tests(CPUTestState *tstate) {
+    
     /* LD <R16>, d16 */
     run_ld_16_imm(tstate);
     /* LD (<R16>), A */
@@ -1574,14 +2174,6 @@ void run_tests(CPUTestState *tstate) {
     run_inc_dec_r8(tstate);
     /* LD <r8/HL>, d8 */
     run_ld_imm8(tstate);
-
-    /* LD (a16), SP */
-    DO_TEST(tstate, 0x08, 0x10, 0x80, 3, 5,
-        reg_sp(test_cpu) = 0xDEAD;
-        reg_sp(post_cpu) = 0xDEAD;
-        post_mem[0x8010] = 0xAD;
-        post_mem[0x8011] = 0xDE;
-    );
 
     /* ADD HL, <r16> */
     run_add_hl_r16(tstate);
@@ -1596,6 +2188,8 @@ void run_tests(CPUTestState *tstate) {
     run_ld_reg_8(tstate);
     /* 8 Bit non-prefix bitwise/math operations */
     run_math_reg_8(tstate);
+    /* 8 Bit immediate value bitwise/math operations */
+    run_math_imm_8(tstate);
 
     /* Push 16 bit reg instructions */
     run_push_reg_16(tstate);
@@ -1605,18 +2199,676 @@ void run_tests(CPUTestState *tstate) {
     run_call(tstate);
     /* Return instructions */
     run_ret(tstate);
+    /* LDH operations, act on IO registers at 0xFF00-0xFF7F */
+    run_ioreg_ops(tstate);
 
-    /* DI and EI */
-    DO_TEST(tstate, 0xF3, 0x00, 0x00, 1, 1,
-        test_cpu->flags.ime = SET;
-        post_cpu->flags.ime = CLEAR;
+    /* Miscellaneous instructions */
+    run_misc(tstate);
+
+}
+void run_prefix_row0(CPUTestState *tstate) {
+    CPUState *test_cpu = tstate->test_cpu;
+    CPUState *post_cpu = tstate->post_cpu;
+    BYTE *test_mem = tstate->test_state->code;
+    BYTE *post_mem = tstate->post_state->code; 
+
+    DO_TEST(tstate, 0xCB, 0x00, 0x00, 2, 2,
+        reg_b(test_cpu) = 0xBC;
+        reg_b(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
     );
-    DO_TEST(tstate, 0xFB, 0x00, 0x00, 1, 1,
-        test_cpu->flags.ime = CLEAR;
-        post_cpu->flags.wants_ime = 1;
+    DO_TEST(tstate, 0xCB, 0x00, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x7C;
+        reg_b(post_cpu) = 0xF8;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
     );
+    DO_TEST(tstate, 0xCB, 0x01, 0x00, 2, 2,
+        reg_c(test_cpu) = 0xBC;
+        reg_c(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x02, 0x00, 2, 2,
+        reg_d(test_cpu) = 0xBC;
+        reg_d(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x03, 0x00, 2, 2,
+        reg_e(test_cpu) = 0xBC;
+        reg_e(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x04, 0x00, 2, 2,
+        reg_h(test_cpu) = 0xBC;
+        reg_h(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x05, 0x00, 2, 2,
+        reg_l(test_cpu) = 0xBC;
+        reg_l(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x06, 0x00, 2, 4,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0xBC;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x07, 0x00, 2, 2,
+        reg_a(test_cpu) = 0xBC;
+        reg_a(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x08, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x74;
+        reg_b(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR)
+    );
+    DO_TEST(tstate, 0xCB, 0x08, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x75;
+        reg_b(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x09, 0x00, 2, 2,
+        reg_c(test_cpu) = 0x75;
+        reg_c(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x0A, 0x00, 2, 2,
+        reg_d(test_cpu) = 0x75;
+        reg_d(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x0B, 0x00, 2, 2,
+        reg_e(test_cpu) = 0x75;
+        reg_e(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x0C, 0x00, 2, 2,
+        reg_h(test_cpu) = 0x75;
+        reg_h(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x0D, 0x00, 2, 2,
+        reg_l(test_cpu) = 0x75;
+        reg_l(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x0E, 0x00, 2, 4,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x75;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x0F, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x75;
+        reg_a(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+}
+
+void run_prefix_row1(CPUTestState *tstate) {
+    CPUState *test_cpu = tstate->test_cpu;
+    CPUState *post_cpu = tstate->post_cpu;
+    BYTE *test_mem = tstate->test_state->code;
+    BYTE *post_mem = tstate->post_state->code;
+
+    DO_TEST(tstate, 0xCB, 0x10, 0x00, 2, 2,
+        reg_b(test_cpu) = 0xBC;
+        reg_b(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+     DO_TEST(tstate, 0xCB, 0x10, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_b(test_cpu) = 0xBC;
+        reg_b(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x10, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_b(test_cpu) = 0x3C;
+        reg_b(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x11, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_c(test_cpu) = 0x3C;
+        reg_c(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x12, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_d(test_cpu) = 0x3C;
+        reg_d(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x13, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_e(test_cpu) = 0x3C;
+        reg_e(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x14, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_h(test_cpu) = 0x3C;
+        reg_h(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x15, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_l(test_cpu) = 0x3C;
+        reg_l(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x16, 0x00, 2, 4,
+        test_cpu->flags.c = SET;
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x3C;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x17, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_a(test_cpu) = 0x3C;
+        reg_a(post_cpu) = 0x79;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x18, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x74;
+        reg_b(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR)
+    );
+    DO_TEST(tstate, 0xCB, 0x18, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x75;
+        reg_b(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x18, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_b(test_cpu) = 0x74;
+        reg_b(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x19, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_c(test_cpu) = 0x74;
+        reg_c(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x1A, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_d(test_cpu) = 0x74;
+        reg_d(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x1B, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_e(test_cpu) = 0x74;
+        reg_e(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x1C, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_h(test_cpu) = 0x74;
+        reg_h(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x1D, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_l(test_cpu) = 0x74;
+        reg_l(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x1E, 0x00, 2, 4,
+        test_cpu->flags.c = SET;
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x74;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x1F, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_a(test_cpu) = 0x74;
+        reg_a(post_cpu) = 0xBA;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+}
+
+void run_prefix_row2(CPUTestState *tstate) {
+    CPUState *test_cpu = tstate->test_cpu;
+    CPUState *post_cpu = tstate->post_cpu;
+    BYTE *test_mem = tstate->test_state->code;
+    BYTE *post_mem = tstate->post_state->code;
+
+    DO_TEST(tstate, 0xCB, 0x20, 0x00, 2, 2,
+        reg_b(test_cpu) = 0xBC;
+        reg_b(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+     DO_TEST(tstate, 0xCB, 0x20, 0x00, 2, 2,
+        test_cpu->flags.c = SET;
+        reg_b(test_cpu) = 0xBC;
+        reg_b(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xCB, 0x20, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x3C;
+        reg_b(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x21, 0x00, 2, 2,
+        reg_c(test_cpu) = 0x3C;
+        reg_c(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x22, 0x00, 2, 2,
+        reg_d(test_cpu) = 0x3C;
+        reg_d(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x23, 0x00, 2, 2,
+        reg_e(test_cpu) = 0x3C;
+        reg_e(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x24, 0x00, 2, 2,
+        reg_h(test_cpu) = 0x3C;
+        reg_h(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x25, 0x00, 2, 2,
+        reg_l(test_cpu) = 0x3C;
+        reg_l(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x26, 0x00, 2, 4,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x3C;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x27, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x3C;
+        reg_a(post_cpu) = 0x78;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x28, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x74;
+        reg_b(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR)
+    );
+    DO_TEST(tstate, 0xCB, 0x28, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x75;
+        reg_b(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x28, 0x00, 2, 2,
+        reg_b(test_cpu) = 0xA4;
+        reg_b(post_cpu) = 0xD2;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x29, 0x00, 2, 2,
+        reg_c(test_cpu) = 0xA4;
+        reg_c(post_cpu) = 0xD2;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x2A, 0x00, 2, 2,
+        reg_d(test_cpu) = 0xA4;
+        reg_d(post_cpu) = 0xD2;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x2B, 0x00, 2, 2,
+        reg_e(test_cpu) = 0xA4;
+        reg_e(post_cpu) = 0xD2;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x2C, 0x00, 2, 2,
+        reg_h(test_cpu) = 0xA4;
+        reg_h(post_cpu) = 0xD2;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x2D, 0x00, 2, 2,
+        reg_l(test_cpu) = 0xA4;
+        reg_l(post_cpu) = 0xD2;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x2E, 0x00, 2, 4,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0xA4;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0xD2;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x2F, 0x00, 2, 2,
+        reg_a(test_cpu) = 0xA4;
+        reg_a(post_cpu) = 0xD2;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+}
+
+void run_prefix_row3(CPUTestState *tstate) {
+    CPUState *test_cpu = tstate->test_cpu;
+    CPUState *post_cpu = tstate->post_cpu;
+    BYTE *test_mem = tstate->test_state->code;
+    BYTE *post_mem = tstate->post_state->code;
+
+    DO_TEST(tstate, 0xCB, 0x30, 0x00, 2, 2,
+        reg_b(test_cpu) = 0xBC;
+        reg_b(post_cpu) = 0xCB;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x30, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x3C;
+        reg_b(post_cpu) = 0xC3;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x31, 0x00, 2, 2,
+        reg_c(test_cpu) = 0x3C;
+        reg_c(post_cpu) = 0xC3;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x32, 0x00, 2, 2,
+        reg_d(test_cpu) = 0x3C;
+        reg_d(post_cpu) = 0xC3;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x33, 0x00, 2, 2,
+        reg_e(test_cpu) = 0x3C;
+        reg_e(post_cpu) = 0xC3;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x34, 0x00, 2, 2,
+        reg_h(test_cpu) = 0x3C;
+        reg_h(post_cpu) = 0xC3;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x35, 0x00, 2, 2,
+        reg_l(test_cpu) = 0x3C;
+        reg_l(post_cpu) = 0xC3;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x36, 0x00, 2, 4,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0x3C;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0xC3;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x37, 0x00, 2, 2,
+        reg_a(test_cpu) = 0x3C;
+        reg_a(post_cpu) = 0xC3;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, 0x38, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x74;
+        reg_b(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR)
+    );
+    DO_TEST(tstate, 0xCB, 0x38, 0x00, 2, 2,
+        reg_b(test_cpu) = 0x75;
+        reg_b(post_cpu) = 0x3A;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, SET);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x38, 0x00, 2, 2,
+        reg_b(test_cpu) = 0xA4;
+        reg_b(post_cpu) = 0x52;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x39, 0x00, 2, 2,
+        reg_c(test_cpu) = 0xA4;
+        reg_c(post_cpu) = 0x52;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x3A, 0x00, 2, 2,
+        reg_d(test_cpu) = 0xA4;
+        reg_d(post_cpu) = 0x52;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x3B, 0x00, 2, 2,
+        reg_e(test_cpu) = 0xA4;
+        reg_e(post_cpu) = 0x52;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x3C, 0x00, 2, 2,
+        reg_h(test_cpu) = 0xA4;
+        reg_h(post_cpu) = 0x52;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x3D, 0x00, 2, 2,
+        reg_l(test_cpu) = 0xA4;
+        reg_l(post_cpu) = 0x52;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x3E, 0x00, 2, 4,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0xA4;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0x52;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+    DO_TEST(tstate, 0xCB, 0x3F, 0x00, 2, 2,
+        reg_a(test_cpu) = 0xA4;
+        reg_a(post_cpu) = 0x52;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, CLEAR, CLEAR);
+    ); 
+}
+
+void run_prefix_bit_tests(CPUTestState *tstate, BYTE op_base) {
+    CPUState *test_cpu = tstate->test_cpu;
+    CPUState *post_cpu = tstate->post_cpu;
+    BYTE *test_mem = tstate->test_state->code;
+    BYTE *post_mem = tstate->post_state->code;
     
+    op_base &= 0xF8;
+    BYTE offset = ((op_base & 0x30) >> 3) + ((bit_3(op_base)>>3)==1);
 
+    BYTE test_bit_zero, test_bit_one;
+    test_bit_zero = 0xFF - (1 << offset);
+    test_bit_one = 1 << offset;
+
+    DO_TEST(tstate, 0xCB, op_base, 0x00, 2, 2,
+        reg_b(test_cpu) = test_bit_zero;
+        reg_b(post_cpu) = test_bit_zero;
+        SET_ZNHC(post_cpu, SET, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, op_base, 0x00, 2, 2,
+        reg_b(test_cpu) = test_bit_one;
+        reg_b(post_cpu) = test_bit_one;
+        SET_ZNHC(post_cpu, CLEAR, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, op_base+1, 0x00, 2, 2,
+        reg_c(test_cpu) = test_bit_zero;
+        reg_c(post_cpu) = test_bit_zero;
+        SET_ZNHC(post_cpu, SET, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, op_base+2, 0x00, 2, 2,
+        reg_d(test_cpu) = test_bit_zero;
+        reg_d(post_cpu) = test_bit_zero;
+        SET_ZNHC(post_cpu, SET, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, op_base+3, 0x00, 2, 2,
+        reg_e(test_cpu) = test_bit_zero;
+        reg_e(post_cpu) = test_bit_zero;
+        SET_ZNHC(post_cpu, SET, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, op_base+4, 0x00, 2, 2,
+        reg_h(test_cpu) = test_bit_zero;
+        reg_h(post_cpu) = test_bit_zero;
+        SET_ZNHC(post_cpu, SET, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, op_base+5, 0x00, 2, 2,
+        reg_l(test_cpu) = test_bit_zero;
+        reg_l(post_cpu) = test_bit_zero;
+        SET_ZNHC(post_cpu, SET, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, op_base+6, 0x00, 2, 3,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = test_bit_zero;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = test_bit_zero;
+        SET_ZNHC(post_cpu, SET, CLEAR, SET, CLEAR);
+    );
+    DO_TEST(tstate, 0xCB, op_base+7, 0x00, 2, 2,
+        reg_a(test_cpu) = test_bit_zero;
+        reg_a(post_cpu) = test_bit_zero;
+        SET_ZNHC(post_cpu, SET, CLEAR, SET, CLEAR);
+    );
+}
+
+void run_prefix_bit_resets(CPUTestState *tstate, BYTE op_base) {
+    CPUState *test_cpu = tstate->test_cpu;
+    CPUState *post_cpu = tstate->post_cpu;
+    BYTE *test_mem = tstate->test_state->code;
+    BYTE *post_mem = tstate->post_state->code;
+
+    // zero last three bits, round to nearest 8
+    op_base &= 0xF8;
+
+    BYTE offset =  ((op_base & 0x30)>>3) + ((bit_3(op_base)>>3)==1);
+
+    BYTE res_bit_zero, res_bit_one;
+    res_bit_zero = 0xFF - (1 << offset);
+    res_bit_one = 1 << offset;
+
+    DO_TEST(tstate, 0xCB, op_base, 0x00, 2, 2,
+        reg_b(test_cpu) = 0xFF;
+        reg_b(post_cpu) = res_bit_zero;
+    );
+    DO_TEST(tstate, 0xCB, op_base, 0x00, 2, 2,
+        reg_b(test_cpu) = res_bit_zero;
+        reg_b(post_cpu) = res_bit_zero;
+    );
+    DO_TEST(tstate, 0xCB, op_base, 0x00, 2, 2,
+        reg_b(test_cpu) = res_bit_one;
+        reg_b(post_cpu) = 0;
+    );
+    DO_TEST(tstate, 0xCB, op_base+1, 0x00, 2, 2,
+        reg_c(test_cpu) = 0xFF;
+        reg_c(post_cpu) = res_bit_zero;
+    );
+    DO_TEST(tstate, 0xCB, op_base+2, 0x00, 2, 2,
+        reg_d(test_cpu) = 0xFF;
+        reg_d(post_cpu) = res_bit_zero;
+    );
+    DO_TEST(tstate, 0xCB, op_base+3, 0x00, 2, 2,
+        reg_e(test_cpu) = 0xFF;
+        reg_e(post_cpu) = res_bit_zero;
+    );
+    DO_TEST(tstate, 0xCB, op_base+4, 0x00, 2, 2,
+        reg_h(test_cpu) = 0xFF;
+        reg_h(post_cpu) = res_bit_zero;
+    );
+    DO_TEST(tstate, 0xCB, op_base+5, 0x00, 2, 2,
+        reg_l(test_cpu) = 0xFF;
+        reg_l(post_cpu) = res_bit_zero;
+    );
+    DO_TEST(tstate, 0xCB, op_base+6, 0x00, 2, 4,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = 0xFF;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = res_bit_zero;
+    );
+    DO_TEST(tstate, 0xCB, op_base+7, 0x00, 2, 2,
+        reg_a(test_cpu) = 0xFF;
+        reg_a(post_cpu) = res_bit_zero;
+    );
+}
+
+void run_prefix_bit_sets(CPUTestState *tstate, BYTE op_base) {
+    CPUState *test_cpu = tstate->test_cpu;
+    CPUState *post_cpu = tstate->post_cpu;
+    BYTE *test_mem = tstate->test_state->code;
+    BYTE *post_mem = tstate->post_state->code;
+
+    // zero last three bits, round to nearest 8
+    op_base &= 0xF8;
+
+    BYTE offset = ((op_base & 0x30)>>3) + ((bit_3(op_base)>>3)==1);
+
+    BYTE set_bit_zero, set_bit_one;
+    set_bit_zero = 0xFF - (1 << offset);
+    set_bit_one = 1 << offset;
+
+    DO_TEST(tstate, 0xCB, op_base, 0x00, 2, 2,
+        reg_b(test_cpu) = 0xFF;
+        reg_b(post_cpu) = 0xFF;
+    );
+    DO_TEST(tstate, 0xCB, op_base, 0x00, 2, 2,
+        reg_b(test_cpu) = set_bit_zero;
+        reg_b(post_cpu) = 0xFF;
+    );
+    DO_TEST(tstate, 0xCB, op_base, 0x00, 2, 2,
+        reg_b(test_cpu) = set_bit_one;
+        reg_b(post_cpu) = set_bit_one;
+    );
+    DO_TEST(tstate, 0xCB, op_base+1, 0x00, 2, 2,
+        reg_c(test_cpu) = set_bit_zero;
+        reg_c(post_cpu) = 0xFF;
+    );
+    DO_TEST(tstate, 0xCB, op_base+2, 0x00, 2, 2,
+        reg_d(test_cpu) = set_bit_zero;
+        reg_d(post_cpu) = 0xFF;
+    );
+    DO_TEST(tstate, 0xCB, op_base+3, 0x00, 2, 2,
+        reg_e(test_cpu) = set_bit_zero;
+        reg_e(post_cpu) = 0xFF;
+    );
+    DO_TEST(tstate, 0xCB, op_base+4, 0x00, 2, 2,
+        reg_h(test_cpu) = set_bit_zero;
+        reg_h(post_cpu) = 0xFF;
+    );
+    DO_TEST(tstate, 0xCB, op_base+5, 0x00, 2, 2,
+        reg_l(test_cpu) = set_bit_zero;
+        reg_l(post_cpu) = 0xFF;
+    );
+    DO_TEST(tstate, 0xCB, op_base+6, 0x00, 2, 4,
+        reg_hl(test_cpu) = 0x8010;
+        test_mem[0x8010] = set_bit_zero;
+        reg_hl(post_cpu) = 0x8010;
+        post_mem[0x8010] = 0xFF;
+    );
+    DO_TEST(tstate, 0xCB, op_base+7, 0x00, 2, 2,
+        reg_a(test_cpu) = set_bit_zero;
+        reg_a(post_cpu) = 0xFF;
+    );
+}
+
+void run_prefix_tests(CPUTestState *tstate) {
+    run_prefix_row0(tstate);
+    run_prefix_row1(tstate);
+    run_prefix_row2(tstate);
+    run_prefix_row3(tstate);
+
+    run_prefix_bit_tests(tstate, 0x40);
+    run_prefix_bit_tests(tstate, 0x48);
+    run_prefix_bit_tests(tstate, 0x50);
+    run_prefix_bit_tests(tstate, 0x58);
+    run_prefix_bit_tests(tstate, 0x60);
+    run_prefix_bit_tests(tstate, 0x68);
+    run_prefix_bit_tests(tstate, 0x70);
+    run_prefix_bit_tests(tstate, 0x78);
+    
+    run_prefix_bit_resets(tstate, 0x80);
+    run_prefix_bit_resets(tstate, 0x88);
+    run_prefix_bit_resets(tstate, 0x90);
+    run_prefix_bit_resets(tstate, 0x98);
+    run_prefix_bit_resets(tstate, 0xA0);
+    run_prefix_bit_resets(tstate, 0xA8);
+    run_prefix_bit_resets(tstate, 0xB0);
+    run_prefix_bit_resets(tstate, 0xB8);
+
+    run_prefix_bit_sets(tstate, 0xC0);
+    run_prefix_bit_sets(tstate, 0xC8);
+    run_prefix_bit_sets(tstate, 0xD0);
+    run_prefix_bit_sets(tstate, 0xD8);
+    run_prefix_bit_sets(tstate, 0xE0);
+    run_prefix_bit_sets(tstate, 0xE8);
+    run_prefix_bit_sets(tstate, 0xF0);
+    run_prefix_bit_sets(tstate, 0xF8);
 }
 
 void print_test_status(CPUTestState *tstate) {
@@ -1659,85 +2911,12 @@ int main(void) {
     CPUTestState *tstate = initialize_cpu_tests(test_state, post_state);
 
     run_tests(tstate);
+    run_prefix_tests(tstate);
     print_test_status(tstate);
 
     teardown_cpu_tests(tstate);
     teardown_gb(test_state);
     teardown_gb(post_state);
     
-    /*
-    RUN_TEST_NONJMP(1);
-
-    TEST_16REGS(0x01, TEST_LD_IMM_16);
-    TEST_16REGS(0x03, TEST_PM_16, 1);
-    TEST_PM_8(0x04, bc.w.h, 1);
-    TEST_PM_8(0x05, bc.w.h, -1);
-    TEST_PM_8(0x0C, bc.w.l, 1);
-    TEST_PM_8(0x0D, bc.w.l, -1);
-
-    TEST_16REGS(0x0B, TEST_PM_16, -1);
-    TEST_16REGS(0x09, TEST_ADD_16, hl.dw);
-
-    TEST_PM_8(0x14, de.w.h, 1);
-    TEST_PM_8(0x15, de.w.h, -1);
-    TEST_PM_8(0x1C, de.w.l, 1);
-    TEST_PM_8(0x1D, de.w.l, -1);
-
-    // 8 bit loads row 1
-    TEST_LD_8REGS(0x40, bc.w.h, TEST_LD_8);
-    TEST_LD_8REGS(0x48, bc.w.l, TEST_LD_8);
-    
-    // 8 bit loads row 2 
-    TEST_LD_8REGS(0x50, de.w.h, TEST_LD_8);
-    TEST_LD_8REGS(0x58, de.w.l, TEST_LD_8);
-
-    // 8 bit loads row 3
-    TEST_LD_8REGS(0x60, hl.w.h, TEST_LD_8);
-    TEST_LD_8REGS(0x68, hl.w.l, TEST_LD_8);
-    
-    // 8 bit loads row 4
-    TEST_LD_8REGS(0x78, a, TEST_LD_8);
-    
-    // Prefix instructions
-    TEST_OP_8REGS(0x00, TEST_RLC);
-    TEST_OP_8REGS(0x08, TEST_RRC);
-
-    TEST_OP_8REGS(0x10, TEST_RL);
-    TEST_OP_8REGS(0x18, TEST_RR);
-
-    TEST_OP_8REGS(0x20, TEST_SLA);
-    TEST_OP_8REGS(0x28, TEST_SRA);
-
-    TEST_OP_8REGS(0x30, TEST_SWAP);
-    TEST_OP_8REGS(0x38, TEST_SRL);
-
-    TEST_OP_8REGS(0x40, TEST_BIT_0);
-    TEST_OP_8REGS(0x48, TEST_BIT_1);
-    TEST_OP_8REGS(0x50, TEST_BIT_2);
-    TEST_OP_8REGS(0x58, TEST_BIT_3);
-    TEST_OP_8REGS(0x60, TEST_BIT_4);
-    TEST_OP_8REGS(0x68, TEST_BIT_5);
-    TEST_OP_8REGS(0x70, TEST_BIT_6);
-    TEST_OP_8REGS(0x78, TEST_BIT_7);
-
-    TEST_OP_8REGS(0x80, TEST_RES_0);
-    TEST_OP_8REGS(0x88, TEST_RES_1);
-    TEST_OP_8REGS(0x90, TEST_RES_2);
-    TEST_OP_8REGS(0x98, TEST_RES_3);
-    TEST_OP_8REGS(0xA0, TEST_RES_4);
-    TEST_OP_8REGS(0xA8, TEST_RES_5);
-    TEST_OP_8REGS(0xB0, TEST_RES_6);
-    TEST_OP_8REGS(0xB8, TEST_RES_7);
-
-    TEST_OP_8REGS(0xC0, TEST_SET_0);
-    TEST_OP_8REGS(0xC8, TEST_SET_1);
-    TEST_OP_8REGS(0xD0, TEST_SET_2);
-    TEST_OP_8REGS(0xD8, TEST_SET_3);
-    TEST_OP_8REGS(0xE0, TEST_SET_4);
-    TEST_OP_8REGS(0xE8, TEST_SET_5);
-    TEST_OP_8REGS(0xF0, TEST_SET_6);
-    TEST_OP_8REGS(0xF8, TEST_SET_7);
-    // End prefix instructions
-    */
     return 0;
 }

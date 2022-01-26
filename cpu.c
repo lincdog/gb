@@ -41,11 +41,11 @@ void reset_registers(CPUState *cpu) {
     reg_h(cpu) = 0x01;
     reg_l(cpu) = 0x4D;
 
-    cpu->flags.z = 0;
-    cpu->flags.n = 0;
-    cpu->flags.h = 0;
-    cpu->flags.z = 0;
-    cpu->flags.ime = 0;
+    cpu->flags.z = CLEAR;
+    cpu->flags.n = CLEAR;
+    cpu->flags.h = CLEAR;
+    cpu->flags.c = CLEAR;
+    cpu->flags.ime = CLEAR;
     cpu->flags.wants_ime = 0;
 
 }
@@ -582,7 +582,10 @@ CYCLE_FUNC(_check_flags) {
     if (chk_flags.z == SET || chk_flags.z == CLEAR) {
         cpu->flags.z = chk_flags.z;
     } else if (chk_flags.z == CHECK) {
-        cpu->flags.z = (cpu->result == 0) ? SET : CLEAR;
+        if (cpu->is_16_bit)
+            cpu->flags.z = ((cpu->result & 0xFFFF) == 0) ? SET : CLEAR;
+        else
+            cpu->flags.z = ((cpu->result & 0xFF) == 0) ? SET : CLEAR;
     } else if (chk_flags.z == FLIP) {
         cpu->flags.z = (cur_flags.z == SET) ? CLEAR : SET;
     }
@@ -1285,11 +1288,13 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0x8D:
             ADC_8_REG(cpu, a, l);
+            break;
         case 0x8E:
             ADC_8_HL(cpu, a);
             break;
         case 0x8F:
             ADC_8_REG(cpu, a, a);
+            break;
         case 0x90:
             SUB_8_REG(cpu, a, b);
             break;
@@ -1307,6 +1312,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             break;
         case 0x95:
             SUB_8_REG(cpu, a, l);
+            break;
         case 0x96:
             SUB_8_HL(cpu, a);
             break;
@@ -1912,12 +1918,9 @@ void cpu_setup_prefix_pipeline(GBState *state, BYTE opcode) {
             act_on_hl_addr = 1;
             cpu->pipeline[0] = &_read_mem_l;
             cpu->pipeline[1] = exec_ptr;
-            if (op_ms >= 4 && op_ms <= 7) {
+            if (op_ms < 4 || op_ms > 7)
                 cpu->pipeline[2] = &_write_mem_data1;
-            } else {
-                cpu->pipeline[2] = &_nop;
-                cpu->pipeline[3] = &_write_mem_data1;
-            }
+            
             break;
         case 0x7:
         case 0xF:
