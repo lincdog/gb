@@ -40,8 +40,8 @@ GBState *initialize_gb(void) {
     state->cpu = initialize_cpu();
     state->counter = 0;
 
-    BYTE *code = malloc(32767);
-    state->code = memset(code, 0, 32767);
+    BYTE *code = malloc(0x10000);
+    state->code = memset(code, 0xFF, 0x10000);
     
     memcpy(&state->code[0x104], 
         &GAMEBOY_LOGO, 

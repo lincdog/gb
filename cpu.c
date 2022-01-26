@@ -134,9 +134,16 @@ CYCLE_FUNC(_do_cpl) {
     _check_flags(state);
 }
 CYCLE_FUNC(_add_reg_reg) {
-    state->cpu->result = *(state->cpu->reg_dest) + *(state->cpu->reg_src);
+    if (state->cpu->is_16_bit) {
+        state->cpu->result = *(WORD*)(state->cpu->reg_dest) 
+                           + *(WORD*)(state->cpu->reg_src);
+        *(WORD*)(state->cpu->reg_dest) = state->cpu->result;
+    } else {
+        state->cpu->result = *(state->cpu->reg_dest) 
+                           + *(state->cpu->reg_src); 
+        *(state->cpu->reg_dest) = state->cpu->result;
+    }
     _check_flags(state);
-    *(state->cpu->reg_dest) += *(state->cpu->reg_src);
 }
 CYCLE_FUNC(_sub_reg_reg) {
     state->cpu->result = *(state->cpu->reg_dest) - *(state->cpu->reg_src);
@@ -473,7 +480,11 @@ CYCLE_FUNC(_read_mem_l_and_store) {
     _read_mem_l(state);
     _write_reg_data(state);
 }
-CYCLE_FUNC(_read_mem_h_and_store) {
+CYCLE_FUNC(_read_mem_h_and_store_16) {
+    _read_mem_h(state);
+    _write_reg_data(state);
+}
+CYCLE_FUNC(_read_mem_h_and_store_8) {
     _read_mem_h(state);
     _write_reg_data2(state); 
 }
@@ -546,19 +557,16 @@ CYCLE_FUNC(_read_imm_offset) {
     reg_pc(state->cpu)++;
 }
 CYCLE_FUNC(_read_imm_l) {
-    state->cpu->addr = reg_pc(state->cpu);
-    state->cpu->data1 = read_mem(state, state->cpu->addr);
+    state->cpu->data1 = read_mem(state, reg_pc(state->cpu));
     reg_pc(state->cpu)++;
 }
 CYCLE_FUNC(_read_imm_h) {
-    state->cpu->addr = reg_pc(state->cpu);
-    state->cpu->data2 = read_mem(state, state->cpu->addr);
+    state->cpu->data2 = read_mem(state, reg_pc(state->cpu));
     reg_pc(state->cpu)++;
 }
 
 CYCLE_FUNC(_fetch_inst) {
-    state->cpu->addr = reg_pc(state->cpu);
-    state->cpu->opcode = read_mem(state, state->cpu->addr);
+    state->cpu->opcode = read_mem(state, reg_pc(state->cpu));
     reg_pc(state->cpu)++;
 }
 
@@ -579,7 +587,7 @@ CYCLE_FUNC(_check_flags) {
         cpu->flags.z = (cur_flags.z == SET) ? CLEAR : SET;
     }
     if (chk_flags.n == SET || chk_flags.n == CLEAR) {
-        cur_flags.n = chk_flags.n;
+        cpu->flags.n = chk_flags.n;
     } else if (chk_flags.n == CHECK) {
         // should be unreachable
     } else if (chk_flags.n == FLIP) {
@@ -588,6 +596,9 @@ CYCLE_FUNC(_check_flags) {
     if (chk_flags.h == SET || chk_flags.h == CLEAR) {
         cpu->flags.h = chk_flags.h;
     } else if (chk_flags.h == CHECK) {
+        // FIXME: This does not capture all cases that set H. Need to
+        // look at the two operands to determine if there is a carry out
+        // of the 4 least significant bits. Not just the result.
         cpu->flags.h = ((cpu->result & 0xF)>9) ? SET : CLEAR;
     } else if (chk_flags.h == FLIP) {
         cpu->flags.h = (cur_flags.h == SET) ? CLEAR : SET;
@@ -836,7 +847,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[0] = &_add_reg_reg;
             break;
         case 0x1D:
-            cpu->reg_dest = &reg_c(cpu);
+            cpu->reg_dest = &reg_e(cpu);
             cpu->reg_src = &cpu->data1;
             cpu->data1 = 1;
             CHECK_FLAGS(cpu, CHECK, SET, CHECK, NOCHANGE);
@@ -975,7 +986,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->pipeline[2] = &_write_mem_data1;
             break;
         case 0x35:
-            cpu->addr = &reg_hl(cpu);
+            cpu->addr = reg_hl(cpu);
             cpu->reg_dest = &cpu->data1;
             cpu->reg_src = &cpu->data2;
             cpu->data2 = 1;
@@ -1430,7 +1441,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->addr = reg_sp(cpu);
             cpu->is_16_bit = 1;
             cpu->pipeline[0] = &_read_mem_l;
-            cpu->pipeline[1] = &_read_mem_h_and_store;
+            cpu->pipeline[1] = &_read_mem_h_and_store_16;
             cpu->pipeline[2] = &_inc_sp_2;
             break;
         case 0xC2:
@@ -1466,7 +1477,14 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             CONDITIONAL_RET(cpu, cpu->flags.z == SET);
             break;
         case 0xC9:
-            CONDITIONAL_RET(cpu, 1);
+            // RET
+            cpu->reg_dest = &reg_pc(cpu);
+            cpu->addr = reg_sp(cpu);
+            cpu->is_16_bit = 1; 
+            cpu->pipeline[0] = &_read_mem_l; 
+            cpu->pipeline[1] = &_read_mem_h; 
+            cpu->pipeline[2] = &_inc_sp_2; 
+            cpu->pipeline[3] = &_write_reg_data; 
             break;
         case 0xCA:
             COND_ABS_JMP(cpu, cpu->flags.z == SET);
@@ -1501,7 +1519,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->addr = reg_sp(cpu);
             cpu->is_16_bit = 1;
             cpu->pipeline[0] = &_read_mem_l;
-            cpu->pipeline[1] = &_read_mem_h_and_store;
+            cpu->pipeline[1] = &_read_mem_h_and_store_16;
             cpu->pipeline[2] = &_inc_sp_2;
             break;
         case 0xD2:
@@ -1582,7 +1600,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             cpu->addr = reg_sp(cpu);
             cpu->is_16_bit = 1;
             cpu->pipeline[0] = &_read_mem_l;
-            cpu->pipeline[1] = &_read_mem_h_and_store;
+            cpu->pipeline[1] = &_read_mem_h_and_store_16;
             cpu->pipeline[2] = &_inc_sp_2; 
             break;
         case 0xE2:
@@ -1629,8 +1647,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
         case 0xE9:
             cpu->reg_dest = &reg_pc(cpu);
             cpu->reg_src = &reg_hl(cpu);
-            cpu->pipeline[0] = &_nop;
-            cpu->pipeline[1] = &_copy_reg_16;
+            cpu->pipeline[0] = &_copy_reg_16;
             break;
         case 0xEA:
             cpu->reg_src = &reg_a(cpu);
@@ -1673,7 +1690,7 @@ void cpu_setup_pipeline(GBState *state, BYTE opcode) {
             // Data1 not used
             cpu->data1 = 0;
             cpu->pipeline[0] = &_read_mem_l_into_flags;
-            cpu->pipeline[1] = &_read_mem_h_and_store;
+            cpu->pipeline[1] = &_read_mem_h_and_store_8;
             cpu->pipeline[2] = &_inc_sp_2;  
             break;
         case 0xF2:

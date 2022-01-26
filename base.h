@@ -327,5 +327,7 @@ typedef struct {
 #define BASE_PER_VSYNC (BASE_PER_PPU * CPU_PER_VSYNC)
 #define BASE_PER_M 4
 
+GBState *initialize_gb(void);
+void teardown_gb(GBState *);
 
 #endif // GB_BASE

@@ -23,7 +23,8 @@ int write_16(WORD addr, BYTE *code, WORD data) {
 
 BYTE read_mem(GBState *state, WORD addr) {
     if ((addr & 0xFF00)==0xFF00) {
-        return ((BYTE *)state->io_regs)[addr & 0xFF];
+        return state->code[addr];
+        //return ((BYTE *)state->io_regs)[addr & 0xFF];
     } else {
         // TODO: Check PPU status for locks
         return state->code[addr];
