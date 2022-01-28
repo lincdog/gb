@@ -283,6 +283,29 @@ typedef struct {
     int (*write_mem)(void*, WORD, WORD, int);
 } GBState;
 
+typedef struct {
+    unsigned int period;
+    void (*run_task)(GBState *);
+} GBTask;
+
+GBTask gb_tasks[] = {
+    {.period=256,
+    .run_task=&div_timer
+    },
+    {.period=16,
+    .run_task=&tima_timer
+    },
+    {.period=1,
+    .run_task=&ppu_cycle
+    },
+    {.period=4,
+    .run_task=&interrupt_cycle
+    },
+    {.period=4,
+    .run_task=&cpu_m_cycle
+    },
+};
+
 #define CPU_FREQ 4194304
 #define M_CYCLE 1048576
 #define CPU_PER_M 4

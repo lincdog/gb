@@ -424,30 +424,30 @@ CYCLE_FUNC(_write_reg_data_dec_hl) {
 /* Memory writes */
 /* Write data from a src register to a memory address */
 CYCLE_FUNC(_write_mem_reg_l) {
-    write_mem(state, state->cpu->addr, *(state->cpu->reg_src));
+    cpu_write_mem(state, state->cpu->addr, *(state->cpu->reg_src));
 }
 CYCLE_FUNC(_write_mem_reg_l_inc_hl) {
-    write_mem(state, state->cpu->addr, *(state->cpu->reg_src));
+    cpu_write_mem(state, state->cpu->addr, *(state->cpu->reg_src));
     _inc_hl(state);
 }
 CYCLE_FUNC(_write_mem_reg_l_dec_hl) {
-    write_mem(state, state->cpu->addr, *(state->cpu->reg_src));
+    cpu_write_mem(state, state->cpu->addr, *(state->cpu->reg_src));
     _dec_hl(state);
 }
 CYCLE_FUNC(_write_mem_reg_h) {
-   write_mem(state, state->cpu->addr+1, *(state->cpu->reg_src + 1)); 
+   cpu_write_mem(state, state->cpu->addr+1, *(state->cpu->reg_src + 1)); 
 }
 CYCLE_FUNC(_write_mem_data1) {
-    write_mem(state, state->cpu->addr, state->cpu->data1);
+    cpu_write_mem(state, state->cpu->addr, state->cpu->data1);
 }
 CYCLE_FUNC(_write_mem_data2) {
-    write_mem(state, state->cpu->addr+1, state->cpu->data2);
+    cpu_write_mem(state, state->cpu->addr+1, state->cpu->data2);
 }
 CYCLE_FUNC(_write_reg16_to_stack) {
     BYTE lsb = *(WORD*)(state->cpu->reg_src) & 0xFF;
     BYTE msb = (*(WORD*)(state->cpu->reg_src) & 0xFF00) >> 8;
-    write_mem(state, reg_sp(state->cpu), lsb);
-    write_mem(state, reg_sp(state->cpu)+1, msb);
+    cpu_write_mem(state, reg_sp(state->cpu), lsb);
+    cpu_write_mem(state, reg_sp(state->cpu)+1, msb);
 }
 CYCLE_FUNC(_set_addr_from_data) {
     state->cpu->addr = b2w(state->cpu->data1, state->cpu->data2);
@@ -465,15 +465,15 @@ CYCLE_FUNC(_read_reg_h) {
 }
 /* Read data from memory to intermediate store */
 CYCLE_FUNC(_read_mem_l) {
-    state->cpu->data1 = read_mem(state, state->cpu->addr);
+    state->cpu->data1 = cpu_read_mem(state, state->cpu->addr);
 }
 CYCLE_FUNC(_read_mem_h) {
-    state->cpu->data2 = read_mem(state, state->cpu->addr + 1);
+    state->cpu->data2 = cpu_read_mem(state, state->cpu->addr + 1);
 }
 CYCLE_FUNC(_read_mem_l_into_flags) {
     set_flags_from_byte(
         state->cpu, 
-        read_mem(state, state->cpu->addr)
+        cpu_read_mem(state, state->cpu->addr)
     );
 }
 CYCLE_FUNC(_read_mem_l_and_store) {
@@ -553,20 +553,20 @@ CYCLE_FUNC(_do_stop) {
 }
 CYCLE_FUNC(_read_imm_offset) {
     state->cpu->addr = reg_pc(state->cpu);
-    state->cpu->offset = (signed)read_mem(state, state->cpu->addr);
+    state->cpu->offset = (signed)cpu_read_mem(state, state->cpu->addr);
     reg_pc(state->cpu)++;
 }
 CYCLE_FUNC(_read_imm_l) {
-    state->cpu->data1 = read_mem(state, reg_pc(state->cpu));
+    state->cpu->data1 = cpu_read_mem(state, reg_pc(state->cpu));
     reg_pc(state->cpu)++;
 }
 CYCLE_FUNC(_read_imm_h) {
-    state->cpu->data2 = read_mem(state, reg_pc(state->cpu));
+    state->cpu->data2 = cpu_read_mem(state, reg_pc(state->cpu));
     reg_pc(state->cpu)++;
 }
 
 CYCLE_FUNC(_fetch_inst) {
-    state->cpu->opcode = read_mem(state, reg_pc(state->cpu));
+    state->cpu->opcode = cpu_read_mem(state, reg_pc(state->cpu));
     reg_pc(state->cpu)++;
 }
 

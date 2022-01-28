@@ -1,6 +1,7 @@
 #ifndef GB_CPU
 #define GB_CPU
 #include "base.h"
+#include "mem.h"
 
 CPUState *initialize_cpu(void);
 void teardown_cpu(CPUState *);
@@ -100,7 +101,10 @@ static char GAMEBOY_LOGO[] = {
 BYTE flags_to_byte(CPUState *);
 void set_flags_from_byte(CPUState *, BYTE);
 
-/* NEW instruction macros */
+#define cpu_write_mem(__state, __addr, __data) write_mem(__state, __addr, __data, MEM_SOURCE_CPU)
+#define cpu_read_mem(__state, __addr) read_mem(__state, __addr, MEM_SOURCE_CPU)
+
+/* instruction macros */
 #define ILLEGAL_INST(__cpu, __inst) \
     printf("ILLEGAL INSTRUCTION " # __inst "\n"); \
     __cpu->pipeline[0] = &_nop;
@@ -263,138 +267,6 @@ void set_flags_from_byte(CPUState *, BYTE);
     if (__condition) { \
         __cpu->pipeline[3] = &_write_reg_data; \
     }
-/* OLD INSTRUCTION MACROS
-#define CP_8_REG(dest, rsrc) CP_8(dest, state->rsrc);
-                        
-#define PUSH_16(data) state->r.sp -= 2; \
-                      write_16(state->r.sp, state->code, data); \
 
-#define PUSH_8(data) state->r.sp -= 1; \
-                     write_8(state->r.sp, state->code, data); \
-
-#define POP_8(dest) dest = read_8(state->r.sp, state->code); \
-                    state->r.sp += 1;
-
-#define POP_16(dest) dest = read_16(state->r.sp, state->code); \
-                     state->r.sp += 2;
-
-#define CALL(dest) PUSH_16(state->r.pc + 1); return dest; 
-
-#define RET() POP_16(state->r.pc); return state->r.pc;
-
-#define L_ROT(data, ...) state->flags.c = (bit_7(data)>>7); \
-                    data = ((data << 1) | state->flags.c); \
-                    state->flags.z = (data == 0); \
-                    state->flags.n = 0; \
-                    state->flags.h = 0;
-
-#define L_ROT_CAR(data, ...) scratch = state->flags.c; \
-                        state->flags.c = (bit_7(data)>>7); \
-                        data = (data << 1) | scratch; \
-                        state->flags.z = (data == 0); \
-                        state->flags.n = 0; \
-                        state->flags.h = 0;
-                        
-#define R_ROT(data, ...) state->flags.c = (bit_0(data)); \
-                    data = ((data >> 1) | (state->flags.c << 7)); \
-                    state->flags.z = (data == 0); \
-                    state->flags.n = 0; \
-                    state->flags.h = 0;
-                    
-#define R_ROT_CAR(data, ...) scratch = state->flags.c; \
-                        state->flags.c = bit_0(data); \
-                        data = ((data >> 1) | (scratch << 7)); \
-                        state->flags.z = (data == 0); \
-                        state->flags.n = 0; \
-                        state->flags.h = 0;
-                        
-
-#define SET_BIT(data, bit, ...) data |= (1 << bit);
-#define CLEAR_BIT(data, bit, ...) data &= (BYTE)(~(1 << bit));
-#define TEST_BIT(data, bit, ...) state->flags.z = ((data & (1 << bit)) == 0); \
-                            state->flags.n = 0; \
-                            state->flags.h = 1;
-                            
-#define L_SHIFT_A(data, ...) state->flags.c = (bit_7(data)>>7); \
-                        data = (BYTE)(data << 1); \
-                        state->flags.z = (data == 0); \
-                        state->flags.n = 0; \
-                        state->flags.h = 0;
-
-#define R_SHIFT_A(data, ...) state->flags.c = bit_0(data); \
-                        data = (bit_7(data)) | (data >> 1); \
-                        state->flags.z = (data == 0); \
-                        state->flags.n = 0; \
-                        state->flags.h = 0;
-
-#define R_SHIFT_L(data, ...) state->flags.c = bit_0(data); \
-                        data = data >> 1; \
-                        state->flags.z = (data == 0); \
-                        state->flags.n = 0; \
-                        state->flags.h = 0;
-
-#define SWAP(data, ...) data = (BYTE) (((BYTE)data<<4) | ((BYTE)data>>4)); \
-                    state->flags.z = (data == 0); \
-                    state->flags.n = 0; \
-                    state->flags.h = 0; \
-                    state->flags.c = 0;
-
-#define OP_ON_HL(OP, ...) scratch = read_8(dw_v(state->r.l), state->code); \
-                    OP(scratch, __VA_ARGS__); \
-                    write_8(dw_v(state->r.l), state->code, scratch); \
-
-#define ILLEGAL(inst) printf("Illegal instruction %x\n", inst); exit(1);
-
-
-#define PREFIX_LEFT_EVEN_SWITCH(opcode, target) \
-    switch (ms_nib(opcode)) { \
-        case 0x0: L_ROT(target); break; \
-        case 0x1: L_ROT_CAR(target); break;\
-        case 0x2: L_SHIFT_A(target); break;\
-        case 0x3: SWAP(target); break;\
-        case 0x4: TEST_BIT(target, 0); break;\
-        case 0x5: TEST_BIT(target, 2); break;\
-        case 0x6: TEST_BIT(target, 4); break;\
-        case 0x7: TEST_BIT(target, 6); break;\
-        case 0x8: CLEAR_BIT(target, 0); break;\
-        case 0x9: CLEAR_BIT(target, 2); break;\
-        case 0xA: CLEAR_BIT(target, 4); break;\
-        case 0xB: CLEAR_BIT(target, 6); break;\
-        case 0xC: SET_BIT(target, 0); break;\
-        case 0xD: SET_BIT(target, 2); break;\
-        case 0xE: SET_BIT(target, 4); break;\
-        case 0xF: SET_BIT(target, 6) break;\
-    }
-
-#define PREFIX_RIGHT_ODD_SWITCH(opcode, target) \
-    switch (ms_nib(opcode)) { \
-        case 0x0: R_ROT(target); break;\
-        case 0x1: R_ROT_CAR(target); break;\
-        case 0x2: R_SHIFT_A(target); break;\
-        case 0x3: R_SHIFT_L(target); break;\
-        case 0x4: TEST_BIT(target, 1); break;\
-        case 0x5: TEST_BIT(target, 3); break;\
-        case 0x6: TEST_BIT(target, 5); break;\
-        case 0x7: TEST_BIT(target, 7); break;\
-        case 0x8: CLEAR_BIT(target, 1); break;\
-        case 0x9: CLEAR_BIT(target, 3); break;\
-        case 0xA: CLEAR_BIT(target, 5); break;\
-        case 0xB: CLEAR_BIT(target, 7); break;\
-        case 0xC: SET_BIT(target, 1); break;\
-        case 0xD: SET_BIT(target, 3); break;\
-        case 0xE: SET_BIT(target, 5); break;\
-        case 0xF: SET_BIT(target, 7) break;\
-    }
-
-
-#define HANDLE_INTERRUPT(bit_index) if (state->flags.ime && \
-                            (read_8(0xFFFF, state->code)&(1<<bit_index))) { \
-                            scratch = read_8(0xFF0F, state->code); \
-                            write_8(0xFF0F, state->code, scratch ^ (1 << bit_index)); \
-                            state->flags.ime = 0; state->flags.wants_ime = 0; \
-                            CALL(irq_addrs[bit_index]); }
-
-
-**** END OLD instruction macros */
 
 #endif // GB_CPU
