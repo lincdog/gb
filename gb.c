@@ -42,6 +42,8 @@ GBState *initialize_gb(void) {
 
     BYTE *code = malloc(0x10000);
     state->code = memset(code, 0xFF, 0x10000);
+
+    state->io_regs = (IORegs *)&state->code[0xFF00];
     
     memcpy(&state->code[0x104], 
         &GAMEBOY_LOGO, 

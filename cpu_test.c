@@ -2888,7 +2888,7 @@ void print_test_status(CPUTestState *tstate) {
             printf("Failure %d: opcode %02x\n", i+1, tstate->failed_opcodes[i]);
         }
     }
-    if (tstate->n_prefix_failures < 0) {
+    if (tstate->n_prefix_failures > 0) {
         for (int i = 0; i < tstate->n_prefix_failures; i++) {
             printf("Prefix failure %d: opcode %02x\n", i+1, tstate->failed_prefix_opcodes[i]);
         }

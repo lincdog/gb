@@ -18,24 +18,40 @@
 #define is_oam(x) REGION_CHECK(x, 0xFE00, 0xFE9F)
 #define is_ioreg(x) REGION_CHECK(x, 0xFF00, 0xFF7F)
 #define is_unusable(x) (is_eram(x) || REGION_CHECK(x, 0xFEA0, 0xFEFF))
-#define is_hram(x) REGION_CHECK(x, 0xFF80, 0xFFFE)
-#define is_ram(x) (REGION_CHECK(x, 0x8000, 0xDFFF) || is_hram(x) || is_ioreg(x))
+#define is_stack(x) REGION_CHECK(x, 0xFF80, 0xFFFE)
+#define is_ram(x) (REGION_CHECK(x, 0x8000, 0xDFFF) || is_stack(x) || is_ioreg(x))
+
 
 /* Function prototypes */
 
-BYTE read_8(WORD, BYTE *);
-WORD read_16(WORD, BYTE *);
-int write_8(WORD, BYTE *, BYTE);
-int write_16(WORD, BYTE *, WORD);
+BYTE read_mem(GBState *, WORD, BYTE);
+int write_mem(GBState *, WORD, BYTE, BYTE);
 
-BYTE read_mem(GBState *, WORD);
-int write_mem(GBState *, WORD, BYTE);
+#define READ_FUNC(__name) static inline BYTE __name(GBState *state, WORD addr, BYTE flags)
+#define WRITE_FUNC(__name) static inline int __name(GBState *state, WORD addr, BYTE data, BYTE flags)
+
+/* Memory access flags */
+#define mem_source(__f) ((__f) & 0x3)
+#define MEM_SOURCE_CPU 0x0
+#define MEM_SOURCE_PPU 0x1
+#define MEM_SOURCE_BUTTONS 0x2
+#define MEM_SOURCE_TIMER 0x3
+#define MEM_DEBUG 0x80
 
 typedef struct {
-    char *name;
+    char name[6];
     WORD addr;
-    BYTE (*read)(GBState *);
-    BYTE (*write)(GBState *, BYTE);
-} IOReg;
+    BYTE (*read)(GBState *, WORD, BYTE);
+    BYTE (*write)(GBState *, WORD, BYTE, BYTE);
+} IOReg_t;
+
+READ_FUNC(_read_unimplemented);
+WRITE_FUNC(_write_unimplemented);
+READ_FUNC(_read_p1);
+WRITE_FUNC(_write_p1);
+
+#define unused_ioreg(__addr) \
+    (IOReg_t){.name="none\0", .addr=__addr, .read=&_read_unimplemented, .write=&_write_unimplemented}
+#define named_ioregs(__ptr) (IORegs *)(__ptr)
 
 #endif // GB_MEMORY
