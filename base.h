@@ -186,7 +186,7 @@ typedef struct {
 regions is a pointer to an array of MemoryRegion's.
 */
 typedef struct {
-    char name[6];
+    //char name[6];
     MemoryRegion *regions;
     int n_regions;
     void (*initialize)(void);
@@ -200,10 +200,26 @@ typedef struct {
 } MemoryState;
 
 typedef struct {
+    BYTE reg_div;
+    BYTE reg_tima;
+    BYTE reg_tma;
+    BYTE reg_tac;
+    toggle timer_enabled;
+    enum {
+        _00=1024,
+        _01=16,
+        _10=64,
+        _11=256
+    } tima_period_cycles;
+
+} TimerState;
+
+typedef struct {
     unsigned long counter;
     CPUState *cpu;
     PPUState *ppu;
     MemoryState *mem;
+    TimerState *timer;
 } GBState;
 
 typedef struct {
@@ -255,7 +271,7 @@ typedef struct {
 #define BASE_PER_VSYNC (BASE_PER_PPU * CPU_PER_VSYNC)
 #define BASE_PER_M 4
 
-GBState *initialize_gb(void);
+GBState *initialize_gb(BYTE);
 void teardown_gb(GBState *);
 
 #endif // GB_BASE

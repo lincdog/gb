@@ -7,6 +7,21 @@
 //#include <SDL_image.h>
 //#include <SDL_timer.h>
 
+
+const BYTE test_tile[] = {
+    0xFF, 0x00, 0x7E, 0xFF, 
+    0x85, 0x81, 0x89, 0x83,
+    0x93, 0x85, 0xA5, 0x8B, 
+    0xC9, 0x97, 0x7E, 0xFF
+};
+
+const SDL_Color colors[] = {
+    {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF },
+    {.r = 0x90, .g = 0x90, .b = 0x90, .a = 0x00 },
+    {.r = 0x50, .g = 0x50, .b = 0x50, .a = 0x00 },
+    {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0x00 }
+};
+
 int unpack_tile(const BYTE *data, BYTE *data_unpacked, BYTE flags) {
 
     int x_flip = 0, y_flip = 0, p_num = 0;
@@ -178,6 +193,8 @@ SDL_Surface *make_tile_surface(const BYTE *packed) {
     return surface;
 }
 
+#ifdef GB_VIDEO_MAIN
+
 int main(int argc, char *argv[]) {
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -248,3 +265,5 @@ int main(int argc, char *argv[]) {
  
     return 0;
 }
+
+#endif // GB_VIDEO_MAIN
