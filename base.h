@@ -178,8 +178,8 @@ typedef struct {
     WORD end;
     WORD len;
     BYTE flags; // owner / lock status? / priority
-    BYTE (*read)(GBState *, WORD, BYTE);
-    BYTE (*write)(GBState *, WORD, BYTE, BYTE);
+    BYTE (*read)(void *, WORD, BYTE);
+    BYTE (*write)(void *, WORD, BYTE, BYTE);
 } MemoryRegion;
 
 /* Represents a generic memory mapping system on the GB.

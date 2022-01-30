@@ -1,5 +1,7 @@
 #include "base.h"
 #include "mem.h"
+#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
 #define _read_sb _read_unimplemented
@@ -77,6 +79,315 @@
 #define _read_pcm34 _read_unimplemented
 #define _write_pcm34 _write_unimplemented
 /* End GBC registers */
+
+READ_FUNC(_sys_read_boot_rom) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->bootrom[rel_addr];
+}
+
+READ_FUNC(_sys_read_vram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->vram[rel_addr];
+}
+
+WRITE_FUNC(_sys_write_vram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    sys_mem->vram[rel_addr] = data;
+
+    return 1;
+}
+
+READ_FUNC(_sys_read_wram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->wram[rel_addr];
+}
+
+WRITE_FUNC(_sys_write_wram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    sys_mem->wram[rel_addr] = data;
+
+    return 1;
+}
+
+READ_FUNC(_sys_read_oam_table) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->oam_table[rel_addr];
+}
+
+WRITE_FUNC(_sys_write_oam_table) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    sys_mem->oam_table[rel_addr] = data;
+
+    return 1;
+}
+
+READ_FUNC(_sys_read_hiram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->hram[rel_addr];
+}
+
+WRITE_FUNC(_sys_write_hiram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    sys_mem->hram[rel_addr] = data;
+
+    return 1;
+}
+
+READ_FUNC(_basic_read_rom) {
+    BasicCartState *cart_mem = (BasicCartState *)state->mem->cartridge->state;
+
+    return cart_mem->rom[rel_addr];
+}
+
+WRITE_FUNC(_basic_write_rom) {
+    BasicCartState *cart_mem = (BasicCartState *)state->mem->cartridge->state;
+
+    cart_mem->rom[rel_addr] = data;
+
+    return 1;
+}
+
+/* BEGIN ioreg read/write functions */
+READ_FUNC(_read_p1) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    BYTE cur_value = sys_mem->ioregs->p1;
+    if (cur_value ^ 0xDF) {
+        // bit 5 is 0, action buttons selected
+        // FIXME add state representing keyboard events that
+        // map to buttons
+        return 0xD2;
+    } else if (cur_value ^ 0xEF) {
+        // bit 4 is 0, direction buttons selected
+        // FIXME add state that map to buttons
+        return 0xE4;
+    } else {
+        return 0xFF;
+    }
+}
+WRITE_FUNC(_write_p1) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // Only writable bits are 4 and 5
+    data &= 0x30;
+    sys_mem->ioregs->p1 &= (0xC0 | data | 0xF);
+    return 1;
+}
+READ_FUNC(_read_div) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->div;
+}
+WRITE_FUNC(_write_div) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->div = 0;
+    return 1;    
+}
+READ_FUNC(_read_tima) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->tima;
+}
+WRITE_FUNC(_write_tima) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->tima = data;
+}
+READ_FUNC(_read_tma) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->tma;
+}
+WRITE_FUNC(_write_tma) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->tma = data;
+}
+READ_FUNC(_read_tac) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME bit 2 is timer enable, bit 0-1 is input clock speed
+    return sys_mem->ioregs->tac;
+}
+WRITE_FUNC(_write_tac) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    data &= 0x07;
+    // FIXME bit 2 enables timer, bit 0-1 selects timer frequency
+    sys_mem->ioregs->tac = data;
+}
+READ_FUNC(_read_if) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    //FIXME: bits are set when corresponding interrupts are triggered,
+    // and cleared upon successful interrupt servicing
+    return sys_mem->ioregs->if_;
+}
+WRITE_FUNC(_write_if) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->if_ = data;
+    return 1;    
+}
+READ_FUNC(_read_ie) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->ie_;
+}
+WRITE_FUNC(_write_ie) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->ie_ = data;
+    return 1;    
+}
+
+READ_FUNC(_read_dma) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    //FIXME: bits are set when corresponding interrupts are triggered,
+    // and cleared upon successful interrupt servicing
+    return sys_mem->ioregs->dma;
+}
+WRITE_FUNC(_write_dma) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: queues DMA for source_start-source_end to FE00-FE9F
+    // The CPU can apparently only read in HRAM (FF80-FFFE) during this time
+    WORD source_start = ((WORD)data) << 8;
+    WORD source_end = source_start | 0x9F;
+    sys_mem->ioregs->dma = data;
+    return 1;    
+}
+READ_FUNC(_read_lcdc) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->lcdc;
+}
+WRITE_FUNC(_write_lcdc) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: all bits of lcdc control aspects of the PPU
+    sys_mem->ioregs->lcdc = data;
+    return 1;    
+}
+READ_FUNC(_read_stat) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: returns status of PPU-based interrupts, and current
+    // state of PPU (bit 0-1)
+    return sys_mem->ioregs->stat;
+}
+WRITE_FUNC(_write_stat) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // Only bits 3-6 are writable
+    data &= 0x74;
+    sys_mem->ioregs->stat &= (data | 0x7);
+    return 1;    
+}
+READ_FUNC(_read_scy) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: top left coords of visible area within 256x256 bg map
+    return sys_mem->ioregs->scy;
+}
+WRITE_FUNC(_write_scy) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->scy = data;
+    return 1;
+}
+READ_FUNC(_read_scx) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->scx;
+}
+WRITE_FUNC(_write_scx) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->scx = data;
+    return 1;
+}
+READ_FUNC(_read_ly) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: current horizontal line (0-153, 144-154==VBlank)
+    return sys_mem->ioregs->ly;
+}
+READ_FUNC(_read_lyc) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: triggers LYC=LY interrupt if it is set in STAT,
+    // when this equals LY
+    return sys_mem->ioregs->lyc;
+}
+WRITE_FUNC(_write_lyc) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->lyc = data;
+    return 1;
+}
+READ_FUNC(_read_wy) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->wy;
+}
+WRITE_FUNC(_write_wy) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: Sets window position
+    sys_mem->ioregs->wy = data;
+    return 1;
+}
+READ_FUNC(_read_wx) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->wx;
+}
+WRITE_FUNC(_write_wx) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: Sets window position
+    sys_mem->ioregs->wx = data;
+    return 1;
+}
+READ_FUNC(_read_bgp) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: returns color palette to BG/window
+    return sys_mem->ioregs->bgp;
+}
+WRITE_FUNC(_write_bgp) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: Sets color palette for bg/window
+    sys_mem->ioregs->bgp = data;
+    return 1;
+}
+READ_FUNC(_read_obp0) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: returns color palette to obj palette 0
+    return sys_mem->ioregs->obp0;
+}
+WRITE_FUNC(_write_obp0) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: sets color palette for objs 0
+    data &= 0xFC;
+    sys_mem->ioregs->obp0 = data;
+    return 1;
+}
+READ_FUNC(_read_obp1) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: returns color palette to obj palette 1
+    return sys_mem->ioregs->obp1;
+}
+WRITE_FUNC(_write_obp1) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: sets color palette for objs 0
+    data &= 0xFC;
+    sys_mem->ioregs->obp1 = data;
+    return 1;
+} 
+READ_FUNC(_read_boot) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    if (sys_mem->bootrom_mapped)
+        return 0xFE;
+    else
+        return 0xFF;
+}
+WRITE_FUNC(_write_boot) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->bootrom_mapped = 0;
+    sys_mem->ioregs->boot = data | 1;
+
+    return 1;
+}
+
+READ_FUNC(_read_unimplemented) {
+    return UNINIT;
+}
+WRITE_FUNC(_write_unimplemented) {
+    return -1;
+}
+
+/* END ioreg functions */
 
 static const IOReg_t ioreg_table[] = {
     {
@@ -580,7 +891,25 @@ static const IOReg_t ioreg_table[] = {
         .write=&_write_ie
     }
 };
+READ_FUNC(_sys_read_ioreg) {
+    
+    if (rel_addr < 0x80) 
+        return ioreg_table[rel_addr].read(__READ_ARGS);
+    else if (rel_addr == 0xFF)
+        return ioreg_table[0x80].read(__READ_ARGS);
+    else
+        return UNINIT;
+}
 
+WRITE_FUNC(_sys_write_ioreg) {
+    
+    if (rel_addr < 0x80) 
+        return ioreg_table[rel_addr].write(__WRITE_ARGS);
+    else if (rel_addr == 0xFF)
+        return ioreg_table[0x80].write(__WRITE_ARGS);
+    else
+        return UNINIT; 
+}
 /*
 MemoryRegion mbc1_mem_map[] = {
     { // 0001 1111 1111 1111
@@ -735,335 +1064,6 @@ MemoryRegion basic_mem_map[] = {
     }
 };
 
-READ_FUNC(_sys_read_bootrom) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->bootrom[rel_addr];
-}
-
-READ_FUNC(_sys_read_vram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->vram[rel_addr];
-}
-
-WRITE_FUNC(_sys_write_vram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    sys_mem->vram[rel_addr] = data;
-
-    return 1;
-}
-
-READ_FUNC(_sys_read_wram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->wram[rel_addr];
-}
-
-WRITE_FUNC(_sys_write_wram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    sys_mem->wram[rel_addr] = data;
-
-    return 1;
-}
-
-READ_FUNC(_sys_read_oam_table) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->oam_table[rel_addr];
-}
-
-WRITE_FUNC(_sys_write_oam_table) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    sys_mem->oam_table[rel_addr] = data;
-
-    return 1;
-}
-
-READ_FUNC(_sys_read_hiram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->hram[rel_addr];
-}
-
-WRITE_FUNC(_sys_write_hiram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    sys_mem->hram[rel_addr] = data;
-
-    return 1;
-}
-
-READ_FUNC(_basic_read_rom) {
-    BasicCartState *cart_mem = (BasicCartState *)state->mem->cartridge->state;
-
-    return cart_mem->rom[rel_addr];
-}
-
-WRITE_FUNC(_basic_write_rom) {
-    BasicCartState *cart_mem = (BasicCartState *)state->mem->cartridge->state;
-
-    cart_mem->rom[rel_addr] = data;
-
-    return 1;
-}
-
-READ_FUNC(_sys_read_ioreg) {
-    
-    if (rel_addr < 0x80) 
-        return ioreg_table[rel_addr].read(__READ_ARGS);
-    else if (rel_addr == 0xFF)
-        return ioreg_table[0x80].read(__READ_ARGS);
-    else
-        return UNINIT;
-}
-
-WRITE_FUNC(_sys_write_ioreg) {
-    
-    if (rel_addr < 0x80) 
-        return ioreg_table[rel_addr].write(__WRITE_ARGS);
-    else if (rel_addr == 0xFF)
-        return ioreg_table[0x80].write(__WRITE_ARGS);
-    else
-        return UNINIT; 
-}
-
-/* BEGIN ioreg read/write functions */
-READ_FUNC(_read_p1) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    BYTE cur_value = sys_mem->ioregs->p1;
-    if (cur_value ^ 0xDF) {
-        // bit 5 is 0, action buttons selected
-        // FIXME add state representing keyboard events that
-        // map to buttons
-        return 0xD2;
-    } else if (cur_value ^ 0xEF) {
-        // bit 4 is 0, direction buttons selected
-        // FIXME add state that map to buttons
-        return 0xE4;
-    } else {
-        return 0xFF;
-    }
-}
-WRITE_FUNC(_write_p1) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // Only writable bits are 4 and 5
-    data &= 0x30;
-    sys_mem->ioregs->p1 &= (0xC0 | data | 0xF);
-    return 1;
-}
-READ_FUNC(_read_div) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->div;
-}
-WRITE_FUNC(_write_div) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->div = 0;
-    return 1;    
-}
-READ_FUNC(_read_tima) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->tima;
-}
-WRITE_FUNC(_write_tima) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->tima = data;
-}
-READ_FUNC(_read_tma) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->tma;
-}
-WRITE_FUNC(_write_tma) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->tma = data;
-}
-READ_FUNC(_read_tac) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME bit 2 is timer enable, bit 0-1 is input clock speed
-    return sys_mem->ioregs->tac;
-}
-WRITE_FUNC(_write_tac) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    data &= 0x07;
-    // FIXME bit 2 enables timer, bit 0-1 selects timer frequency
-    sys_mem->ioregs->tac = data;
-}
-READ_FUNC(_read_if) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    //FIXME: bits are set when corresponding interrupts are triggered,
-    // and cleared upon successful interrupt servicing
-    return sys_mem->ioregs->if_;
-}
-WRITE_FUNC(_write_if) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->if_ = data;
-    return 1;    
-}
-READ_FUNC(_read_ie) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->ie_;
-}
-WRITE_FUNC(_write_ie) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->ie_ = data;
-    return 1;    
-}
-
-READ_FUNC(_read_dma) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    //FIXME: bits are set when corresponding interrupts are triggered,
-    // and cleared upon successful interrupt servicing
-    return sys_mem->ioregs->dma;
-}
-WRITE_FUNC(_write_dma) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: queues DMA for source_start-source_end to FE00-FE9F
-    // The CPU can apparently only read in HRAM (FF80-FFFE) during this time
-    WORD source_start = ((WORD)data) << 8;
-    WORD source_end = source_start | 0x9F;
-    sys_mem->ioregs->dma = data;
-    return 1;    
-}
-READ_FUNC(_read_lcdc) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->lcdc;
-}
-WRITE_FUNC(_write_lcdc) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: all bits of lcdc control aspects of the PPU
-    sys_mem->ioregs->lcdc = data;
-    return 1;    
-}
-READ_FUNC(_read_stat) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: returns status of PPU-based interrupts, and current
-    // state of PPU (bit 0-1)
-    return sys_mem->ioregs->stat;
-}
-WRITE_FUNC(_write_stat) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // Only bits 3-6 are writable
-    data &= 0x74;
-    sys_mem->ioregs->stat &= (data | 0x7);
-    return 1;    
-}
-READ_FUNC(_read_scy) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: top left coords of visible area within 256x256 bg map
-    return sys_mem->ioregs->scy;
-}
-WRITE_FUNC(_write_scy) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->scy = data;
-    return 1;
-}
-READ_FUNC(_read_scx) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->scx;
-}
-WRITE_FUNC(_write_scx) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->scx = data;
-    return 1;
-}
-READ_FUNC(_read_ly) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: current horizontal line (0-153, 144-154==VBlank)
-    return sys_mem->ioregs->ly;
-}
-READ_FUNC(_read_lyc) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: triggers LYC=LY interrupt if it is set in STAT,
-    // when this equals LY
-    return sys_mem->ioregs->lyc;
-}
-WRITE_FUNC(_write_lyc) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->lyc = data;
-    return 1;
-}
-READ_FUNC(_read_wy) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->wy;
-}
-WRITE_FUNC(_write_wy) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: Sets window position
-    sys_mem->ioregs->wy = data;
-    return 1;
-}
-READ_FUNC(_read_wx) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->wx;
-}
-WRITE_FUNC(_write_wx) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: Sets window position
-    sys_mem->ioregs->wx = data;
-    return 1;
-}
-READ_FUNC(_read_bgp) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: returns color palette to BG/window
-    return sys_mem->ioregs->bgp;
-}
-WRITE_FUNC(_write_bgp) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: Sets color palette for bg/window
-    sys_mem->ioregs->bgp = data;
-    return 1;
-}
-READ_FUNC(_read_obp0) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: returns color palette to obj palette 0
-    return sys_mem->ioregs->obp0;
-}
-WRITE_FUNC(_write_obp0) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: sets color palette for objs 0
-    data &= 0xFC;
-    sys_mem->ioregs->obp0 = data;
-    return 1;
-}
-READ_FUNC(_read_obp1) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: returns color palette to obj palette 1
-    return sys_mem->ioregs->obp1;
-}
-WRITE_FUNC(_write_obp1) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: sets color palette for objs 0
-    data &= 0xFC;
-    sys_mem->ioregs->obp1 = data;
-    return 1;
-} 
-READ_FUNC(_read_boot) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    if (sys_mem->bootrom_mapped)
-        return 0xFE;
-    else
-        return 0xFF;
-}
-WRITE_FUNC(_write_boot) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->bootrom_mapped = 0;
-    sys_mem->ioregs->boot = data | 1;
-
-    return 1;
-}
-
-READ_FUNC(_read_unimplemented) {
-    return UNINIT;
-}
-WRITE_FUNC(_write_unimplemented) {
-    return -1;
-}
-
-/* END ioreg functions */
-
 BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
     BYTE result = UNINIT;
     Memmap_t *sys_map = state->mem->system;
@@ -1102,7 +1102,7 @@ BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
     return UNINIT;
 
     read_mem_do_read:
-    return source.read(state, rel_addr, flags);
+    return (*source.read)(state, rel_addr, flags);
 }
 
 int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
@@ -1110,8 +1110,8 @@ int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
     BYTE result = UNINIT;
     Memmap_t *sys_map = state->mem->system;
     Memmap_t *cart_map = state->mem->cartridge;
-    MemoryRegion *sys_regions = &sys_map->regions;
-    MemoryRegion *cart_regions = &cart_map->regions;
+    MemoryRegion *sys_regions = sys_map->regions;
+    MemoryRegion *cart_regions = cart_map->regions;
     WORD rel_addr;
 
     MemoryRegion source;
@@ -1142,7 +1142,7 @@ int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
     }
 
     write_mem_do_write:
-    return source.write(state, rel_addr, data, flags);
+    return (*source.write)(state, rel_addr, data, flags);
     
 }
 
@@ -1233,7 +1233,7 @@ SysMemState *initialize_sys_memory(void) {
         exit(1);
     }
     sys_mem->bootrom_mapped = 1;
-    sys_mem->bootrom = &DMG_boot_rom;
+    sys_mem->bootrom = DMG_boot_rom;
     sys_mem->vram = allocate_region(0x2000, "vram\0");
     sys_mem->wram = allocate_region(0x2000, "wram\0");
     sys_mem->oam_table = allocate_region(0xA0, "oam\0");

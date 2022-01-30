@@ -108,7 +108,7 @@ void print_state_info(GBState *state, char print_io_reg) {
         cpu->flags.ime
         );
     
-    if (print_io_reg) {
+    /*if (print_io_reg) {
         for (int i = 0xFF00; i <= 0xFFFF; i++) {
             if ((i & 0xFF)%16 == 0) {
                 printf("\n%x\t", i);
@@ -116,7 +116,7 @@ void print_state_info(GBState *state, char print_io_reg) {
             printf("%02x ", state->code[i]);
         }
         printf("\n");
-    }
+    }*/
     
 }
 

@@ -63,7 +63,7 @@ void main_loop(GBState *state, int n_cycles) {
     while ((n_cycles < 0) || (state->counter < n_cycles)) {
         for (int i = 0; i < GB_N_TASKS; i++) {
             if (state->counter % gb_tasks[i].period == 0) {
-                *gb_tasks[i].run_task(state);
+                (*gb_tasks[i].run_task)(state);
             }
         }
         if (state->cpu->r.pc > 34) {
@@ -101,14 +101,14 @@ int main(int argc, char *argv[]) {
     BYTE *header = malloc(sizeof(CartridgeHeader));
     if (header == NULL) {
         printf("Error allocating header\n");
-        close(fp);
+        fclose(fp);
         exit(1);
     }
     memset(header, 0, sizeof(CartridgeHeader));
 
     if (fseek(fp, 0x100, SEEK_SET) != 0) {
         printf("Error seeking to 0x100 to read header\n");
-        close(fp);
+        fclose(fp);
         exit(1);
     }
 
