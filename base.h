@@ -30,20 +30,6 @@ enum CPU_STATE {
     HALT,
     STOP
 };
-enum PPU_STATE {
-    INIT,
-    HBLANK, 
-    VBLANK, 
-    OAMSCAN, 
-    DRAW
-};
-enum PPU_FIFO_STATE {
-    FETCH_TILE, 
-    FETCH_DATA_LOW, 
-    FETCH_DATA_HIGH, 
-    SLEEP, 
-    PUSH
-};
 
 enum CPU_FLAG {
     CLEAR=0,
@@ -110,16 +96,73 @@ typedef struct {
     void (*execute)(void *);
 } GBEvent;
 
+typedef enum {
+    INIT=-1,
+    HBLANK=0, 
+    VBLANK=1, 
+    OAMSCAN=2, 
+    DRAW=3
+} PPUMode;
+typedef enum {
+    FETCH_TILE, 
+    FETCH_DATA_LOW, 
+    FETCH_DATA_HIGH, 
+    SLEEP, 
+    PUSH
+} PPUFifoState;
+
+typedef enum {OFF=0, ON=1} toggle;
+
 typedef struct {
-    enum PPU_STATE state;
+    toggle lcd_enable;
+    WORD window_map;
+    toggle window_enable;
+    WORD bg_window_data;
+    WORD bg_map;
+    enum {_8x8=0, _8x16=1} obj_size;
+    toggle obj_enable;
+    toggle bg_window_enable;
+} LCDControl;
+
+typedef struct {
+    toggle lyc_ly_interrupt;
+    toggle mode_2_interrupt;
+    toggle mode_1_interrupt;
+    toggle mode_0_interrupt;
+    toggle lyc_ly_equal;
+    PPUMode mode;
+} LCDStatus;
+
+typedef struct {
+    BYTE scy;
+    BYTE scx;
+    BYTE ly;
+    BYTE lyc;
+    BYTE wy;
+    BYTE wx;
+    /* FIXME: SDL_Color types for each index?
+     * 0: white (bg) or transparent (obj)
+     * 1: light gray
+     * 2: dark gray
+     * 3: black
+     */
+    BYTE bgp;
+    BYTE obp0;
+    BYTE obp1;
+} PPUMisc;
+
+typedef struct {
     struct {
-        enum PPU_FIFO_STATE state;
+        PPUFifoState state;
         BYTE data[16];
     } fifo_bg;
     struct {
-        enum PPU_FIFO_STATE state;
+       PPUFifoState state;
         BYTE data[16];
     } fifo_obj;
+    LCDControl lcdc;
+    LCDStatus stat;
+    PPUMisc misc;
 } PPUState;
 
 

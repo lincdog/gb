@@ -30,13 +30,6 @@ const SDL_Color colors[] = {
     {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0x00 }
 };
 
-typedef enum {
-    HBlank=0,
-    VBlank=1,
-    SearchingOAM=2,
-    TransferringToLCD=3
-} LCDStatus;
-
 // If LCDC.4 == 1:
 #define TILE_INDEX_TO_ADDR_8000(__i) (WORD)(0x8000 + 0x10 * (BYTE)__i)
 // If LCDC.4 == 0:

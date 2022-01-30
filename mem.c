@@ -657,6 +657,7 @@ MemoryRegion mbc3_mem_map[] = {
         .write=&_mbc3_write_ram_or_rtc
     }
 };
+*/
 
 MemoryRegion system_mem_map[] = {
     { // 0000 0000 1111 1111
@@ -723,7 +724,7 @@ MemoryRegion system_mem_map[] = {
         .write=&_sys_write_ioreg
     }
 };
-*/
+
 MemoryRegion basic_mem_map[] = {
     {
         .base=0x0000,
@@ -1185,7 +1186,7 @@ IORegs *initialize_ioregs(void) {
     ioregs->scy = 0x00;
     ioregs->scx = 0x00;
     ioregs->ly = 0x00;
-    ioregs->lyc = 0;
+    ioregs->lyc = 0x00;
     ioregs->dma = 0xFF;
     ioregs->bgp = 0xFC;
     ioregs->obp0 = UNINIT;

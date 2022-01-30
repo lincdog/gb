@@ -74,7 +74,35 @@ PPUState *initialize_ppu(void) {
         printf("Failed to allocate PPUState\n");
         return NULL;
     }
-    ppu->state = INIT;
+    // 0x91: 1001 0001
+    ppu->lcdc.lcd_enable = ON;
+    ppu->lcdc.window_map = 0x9800;
+    ppu->lcdc.window_enable = OFF;
+    ppu->lcdc.bg_window_data = 0x8000;
+    ppu->lcdc.bg_map = 0x9800;
+    ppu->lcdc.obj_size = _8x8;
+    ppu->lcdc.obj_enable = OFF;
+    ppu->lcdc.bg_window_enable = ON;
+
+    // 0x85: 1000 0101
+    ppu->stat.lyc_ly_interrupt = OFF;
+    ppu->stat.mode_2_interrupt = OFF;
+    ppu->stat.mode_1_interrupt = OFF;
+    ppu->stat.mode_0_interrupt = OFF;
+    ppu->stat.lyc_ly_equal = ON;
+    ppu->stat.mode = VBLANK;
+
+    ppu->misc.scy = 0x00;
+    ppu->misc.scx = 0x00;
+    ppu->misc.ly = 0x00;
+    ppu->misc.lyc = 0x00;
+    ppu->misc.wy = 0x00;
+    ppu->misc.wx = 0x00;
+    // 11 11 11 00 
+    ppu->misc.bgp = 0xFC;
+    ppu->misc.obp0 = UNINIT;
+    ppu->misc.obp1 = UNINIT;
+    
     ppu->fifo_bg.state = SLEEP;
     ppu->fifo_obj.state = SLEEP;
 
