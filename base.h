@@ -148,18 +148,18 @@ typedef struct {
     int n_regions;
     void (*initialize)(void);
     void (*teardown)(void *);
+    void *state;
 } Memmap_t;
 
 typedef struct {
-    Memmap_t system;
-    Memmap_t mbc;
+    Memmap_t *system;
+    Memmap_t *cartridge;
 } MemoryState;
 
 typedef struct {
     unsigned long counter;
     CPUState *cpu;
     PPUState *ppu;
-    //GBEvent **events;
     MemoryState *mem;
 } GBState;
 

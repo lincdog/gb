@@ -28,8 +28,13 @@ const BYTE UNINIT = 0xFF;
 BYTE read_mem(GBState *, WORD, BYTE);
 int write_mem(GBState *, WORD, BYTE, BYTE);
 
-#define READ_FUNC(__name) static inline BYTE __name(GBState *state, WORD addr, BYTE flags)
-#define WRITE_FUNC(__name) static inline int __name(GBState *state, WORD addr, BYTE data, BYTE flags)
+#define __READ_ARGS_DECL GBState *state, WORD rel_addr, BYTE flags
+#define __READ_ARGS state, rel_addr, flags
+#define __WRITE_ARGS_DECL GBState *state, WORD rel_addr, BYTE data, BYTE flags
+#define __WRITE_ARGS state, rel_addr, data, flags
+#define READ_FUNC(__name) static inline BYTE __name(__READ_ARGS_DECL)
+#define WRITE_FUNC(__name) static inline int __name(__WRITE_ARGS_DECL)
+
 
 /* Memory access flags */
 #define mem_source(__f) ((__f) & 0x3)
@@ -226,15 +231,15 @@ typedef struct {
     int ram_enabled;
     BYTE rom_bank_number;
     BYTE n_rom_banks;
-    BYTE **rom_banks;
+    BYTE *rom_banks;
     BYTE ram_bank_number;
     BYTE n_ram_banks;
-    BYTE **ram_banks;
+    BYTE *ram_banks;
     BANK_MODE bank_mode;
 } MBC1CartState;
 
 typedef struct {
-    BYTE *rom;
+    BYTE rom[0x8000];
 } BasicCartState;
 
 typedef struct {
@@ -266,7 +271,7 @@ MemoryState *initialize_memory(void);
 #define named_ioregs(__ptr) (IORegs *)(__ptr)
 
 /* DMG BootRom */
-const BYTE boot_rom[] = {
+const BYTE DMG_boot_rom[] = {
     0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32,
     0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26, 0xFF, 0x0E,
     0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3,
@@ -299,6 +304,15 @@ const BYTE boot_rom[] = {
     0xBE, 0x20, 0xFE, 0x23, 0x7D, 0xFE, 0x34, 0x20,
     0xF5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20,
     0xFB, 0x86, 0x20, 0xFE, 0x3E, 0x01, 0xE0, 0x50
+};
+
+const BYTE GAMEBOY_LOGO[] = {
+    0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 
+    0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
+    0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 
+    0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
+    0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 
+    0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
 };
 
 #endif // GB_MEMORY

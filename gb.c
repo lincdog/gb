@@ -82,28 +82,46 @@ void main_loop(GBState *state, int n_cycles) {
 #ifdef GB_MAIN
 
 int main(int argc, char *argv[]) {
+
+    if (argc < 2) {
+        printf("Usage: gb <ROM file>\n");
+        exit(2);
+    }
+
     GBState *state = initialize_gb();
     
     FILE *fp;
-    fp = fopen("gb-bootroms/bin/dmg.bin", "r");
+    fp = fopen(argv[1], "r");
 
-    int n_read = fread(state->code, 1, 0x100, fp);
+    if (fp == NULL) {
+        printf("Error opening %s\n", argv[1]);
+        exit(1);
+    }
+
+    BYTE *header = malloc(sizeof(CartridgeHeader));
+    if (header == NULL) {
+        printf("Error allocating header\n");
+        close(fp);
+        exit(1);
+    }
+    memset(header, 0, sizeof(CartridgeHeader));
+
+    if (fseek(fp, 0x100, SEEK_SET) != 0) {
+        printf("Error seeking to 0x100 to read header\n");
+        close(fp);
+        exit(1);
+    }
+
+    int n_read = fread(header, 1, 0x100, sizeof(CartridgeHeader));
     printf("n read: %d\n", n_read);
     
     for (int i = 0; i < n_read; i++) {
-        if (i % 16 == 0) {
+        if (i % 8 == 0) {
             printf("\n%02x\t", i);
         }
-        printf("%02x ", state->code[i]);
+        printf("%02x ", header[i]);
     }
     printf("\n");
-
-    for (int i = 0x100; i < 0x133; i++) {
-        if (i % 16 == 0) {
-            printf("\n%02x\t", i);
-        }
-        printf("%02x ", state->code[i]); 
-    }
 
     fclose(fp);
 

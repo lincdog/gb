@@ -2,6 +2,82 @@
 #include "mem.h"
 #include <stdlib.h>
 
+#define _read_sb _read_unimplemented
+#define _write_sb _write_unimplemented
+#define _read_sc _read_unimplemented
+#define _write_sc _write_unimplemented
+
+#define _read_nr10 _read_unimplemented
+#define _write_nr10 _write_unimplemented
+#define _read_nr11 _read_unimplemented
+#define _write_nr11 _write_unimplemented
+#define _read_nr12 _read_unimplemented
+#define _write_nr12 _write_unimplemented
+#define _read_nr13 _read_unimplemented
+#define _write_nr13 _write_unimplemented
+#define _read_nr14 _read_unimplemented
+#define _write_nr14 _write_unimplemented
+#define _read_nr16 _read_unimplemented
+#define _write_nr16 _write_unimplemented
+#define _read_nr22 _read_unimplemented
+#define _write_nr22 _write_unimplemented
+#define _read_nr23 _read_unimplemented
+#define _write_nr23 _write_unimplemented
+#define _read_nr24 _read_unimplemented
+#define _write_nr24 _write_unimplemented
+#define _read_nr30 _read_unimplemented
+#define _write_nr30 _write_unimplemented
+#define _read_nr31 _read_unimplemented
+#define _write_nr31 _write_unimplemented
+#define _read_nr32 _read_unimplemented
+#define _write_nr32 _write_unimplemented
+#define _read_nr33 _read_unimplemented
+#define _write_nr33 _write_unimplemented
+#define _read_nr34 _read_unimplemented
+#define _write_nr34 _write_unimplemented
+#define _read_nr41 _read_unimplemented
+#define _write_nr41 _write_unimplemented
+#define _read_nr42 _read_unimplemented
+#define _write_nr42 _write_unimplemented
+#define _read_nr43 _read_unimplemented
+#define _write_nr43 _write_unimplemented
+#define _read_nr44 _read_unimplemented
+#define _write_nr44 _write_unimplemented
+#define _read_nr50 _read_unimplemented
+#define _write_nr50 _write_unimplemented
+#define _read_nr51 _read_unimplemented
+#define _write_nr51 _write_unimplemented
+#define _read_nr52 _read_unimplemented
+#define _write_nr52 _write_unimplemented
+
+#define _read_wav_regs _read_unimplemented
+#define _write_wav_regs _write_unimplemented
+
+/* GBC registers */
+#define _read_ocps _read_unimplemented
+#define _write_ocps _write_unimplemented
+#define _read_ocpd _read_unimplemented
+#define _write_ocpd _write_unimplemented
+#define _read_bcps _read_unimplemented
+#define _write_bcps _write_unimplemented
+#define _read_bcpd _read_unimplemented
+#define _write_bcpd _write_unimplemented
+#define _read_hdma _read_unimplemented
+#define _write_hdma _write_unimplemented
+#define _read_vbk _read_unimplemented
+#define _write_vbk _write_unimplemented
+#define _read_key1 _read_unimplemented
+#define _write_key1 _write_unimplemented
+#define _read_rp _read_unimplemented
+#define _write_rp _write_unimplemented
+#define _read_svbk _read_unimplemented
+#define _write_svbk _write_unimplemented
+#define _read_pcm12 _read_unimplemented
+#define _write_pcm12 _write_unimplemented
+#define _read_pcm34 _read_unimplemented
+#define _write_pcm34 _write_unimplemented
+/* End GBC registers */
+
 static const IOReg_t ioreg_table[] = {
     {
         .name="p1\0\0\0\0",
@@ -320,7 +396,7 @@ static const IOReg_t ioreg_table[] = {
         .name="ly\0\0\0\0",
         .addr=0xFF44,
         .read=&_read_ly,
-        .write=&_write_ly
+        .write=&_write_unimplemented
     },
     {
         .name="lyc\0\0\0",
@@ -496,111 +572,578 @@ static const IOReg_t ioreg_table[] = {
     unused_ioreg(0xFF7D),
     unused_ioreg(0xFF7E),
     unused_ioreg(0xFF7F),
+    // ... space ...
+    {
+        .name="ie\0\0\0\0",
+        .addr=0xFFFF,
+        .read=&_read_ie,
+        .write=&_write_ie
+    }
 };
 
+/*
 MemoryRegion mbc1_mem_map[] = {
+    { // 0001 1111 1111 1111
+        .base=0x0000,
+        .end=0x1FFF,
+        .len=0x2000,
+        .read=&_mbc1_read_rom_base,
+        .write=&_mbc1_ram_enable
+    },
+    { // 0011 1111 1111 1111
+        .base=0x2000,
+        .end=0x3FFF,
+        .len=0x2000,
+        .read=&_mbc1_read_rom_base,
+        .write=&_mbc1_rom_bank_num
+    },
+    { // 0101 1111 1111 1111
+        .base=0x4000,
+        .end=0x5FFF,
+        .len=0x2000,
+        .read=&_mbc1_read_rom_1,
+        .write=&_mbc1_ram_or_upperrom
+    },
+    { // 0111 1111 1111 1111
+        .base=0x6000,
+        .end=0x7FFF,
+        .len=0x2000,
+        .read=&_mbc1_read_rom_1,
+        .write=&_mbc1_bank_mode_select
+    },
+    { // 1011 1111 1111 1111
+        .base=0xA000,
+        .end=0xBFFF,
+        .len=0x2000,
+        .read=&_mbc1_read_ram_bank,
+        .write=&_mbc1_write_ram_bank
+    }
+};
+
+MemoryRegion mbc3_mem_map[] = {
     {
         .base=0x0000,
         .end=0x1FFF,
         .len=0x2000,
-        .read=&_read_rom_base,
-        .write=&_mbc1_ram_enable
+        .read=&_mbc3_read_rom_base,
+        .write=&_mbc3_ram_timer_enable
     },
     {
         .base=0x2000,
         .end=0x3FFF,
         .len=0x2000,
-        .read=&_read_rom_base,
-        .write=&_mbc1_rom_bank_num
+        .read=&_mbc3_read_rom_base,
+        .write=&_mbc3_rom_bank_num
     },
     {
         .base=0x4000,
         .end=0x5FFF,
         .len=0x2000,
-        .read=&_read_rom_1,
-        .write=&_mbc1_ram_or_upperrom
+        .read=&_mbc3_read_rom_1,
+        .write=&_mbc3_ram_or_rtc_sel
     },
     {
         .base=0x6000,
         .end=0x7FFF,
         .len=0x2000,
-        .read=&_read_rom_1,
-        .write=&_mbc_bank_mode_select
+        .read=&_mbc3_read_rom_1,
+        .write=&_mbc3_latch_clock
     },
     {
         .base=0xA000,
         .end=0xBFFF,
         .len=0x2000,
-        .read=&_read_ram_bank,
-        .write=&_write_ram_bank
+        .read=&_mbc3_read_ram_or_rtc,
+        .write=&_mbc3_write_ram_or_rtc
     }
 };
 
 MemoryRegion system_mem_map[] = {
-    {
+    { // 0000 0000 1111 1111
         .base=0x0000,
         .end=0xFF,
         .len=0x100,
-        .read=&_read_boot_rom,
+        .read=&_sys_read_boot_rom,
         .write=&_write_unimplemented
     },
-    {
+    { // 1001 1111 1111 1111
         .base=0x8000,
         .end=0x9FFF,
         .len=0x2000,
-        .read=&_read_vram,
-        .write=&_write_vram
+        .read=&_sys_read_vram,
+        .write=&_sys_write_vram
     },
-    {
+    { // 1101 1111 1111 1111
         .base=0xC000,
         .end=0xDFFF,
         .len=0x2000,
-        .read=&_read_wram,
-        .write=&_write_wram
+        .read=&_sys_read_wram,
+        .write=&_sys_write_wram
     },
-    {
+    { // 1111 1101 1111 1111
         .base=0xE000,
         .end=0xFDFF,
         .len=0x1E00,
         .read=&_read_unimplemented,
         .write=&_write_unimplemented
     },
-    {
+    { // 1111 1110 1001 1111
         .base=0xFE00,
         .end=0xFE9F,
         .len=0xA0,
-        .read=&_read_oam_table,
-        .write=&_write_oam_table
+        .read=&_sys_read_oam_table,
+        .write=&_sys_write_oam_table
     },
-    {
+    { // 1111 1110 1111 1111
         .base=0xFEA0,
         .end=0xFEFF,
         .len=0x60,
         .read=&_read_unimplemented,
         .write=&_write_unimplemented
     },
-    {
+    { // 1111 1111 0111 1111
         .base=0xFF00,
         .end=0xFF7F,
         .len=0x80,
-        .read=&_read_ioreg,
-        .write=&_write_ioreg,
+        .read=&_sys_read_ioreg,
+        .write=&_sys_write_ioreg,
     },
-    {
+    { // 1111 1111 1111 1110
         .base=0xFF80,
         .end=0xFFFE,
-        .len=0x7F
-        .read=&_read_hiram,
-        .write=&_write_hiram
+        .len=0x7F,
+        .read=&_sys_read_hiram,
+        .write=&_sys_write_hiram
     },
-    {
+    { // 1111 1111 1111 1111
         .base=0xFFFF,
         .end=0xFFFF,
         .len=0x1,
-        .read=&_read_ie,
-        .write=&_write_ie
+        .read=&_sys_read_ioreg,
+        .write=&_sys_write_ioreg
     }
 };
+*/
+MemoryRegion basic_mem_map[] = {
+    {
+        .base=0x0000,
+        .end=0x7FFF,
+        .len=0x8000,
+        .read=&_basic_read_rom,
+        .write=&_basic_write_rom
+    }
+};
+
+READ_FUNC(_sys_read_bootrom) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->bootrom[rel_addr];
+}
+
+READ_FUNC(_sys_read_vram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->vram[rel_addr];
+}
+
+WRITE_FUNC(_sys_write_vram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    sys_mem->vram[rel_addr] = data;
+
+    return 1;
+}
+
+READ_FUNC(_sys_read_wram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->wram[rel_addr];
+}
+
+WRITE_FUNC(_sys_write_wram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    sys_mem->wram[rel_addr] = data;
+
+    return 1;
+}
+
+READ_FUNC(_sys_read_oam_table) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->oam_table[rel_addr];
+}
+
+WRITE_FUNC(_sys_write_oam_table) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    sys_mem->oam_table[rel_addr] = data;
+
+    return 1;
+}
+
+READ_FUNC(_sys_read_hiram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->hram[rel_addr];
+}
+
+WRITE_FUNC(_sys_write_hiram) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    sys_mem->hram[rel_addr] = data;
+
+    return 1;
+}
+
+READ_FUNC(_basic_read_rom) {
+    BasicCartState *cart_mem = (BasicCartState *)state->mem->cartridge->state;
+
+    return cart_mem->rom[rel_addr];
+}
+
+WRITE_FUNC(_basic_write_rom) {
+    BasicCartState *cart_mem = (BasicCartState *)state->mem->cartridge->state;
+
+    cart_mem->rom[rel_addr] = data;
+
+    return 1;
+}
+
+READ_FUNC(_sys_read_ioreg) {
+    
+    if (rel_addr < 0x80) 
+        return ioreg_table[rel_addr].read(__READ_ARGS);
+    else if (rel_addr == 0xFF)
+        return ioreg_table[0x80].read(__READ_ARGS);
+    else
+        return UNINIT;
+}
+
+WRITE_FUNC(_sys_write_ioreg) {
+    
+    if (rel_addr < 0x80) 
+        return ioreg_table[rel_addr].write(__WRITE_ARGS);
+    else if (rel_addr == 0xFF)
+        return ioreg_table[0x80].write(__WRITE_ARGS);
+    else
+        return UNINIT; 
+}
+
+/* BEGIN ioreg read/write functions */
+READ_FUNC(_read_p1) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    BYTE cur_value = sys_mem->ioregs->p1;
+    if (cur_value ^ 0xDF) {
+        // bit 5 is 0, action buttons selected
+        // FIXME add state representing keyboard events that
+        // map to buttons
+        return 0xD2;
+    } else if (cur_value ^ 0xEF) {
+        // bit 4 is 0, direction buttons selected
+        // FIXME add state that map to buttons
+        return 0xE4;
+    } else {
+        return 0xFF;
+    }
+}
+WRITE_FUNC(_write_p1) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // Only writable bits are 4 and 5
+    data &= 0x30;
+    sys_mem->ioregs->p1 &= (0xC0 | data | 0xF);
+    return 1;
+}
+READ_FUNC(_read_div) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->div;
+}
+WRITE_FUNC(_write_div) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->div = 0;
+    return 1;    
+}
+READ_FUNC(_read_tima) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->tima;
+}
+WRITE_FUNC(_write_tima) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->tima = data;
+}
+READ_FUNC(_read_tma) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->tma;
+}
+WRITE_FUNC(_write_tma) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->tma = data;
+}
+READ_FUNC(_read_tac) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME bit 2 is timer enable, bit 0-1 is input clock speed
+    return sys_mem->ioregs->tac;
+}
+WRITE_FUNC(_write_tac) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    data &= 0x07;
+    // FIXME bit 2 enables timer, bit 0-1 selects timer frequency
+    sys_mem->ioregs->tac = data;
+}
+READ_FUNC(_read_if) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    //FIXME: bits are set when corresponding interrupts are triggered,
+    // and cleared upon successful interrupt servicing
+    return sys_mem->ioregs->if_;
+}
+WRITE_FUNC(_write_if) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->if_ = data;
+    return 1;    
+}
+READ_FUNC(_read_ie) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->ie_;
+}
+WRITE_FUNC(_write_ie) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->ie_ = data;
+    return 1;    
+}
+
+READ_FUNC(_read_dma) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    //FIXME: bits are set when corresponding interrupts are triggered,
+    // and cleared upon successful interrupt servicing
+    return sys_mem->ioregs->dma;
+}
+WRITE_FUNC(_write_dma) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: queues DMA for source_start-source_end to FE00-FE9F
+    // The CPU can apparently only read in HRAM (FF80-FFFE) during this time
+    WORD source_start = ((WORD)data) << 8;
+    WORD source_end = source_start | 0x9F;
+    sys_mem->ioregs->dma = data;
+    return 1;    
+}
+READ_FUNC(_read_lcdc) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->lcdc;
+}
+WRITE_FUNC(_write_lcdc) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: all bits of lcdc control aspects of the PPU
+    sys_mem->ioregs->lcdc = data;
+    return 1;    
+}
+READ_FUNC(_read_stat) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: returns status of PPU-based interrupts, and current
+    // state of PPU (bit 0-1)
+    return sys_mem->ioregs->stat;
+}
+WRITE_FUNC(_write_stat) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // Only bits 3-6 are writable
+    data &= 0x74;
+    sys_mem->ioregs->stat &= (data | 0x7);
+    return 1;    
+}
+READ_FUNC(_read_scy) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: top left coords of visible area within 256x256 bg map
+    return sys_mem->ioregs->scy;
+}
+WRITE_FUNC(_write_scy) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->scy = data;
+    return 1;
+}
+READ_FUNC(_read_scx) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->scx;
+}
+WRITE_FUNC(_write_scx) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->scx = data;
+    return 1;
+}
+READ_FUNC(_read_ly) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: current horizontal line (0-153, 144-154==VBlank)
+    return sys_mem->ioregs->ly;
+}
+READ_FUNC(_read_lyc) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: triggers LYC=LY interrupt if it is set in STAT,
+    // when this equals LY
+    return sys_mem->ioregs->lyc;
+}
+WRITE_FUNC(_write_lyc) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->lyc = data;
+    return 1;
+}
+READ_FUNC(_read_wy) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->wy;
+}
+WRITE_FUNC(_write_wy) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: Sets window position
+    sys_mem->ioregs->wy = data;
+    return 1;
+}
+READ_FUNC(_read_wx) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return sys_mem->ioregs->wx;
+}
+WRITE_FUNC(_write_wx) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: Sets window position
+    sys_mem->ioregs->wx = data;
+    return 1;
+}
+READ_FUNC(_read_bgp) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: returns color palette to BG/window
+    return sys_mem->ioregs->bgp;
+}
+WRITE_FUNC(_write_bgp) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: Sets color palette for bg/window
+    sys_mem->ioregs->bgp = data;
+    return 1;
+}
+READ_FUNC(_read_obp0) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: returns color palette to obj palette 0
+    return sys_mem->ioregs->obp0;
+}
+WRITE_FUNC(_write_obp0) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: sets color palette for objs 0
+    data &= 0xFC;
+    sys_mem->ioregs->obp0 = data;
+    return 1;
+}
+READ_FUNC(_read_obp1) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: returns color palette to obj palette 1
+    return sys_mem->ioregs->obp1;
+}
+WRITE_FUNC(_write_obp1) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME: sets color palette for objs 0
+    data &= 0xFC;
+    sys_mem->ioregs->obp1 = data;
+    return 1;
+} 
+READ_FUNC(_read_boot) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    if (sys_mem->bootrom_mapped)
+        return 0xFE;
+    else
+        return 0xFF;
+}
+WRITE_FUNC(_write_boot) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->bootrom_mapped = 0;
+    sys_mem->ioregs->boot = data | 1;
+
+    return 1;
+}
+
+READ_FUNC(_read_unimplemented) {
+    return UNINIT;
+}
+WRITE_FUNC(_write_unimplemented) {
+    return -1;
+}
+
+/* END ioreg functions */
+
+BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
+    BYTE result = UNINIT;
+    Memmap_t *sys_map = state->mem->system;
+    Memmap_t *cart_map = state->mem->cartridge;
+    MemoryRegion *sys_regions = sys_map->regions;
+    MemoryRegion *cart_regions = cart_map->regions;
+    WORD rel_addr;
+
+    MemoryRegion source;
+
+    for (int i = 0; i < sys_map->n_regions; i++) {
+        if (sys_regions[i].flags & MEM_UNMAPPED)
+            continue;
+        
+        if (addr >= sys_regions[i].base && addr <= sys_regions[i].end) {
+            source = sys_regions[i];
+            rel_addr = addr - source.base;
+
+            goto read_mem_do_read;
+        }
+    }
+
+    for (int i = 0; i < cart_map->n_regions; i++) {
+        if (cart_regions[i].flags & MEM_UNMAPPED)
+            continue;
+
+        if (addr >= cart_regions[i].base && addr <= cart_regions[i].end) {
+            source = cart_regions[i];
+            rel_addr = addr - source.base;
+
+            goto read_mem_do_read;
+        } 
+
+    }
+    
+    return UNINIT;
+
+    read_mem_do_read:
+    return source.read(state, rel_addr, flags);
+}
+
+int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
+    int status;
+    BYTE result = UNINIT;
+    Memmap_t *sys_map = state->mem->system;
+    Memmap_t *cart_map = state->mem->cartridge;
+    MemoryRegion *sys_regions = &sys_map->regions;
+    MemoryRegion *cart_regions = &cart_map->regions;
+    WORD rel_addr;
+
+    MemoryRegion source;
+
+    for (int i = 0; i < sys_map->n_regions; i++) {
+        if (sys_regions[i].flags & MEM_UNMAPPED)
+            continue;
+        
+        if (addr >= sys_regions[i].base && addr <= sys_regions[i].end) {
+            source = sys_regions[i];
+            rel_addr = addr - source.base;
+            
+            goto write_mem_do_write;
+        }
+    }
+
+    for (int i = 0; i < cart_map->n_regions; i++) {
+        if (cart_regions[i].flags & MEM_UNMAPPED)
+            continue;
+
+        if (addr >= cart_regions[i].base && addr <= cart_regions[i].end) {
+            source = cart_regions[i];
+            rel_addr = addr - source.base;
+            
+            goto write_mem_do_write;
+        } 
+
+    }
+
+    write_mem_do_write:
+    return source.write(state, rel_addr, data, flags);
+    
+}
 
 IORegs *initialize_ioregs(void) {
     IORegs *ioregs = malloc(sizeof(IORegs));
@@ -667,65 +1210,57 @@ IORegs *initialize_ioregs(void) {
     return ioregs;
 }
 
-READ_FUNC(_read_p1) {
-
+void teardown_ioregs(IORegs *ioregs) {
+    free(ioregs);
 }
 
-WRITE_FUNC(_write_p1) {
-
-}
-
-READ_FUNC(_read_unimplemented) {
-    return UNINIT;
-}
-
-WRITE_FUNC(_write_unimplemented) {
-    return -1;
-}
-
-BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
-    BYTE result = UNINIT;
-    MemoryState *mem = state->mem;
-    
-
-    if ((addr & 0xFF00)==0xFF00) {
-        if (is_stack(addr))
-            result =state->code[addr];
-        else if (addr == 0xFFFF)
-            result = _read_ie(state, addr, flags);
-        else
-            result = (*ioreg_table[addr & 0xFF].read)(state, addr, flags);
-    } else {
-        // TODO: Check PPU status for locks
-        result = state->code[addr];
+BYTE *allocate_region(size_t size, char *name) {
+    BYTE *result = malloc(size);
+    if (result == NULL) {
+        printf("Error allocating %s\n", name);
+        exit(1);
     }
+    memset(result, UNINIT, size);
+
     return result;
 }
 
-int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
-    int status;
+SysMemState *initialize_sys_memory(void) {
+    SysMemState *sys_mem = malloc(sizeof(SysMemState));
+    if (sys_mem == NULL) {
+        printf("Error allocating system memory\n");
+        exit(1);
+    }
+    sys_mem->bootrom_mapped = 1;
+    sys_mem->bootrom = &DMG_boot_rom;
+    sys_mem->vram = allocate_region(0x2000, "vram\0");
+    sys_mem->wram = allocate_region(0x2000, "wram\0");
+    sys_mem->oam_table = allocate_region(0xA0, "oam\0");
+    sys_mem->ioregs = initialize_ioregs();
+    sys_mem->hram = allocate_region(0x79, "hram\0");
+    
+}
 
-    if (is_rom(addr)) {
-        status = 0;
-    } else if (is_rom_selector(addr)) {
-        // do rom select
-        status = 2;
-    } else {
-        if ((addr & 0xFF00)==0xFF00) {
-            if (is_stack(addr)) {
-                state->code[addr] = data;
-                status = 1;
-            } else if (addr == 0xFFFF) {
-                status = _write_ie(state, addr, data, flags);
-            } else {
-                status = (*ioreg_table[addr & 0xFF].write)(state, addr, data, flags);
-            }
-        } else {
-            // TODO: Check PPU etc for locks, other roms
-            state->code[addr] = data;
-            status = 1;
-        }
+void teardown_sys_memory(SysMemState *sys_mem) {
+    free(sys_mem->vram);
+    free(sys_mem->wram);
+    free(sys_mem->oam_table);
+    teardown_ioregs(sys_mem->ioregs);
+    free(sys_mem->hram);
+}
+
+BasicCartState *initialize_basic_memory(void) {
+    BasicCartState *cart_mem = malloc(sizeof(BasicCartState));
+    if (cart_mem == NULL) {
+        printf("Error allocating cartridge memory\n");
+        exit(1);
     }
 
-    return status;
+    memset(cart_mem->rom, UNINIT, sizeof(cart_mem->rom));
+
+    return cart_mem;
+}
+
+void teardown_basic_memory(BasicCartState *cart_mem) {
+    free(cart_mem);
 }
