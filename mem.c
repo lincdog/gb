@@ -1,5 +1,6 @@
 #include "base.h"
 #include "mem.h"
+#include <stdlib.h>
 
 static const IOReg_t ioreg_table[] = {
     {
@@ -497,6 +498,175 @@ static const IOReg_t ioreg_table[] = {
     unused_ioreg(0xFF7F),
 };
 
+MemoryRegion mbc1_mem_map[] = {
+    {
+        .base=0x0000,
+        .end=0x1FFF,
+        .len=0x2000,
+        .read=&_read_rom_base,
+        .write=&_mbc1_ram_enable
+    },
+    {
+        .base=0x2000,
+        .end=0x3FFF,
+        .len=0x2000,
+        .read=&_read_rom_base,
+        .write=&_mbc1_rom_bank_num
+    },
+    {
+        .base=0x4000,
+        .end=0x5FFF,
+        .len=0x2000,
+        .read=&_read_rom_1,
+        .write=&_mbc1_ram_or_upperrom
+    },
+    {
+        .base=0x6000,
+        .end=0x7FFF,
+        .len=0x2000,
+        .read=&_read_rom_1,
+        .write=&_mbc_bank_mode_select
+    },
+    {
+        .base=0xA000,
+        .end=0xBFFF,
+        .len=0x2000,
+        .read=&_read_ram_bank,
+        .write=&_write_ram_bank
+    }
+};
+
+MemoryRegion system_mem_map[] = {
+    {
+        .base=0x0000,
+        .end=0xFF,
+        .len=0x100,
+        .read=&_read_boot_rom,
+        .write=&_write_unimplemented
+    },
+    {
+        .base=0x8000,
+        .end=0x9FFF,
+        .len=0x2000,
+        .read=&_read_vram,
+        .write=&_write_vram
+    },
+    {
+        .base=0xC000,
+        .end=0xDFFF,
+        .len=0x2000,
+        .read=&_read_wram,
+        .write=&_write_wram
+    },
+    {
+        .base=0xE000,
+        .end=0xFDFF,
+        .len=0x1E00,
+        .read=&_read_unimplemented,
+        .write=&_write_unimplemented
+    },
+    {
+        .base=0xFE00,
+        .end=0xFE9F,
+        .len=0xA0,
+        .read=&_read_oam_table,
+        .write=&_write_oam_table
+    },
+    {
+        .base=0xFEA0,
+        .end=0xFEFF,
+        .len=0x60,
+        .read=&_read_unimplemented,
+        .write=&_write_unimplemented
+    },
+    {
+        .base=0xFF00,
+        .end=0xFF7F,
+        .len=0x80,
+        .read=&_read_ioreg,
+        .write=&_write_ioreg,
+    },
+    {
+        .base=0xFF80,
+        .end=0xFFFE,
+        .len=0x7F
+        .read=&_read_hiram,
+        .write=&_write_hiram
+    },
+    {
+        .base=0xFFFF,
+        .end=0xFFFF,
+        .len=0x1,
+        .read=&_read_ie,
+        .write=&_write_ie
+    }
+};
+
+IORegs *initialize_ioregs(void) {
+    IORegs *ioregs = malloc(sizeof(IORegs));
+    if (ioregs == NULL) {
+        printf("Unable to allocate IORegs\n");
+        return NULL;
+    }
+    ioregs->p1 = 0xCF;
+    ioregs->sb = 0x00;
+    ioregs->sc = 0x7E;
+    ioregs->div = 0xAB;
+    ioregs->tima = 0x00;
+    ioregs->tma = 0x00;
+    ioregs->tac = 0xF8;
+    ioregs->if_ = 0xE1;
+    ioregs->nr10 = 0x80;
+    ioregs->nr11 = 0xBF;
+    ioregs->nr12 = 0xF3;
+    ioregs->nr13 = 0xFF;
+    ioregs->nr14 = 0xBF;
+    ioregs->nr21 = 0x3F;
+    ioregs->nr22 = 0x00;
+    ioregs->nr23 = 0xFF;
+    ioregs->nr24 = 0xBF;
+    ioregs->nr30 = 0x7F;
+    ioregs->nr31 = 0xFF;
+    ioregs->nr32 = 0x9F;
+    ioregs->nr33 = 0xFF;
+    ioregs->nr34 = 0xBF;
+    ioregs->nr41 = 0xFF;
+    ioregs->nr42 = 0x00;
+    ioregs->nr43 = 0x00;
+    ioregs->nr44 = 0xBF;
+    ioregs->nr50 = 0x77;
+    ioregs->nr51 = 0xF3;
+    ioregs->nr52 = 0xF1;
+    ioregs->lcdc = 0x91;
+    ioregs->stat = 0x85;
+    ioregs->scy = 0x00;
+    ioregs->scx = 0x00;
+    ioregs->ly = 0x00;
+    ioregs->lyc = 0;
+    ioregs->dma = 0xFF;
+    ioregs->bgp = 0xFC;
+    ioregs->obp0 = UNINIT;
+    ioregs->obp1 = UNINIT;
+    ioregs->wy = 0x00;
+    ioregs->wx = 0x00;
+    ioregs->key1 = 0xFF;
+    ioregs->vbk = 0xFF;
+    ioregs->hdma1 = 0xFF;
+    ioregs->hdma2 = 0xFF;
+    ioregs->hdma3 = 0xFF;
+    ioregs->hdma4 = 0xFF;
+    ioregs->hdma5 = 0xFF;
+    ioregs->rp = 0xFF;
+    ioregs->bcps = 0xFF;
+    ioregs->bcpd = 0xFF;
+    ioregs->ocps = 0xFF;
+    ioregs->ocpd = 0xFF;
+    ioregs->svbk = 0xFF;
+    ioregs->ie_ = 0x00;
+
+    return ioregs;
+}
+
 READ_FUNC(_read_p1) {
 
 }
@@ -506,7 +676,7 @@ WRITE_FUNC(_write_p1) {
 }
 
 READ_FUNC(_read_unimplemented) {
-    return 0xFF;
+    return UNINIT;
 }
 
 WRITE_FUNC(_write_unimplemented) {
@@ -514,7 +684,9 @@ WRITE_FUNC(_write_unimplemented) {
 }
 
 BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
-    BYTE result = 0xFF;
+    BYTE result = UNINIT;
+    MemoryState *mem = state->mem;
+    
 
     if ((addr & 0xFF00)==0xFF00) {
         if (is_stack(addr))

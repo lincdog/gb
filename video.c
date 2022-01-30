@@ -1,4 +1,5 @@
 #include "base.h"
+#include "mem.h"
 #include "video.h"
 #include <stdlib.h>
 
@@ -66,6 +67,29 @@ BYTE *lookup_tile(BYTE ind, BYTE *mem) {
 BYTE *lookup_obj_tile(SpriteAttr *attr, BYTE *mem) {
     return lookup_tile(attr->index, mem);
 }
+
+PPUState *initialize_ppu(void) {
+    PPUState *ppu = malloc(sizeof(PPUState));
+    if (ppu == NULL) {
+        printf("Failed to allocate PPUState\n");
+        return NULL;
+    }
+    ppu->state = INIT;
+    ppu->fifo_bg.state = SLEEP;
+    ppu->fifo_obj.state = SLEEP;
+
+    for (int i = 0; i < 16; i++) {
+        ppu->fifo_bg.data[i] = 0;
+        ppu->fifo_obj.data[i] = 0;
+    }
+
+    return ppu;
+}
+
+void teardown_ppu(PPUState *ppu) {
+    free(ppu);
+}
+
 
 void print_unpacked(const BYTE *packed) {
     BYTE *unpacked;

@@ -42,4 +42,7 @@ typedef enum {
 // If LCDC.4 == 0:
 #define TILE_INDEX_TO_ADDR_8800(__i) (WORD)(0x9000 + 0x10 * (char)__i)
 
+PPUState *initialize_ppu(void);
+void teardown_ppu(PPUState *void);
+
 #endif // GB_VIDEO

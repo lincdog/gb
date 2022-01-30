@@ -5,67 +5,67 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
-void execute_program(CPUState *cpu) {
-
-    char offset, input;
-    BYTE scratch;
-
-    BYTE *opcode;
-
-    // Main loop
-    for (;;) {
-
-        if (reg_pc(cpu) > 0x0a) {
-            input = getchar();
-            print_state_info(cpu, (input=='i'));
-        }
-
-        opcode = &cpu->code[reg_pc(cpu)];
-        reg_pc(cpu) = execute_instruction(cpu, opcode);
-
-        if (cpu->flags.wants_ime > 0) {
-            cpu->flags.wants_ime -= 1;
-        }
-        if (cpu->flags.wants_ime == 1) {
-            cpu->flags.ime = 1;
-            cpu->flags.wants_ime = 0;
-        }
-    }
-
-}*/
 
 GBState *initialize_gb(void) {
     GBState *state = malloc(sizeof(GBState));
     state->cpu = initialize_cpu();
     state->counter = 0;
 
+    /*// TO DELETE
     BYTE *code = malloc(0x10000);
     state->code = memset(code, 0xFF, 0x10000);
 
-    state->io_regs = (IORegs *)&state->code[0xFF00];
+    state->io_regs = initialize_ioregs();
     
     memcpy(&state->code[0x104], 
         &GAMEBOY_LOGO, 
-        sizeof(GAMEBOY_LOGO));
+        sizeof(GAMEBOY_LOGO));*/
+    /*
+        * Load the boot ROM and the cartridge header at least
+        * Need info from the header to set up memory (0x147 - cartridge type,
+          0x148 - ROM size, 0x149 - RAM size)
+    */
     return state;
 }
 
 void teardown_gb(GBState *state) {
     teardown_cpu(state->cpu);
-    free(state->code);
+    //free(state->code);
     free(state);
 }
 
 int _dummy(void) { return 1; }
 
+GBTask gb_tasks[] = {
+    {.period=256,
+    .run_task=&div_timer
+    },
+    {.period=16,
+    .run_task=&tima_timer
+    },
+    {.period=1,
+    .run_task=&ppu_cycle
+    },
+    {.period=4,
+    .run_task=&dma_cycle
+    },
+    {.period=4,
+    .run_task=&interrupt_cycle
+    },
+    {.period=4,
+    .run_task=&cpu_m_cycle
+    },
+};
+#define GB_N_TASKS 5
+
 void main_loop(GBState *state, int n_cycles) {
     
     while ((n_cycles < 0) || (state->counter < n_cycles)) {
-        if (state->counter % 4 == 0) {
-            cpu_m_cycle(state);
+        for (int i = 0; i < GB_N_TASKS; i++) {
+            if (state->counter % gb_tasks[i].period == 0) {
+                *gb_tasks[i].run_task(state);
+            }
         }
-
         if (state->cpu->r.pc > 34) {
             _dummy();
         }
