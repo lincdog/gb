@@ -89,7 +89,7 @@ PPUState *initialize_ppu(void) {
         printf("Failed to allocate PPUState\n");
         return NULL;
     }
-    ppu->count = 0;
+    ppu->counter = 0;
     // 0x91: 1001 0001
     ppu->lcdc.lcd_enable = ON;
     ppu->lcdc.window_map = 0x9800;
@@ -194,13 +194,22 @@ SDL_Surface *make_tile_surface(const BYTE *packed) {
     return surface;
 }
 
+void ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
+    /*TODO: Given the current PPU state and an SDL Renderer, 
+    * produce the entire 160x144 video image and render it.
+    * A prelude to breaking this process into cycle-based timing
+    * that respects the various PPU modes, pixel FIFOs, and memory
+    * access restrictions.
+    */
+}
+
 void task_ppu_cycle(GBState *state) {
     PPUState *ppu = state->ppu;
 
     if (ppu->lcdc.lcd_enable == OFF)
         goto ppu_cycle_end;
     
-    if (ppu->count <= 80)
+    if (ppu->counter <= 80)
     switch (ppu->stat.mode) {
         case HBLANK:
             break;

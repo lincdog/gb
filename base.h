@@ -163,7 +163,7 @@ typedef struct {
     LCDControl lcdc;
     LCDStatus stat;
     PPUMisc misc;
-    unsigned int count;
+    unsigned int counter;
 } PPUState;
 
 
