@@ -9,8 +9,8 @@ build: gb.c cpu.c mem.c video.c
 debug: gb.c cpu.c mem.c video.c
 	$(CC) $(CFLAGS) -g -o gb -DGB_MAIN gb.c cpu.c mem.c video.c
 
-test: cpu_test.c gb.c mem.c
-	$(CC) $(CFLAGS) -g -o cpu_test cpu_test.c gb.c mem.c
+test: cpu_test.c gb.c mem.c video.c
+	$(CC) $(CFLAGS) -g -o cpu_test cpu_test.c gb.c mem.c video.c
 	./cpu_test
 
 clean:

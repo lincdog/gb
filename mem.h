@@ -43,7 +43,7 @@ int write_mem(GBState *, WORD, BYTE, BYTE);
 #define MEM_SOURCE_BUTTONS 0x2
 #define MEM_SOURCE_TIMER 0x3
 #define MEM_DEBUG 0x80
-#define MEM_UNMAPPED 0x40
+#define MEM_UNMAPPED 0x4
 
 typedef struct {
     char name[6];
@@ -243,6 +243,10 @@ typedef struct {
 } BasicCartState;
 
 typedef struct {
+    BYTE mem[0x10000];
+}   DebugMemState;
+
+typedef struct {
     int bootrom_mapped;
     // 0x00-0x100
     BYTE *bootrom;
@@ -264,8 +268,8 @@ READ_FUNC(_read_p1);
 WRITE_FUNC(_write_p1);
 
 IORegs *initialize_ioregs(void);
-MemoryState *initialize_memory(BYTE);
-void teardown_memory(MemoryState *, BYTE);
+MemoryState *initialize_memory(MemInitFlag);
+void teardown_memory(MemoryState *);
 TimerState *initialize_timer(void);
 void teardown_timer(TimerState *);
 

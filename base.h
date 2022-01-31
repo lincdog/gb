@@ -194,7 +194,15 @@ typedef struct {
     void *state;
 } Memmap_t;
 
+typedef enum {
+    BASIC,
+    MBC1,
+    MBC3,
+    DEBUG
+} MemInitFlag;
+
 typedef struct {
+    MemInitFlag mode;
     Memmap_t *system;
     Memmap_t *cartridge;
 } MemoryState;
@@ -271,7 +279,7 @@ typedef struct {
 #define BASE_PER_VSYNC (BASE_PER_PPU * CPU_PER_VSYNC)
 #define BASE_PER_M 4
 
-GBState *initialize_gb(BYTE);
+GBState *initialize_gb(MemInitFlag);
 void teardown_gb(GBState *);
 
 #endif // GB_BASE

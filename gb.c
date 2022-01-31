@@ -7,13 +7,13 @@
 #include <stdlib.h>
 
 
-GBState *initialize_gb(BYTE flags) {
+GBState *initialize_gb(MemInitFlag flag) {
     GBState *state = malloc(sizeof(GBState));
     state->cpu = initialize_cpu();
     state->counter = 0;
 
     state->ppu = initialize_ppu();
-    state->mem = initialize_memory(0);
+    state->mem = initialize_memory(flag);
     state->timer = initialize_timer();
 
     /*
@@ -26,7 +26,7 @@ GBState *initialize_gb(BYTE flags) {
 
 void teardown_gb(GBState *state) {
     teardown_cpu(state->cpu);
-    teardown_memory(state->mem, 0);
+    teardown_memory(state->mem);
     teardown_ppu(state->ppu);
     teardown_timer(state->timer);
     free(state);

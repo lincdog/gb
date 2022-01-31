@@ -17,6 +17,8 @@
 typedef struct {
     GBState *test_state;
     GBState *post_state;
+    BYTE *test_mem;
+    BYTE *post_mem;
     CPUState *test_cpu;
     CPUState *post_cpu;
     BYTE opcode[3];
@@ -89,29 +91,29 @@ void test_instruction(CPUTestState *tstate) {
     TEST_FLAG_EQUALS(test_cpu, post_cpu, wants_ime);
 
     for (WORD i = MEM_CHECK_START; i < MEM_CHECK_STOP; i++) {
-        if (tstate->test_state->code[i] != 
-            tstate->post_state->code[i]) {
+        if (tstate->test_mem[i] != 
+            tstate->post_mem[i]) {
             failure++;
             printf("MEM FAILURE: code[0x%04x]: (test) %02x (post) %02x\n",
-                i, tstate->test_state->code[i], tstate->post_state->code[i]);
+                i, tstate->test_mem[i], tstate->post_mem[i]);
         }
     }
 
     for (WORD i = STACK_CHECK_START; i < STACK_CHECK_STOP; i++) {
-        if (tstate->test_state->code[i] != 
-            tstate->post_state->code[i]) {
+        if (tstate->test_mem[i] != 
+            tstate->post_mem[i]) {
             failure++;
             printf("STACK FAILURE: code[0x%04x]: (test) %02x (post) %02x\n",
-                i, tstate->test_state->code[i], tstate->post_state->code[i]);
+                i, tstate->test_mem[i], tstate->post_mem[i]);
         }
     }
 
     for (WORD i = IO_CHECK_START; i < IO_CHECK_STOP; i++) {
-        if (tstate->test_state->code[i] != 
-            tstate->post_state->code[i]) {
+        if (tstate->test_mem[i] != 
+            tstate->post_mem[i]) {
             failure++;
             printf("IOREG FAILURE: code[0x%04x]: (test) %02x (post) %02x\n",
-                i, tstate->test_state->code[i], tstate->post_state->code[i]);
+                i, tstate->test_mem[i], tstate->post_mem[i]);
         }
     }
 
@@ -156,12 +158,12 @@ void stage_test(
     else
         tstate->covered_opcodes[tstate->n_tests++] = op0;
 
-    memset(tstate->test_state->code, 0xFF, 0x10000);
-    memset(tstate->post_state->code, 0xFF, 0x10000);
+    memset(tstate->test_mem, UNINIT, 0x10000);
+    memset(tstate->post_mem, UNINIT, 0x10000);
 
     for (int i = 0; i < tstate->opcode_length; i++) {
-        tstate->test_state->code[i] = tstate->opcode[i];
-        tstate->post_state->code[i] = tstate->opcode[i];
+        tstate->test_mem[i] = tstate->opcode[i];
+        tstate->post_mem[i] = tstate->opcode[i];
     }
     
 }
@@ -192,6 +194,8 @@ CPUTestState *initialize_cpu_tests(GBState *test_state, GBState *post_state) {
     tstate->post_state = post_state;
     tstate->test_cpu = test_state->cpu;
     tstate->post_cpu = post_state->cpu;
+    tstate->test_mem = ((DebugMemState *)test_state->mem->system->state)->mem;
+    tstate->post_mem = ((DebugMemState *)post_state->mem->system->state)->mem;
     tstate->opcode[0] = 0x0;
     tstate->opcode[1] = 0x0;
     tstate->opcode[2] = 0x0;
@@ -221,8 +225,8 @@ void teardown_cpu_tests(CPUTestState *tstate) {
 void run_ld_16_imm(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code; 
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem; 
     DO_TEST(tstate, 0x01, 0xAD, 0xDE, 3, 3, 
         reg_bc(post_cpu) = 0xDEAD;
     );
@@ -240,8 +244,8 @@ void run_ld_16_imm(CPUTestState *tstate) {
 void run_wr_r16_a(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code; 
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem; 
 
     DO_TEST(tstate, 0x02, 0x00, 0x00, 1, 2,
         reg_a(test_cpu) = 0xDA;
@@ -276,8 +280,8 @@ void run_wr_r16_a(CPUTestState *tstate) {
 void run_inc_dec_r16(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     DO_TEST(tstate, 0x03, 0x00, 0x00, 1, 2,
         reg_bc(test_cpu) = 0x103;
@@ -317,8 +321,8 @@ void run_inc_dec_r16(CPUTestState *tstate) {
 void run_inc_dec_r8(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     DO_TEST(tstate, 0x04, 0x00, 0x00, 1, 1,
         reg_b(test_cpu) = 0x09;
@@ -410,8 +414,8 @@ void run_inc_dec_r8(CPUTestState *tstate) {
 void run_ld_imm8(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     /* LD <r8>, d8 */
     DO_TEST(tstate, 0x06, 0xDE, 0x00, 2, 2,
@@ -445,8 +449,8 @@ void run_ld_imm8(CPUTestState *tstate) {
 void run_add_hl_r16(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     DO_TEST(tstate, 0x09, 0x00, 0x00, 1, 2,
         reg_hl(test_cpu) = 0x2001;
@@ -480,8 +484,8 @@ void run_add_hl_r16(CPUTestState *tstate) {
 void run_ld_a_r16_mem(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code; 
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem; 
 
     DO_TEST(tstate, 0x0A, 0x00, 0x00, 1, 2,
         reg_bc(test_cpu) = 0x8010;
@@ -516,8 +520,8 @@ void run_ld_a_r16_mem(CPUTestState *tstate) {
 void run_rel_jmp(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
     // JR NZ
     DO_TEST(tstate, 0x20, -3, 0x00, 2, 3, 
         test_cpu->flags.z = CLEAR;
@@ -571,8 +575,8 @@ void run_rel_jmp(CPUTestState *tstate) {
 void run_abs_jmp(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code; 
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem; 
     // JP NZ, a16
     DO_TEST(tstate, 0xC2, 0x01, 0x10, 3, 4,
         test_cpu->flags.z = CLEAR;
@@ -621,8 +625,8 @@ void run_abs_jmp(CPUTestState *tstate) {
 void run_ld_reg_8(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code; 
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem; 
 
     /* Row 1: Dest = B or C */
     DO_TEST(tstate, 0x40, 0x00, 0x00, 1, 1, 
@@ -1035,8 +1039,8 @@ void run_ld_reg_8(CPUTestState *tstate) {
 void run_math_reg_8(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     /* Row 1: ADD, ADC */
     DO_TEST(tstate, 0x80, 0x00, 0x00, 1, 1,
@@ -1548,8 +1552,8 @@ void run_math_reg_8(CPUTestState *tstate) {
 void run_math_imm_8(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code; 
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem; 
 
     /* ADD d8 */
     DO_TEST(tstate, 0xC6, 0x10, 0x00, 2, 2,
@@ -1616,8 +1620,8 @@ void run_math_imm_8(CPUTestState *tstate) {
 void run_push_reg_16(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     DO_TEST(tstate, 0xC5, 0x00, 0x00, 1, 4, 
         reg_bc(test_cpu) = 0xDEAD;
@@ -1662,8 +1666,8 @@ void run_push_reg_16(CPUTestState *tstate) {
 void run_pop_reg_16(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     DO_TEST(tstate, 0xC1, 0x00, 0x00, 1, 3,
         reg_bc(test_cpu) = 0xBEEF;
@@ -1716,8 +1720,8 @@ void run_pop_reg_16(CPUTestState *tstate) {
 void run_ret(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     // RET NZ
     DO_TEST(tstate, 0xC0, 0x00, 0x00, 1, 5,
@@ -1840,8 +1844,8 @@ void run_ret(CPUTestState *tstate) {
 void run_call(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
     // CALL NZ, a16
     DO_TEST(tstate, 0xC4, 0xAD, 0xDE, 3, 6,
         test_cpu->flags.z = CLEAR;
@@ -1972,8 +1976,8 @@ void run_call(CPUTestState *tstate) {
 void run_ioreg_ops(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code; 
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem; 
 
     // LDH (a8), A
     DO_TEST(tstate, 0xE0, 0x10, 0x00, 2, 3,
@@ -2010,8 +2014,8 @@ void run_ioreg_ops(CPUTestState *tstate) {
 void run_misc(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code; 
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem; 
 
     /* NOP */
     DO_TEST(tstate, 0x00, 0x00, 0x00, 1, 1, );
@@ -2209,8 +2213,8 @@ void run_tests(CPUTestState *tstate) {
 void run_prefix_row0(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code; 
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem; 
 
     DO_TEST(tstate, 0xCB, 0x00, 0x00, 2, 2,
         reg_b(test_cpu) = 0xBC;
@@ -2311,8 +2315,8 @@ void run_prefix_row0(CPUTestState *tstate) {
 void run_prefix_row1(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     DO_TEST(tstate, 0xCB, 0x10, 0x00, 2, 2,
         reg_b(test_cpu) = 0xBC;
@@ -2440,8 +2444,8 @@ void run_prefix_row1(CPUTestState *tstate) {
 void run_prefix_row2(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     DO_TEST(tstate, 0xCB, 0x20, 0x00, 2, 2,
         reg_b(test_cpu) = 0xBC;
@@ -2553,8 +2557,8 @@ void run_prefix_row2(CPUTestState *tstate) {
 void run_prefix_row3(CPUTestState *tstate) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     DO_TEST(tstate, 0xCB, 0x30, 0x00, 2, 2,
         reg_b(test_cpu) = 0xBC;
@@ -2660,8 +2664,8 @@ void run_prefix_row3(CPUTestState *tstate) {
 void run_prefix_bit_tests(CPUTestState *tstate, BYTE op_base) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
     
     op_base &= 0xF8;
     BYTE offset = ((op_base & 0x30) >> 3) + ((bit_3(op_base)>>3)==1);
@@ -2722,8 +2726,8 @@ void run_prefix_bit_tests(CPUTestState *tstate, BYTE op_base) {
 void run_prefix_bit_resets(CPUTestState *tstate, BYTE op_base) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     // zero last three bits, round to nearest 8
     op_base &= 0xF8;
@@ -2781,8 +2785,8 @@ void run_prefix_bit_resets(CPUTestState *tstate, BYTE op_base) {
 void run_prefix_bit_sets(CPUTestState *tstate, BYTE op_base) {
     CPUState *test_cpu = tstate->test_cpu;
     CPUState *post_cpu = tstate->post_cpu;
-    BYTE *test_mem = tstate->test_state->code;
-    BYTE *post_mem = tstate->post_state->code;
+    BYTE *test_mem = tstate->test_mem;
+    BYTE *post_mem = tstate->post_mem;
 
     // zero last three bits, round to nearest 8
     op_base &= 0xF8;
@@ -2906,8 +2910,8 @@ void print_test_status(CPUTestState *tstate) {
 
 int main(void) {
 
-    GBState *test_state = initialize_gb();
-    GBState *post_state = initialize_gb();
+    GBState *test_state = initialize_gb(DEBUG);
+    GBState *post_state = initialize_gb(DEBUG);
     CPUTestState *tstate = initialize_cpu_tests(test_state, post_state);
 
     run_tests(tstate);

@@ -195,9 +195,18 @@ READ_FUNC(_basic_read_rom) {
 
 WRITE_FUNC(_basic_write_rom) {
     BasicCartState *cart_mem = (BasicCartState *)state->mem->cartridge->state;
-
     cart_mem->rom[rel_addr] = data;
+    return 1;
+}
 
+READ_FUNC(_debug_read_mem) {
+    DebugMemState *debug = (DebugMemState *)state->mem->system->state;
+    return debug->mem[rel_addr];
+}
+
+WRITE_FUNC(_debug_write_mem) {
+    DebugMemState *debug = (DebugMemState *)state->mem->system->state;
+    debug->mem[rel_addr] = data;
     return 1;
 }
 
@@ -1112,6 +1121,16 @@ MemoryRegion basic_mem_map[] = {
     }
 };
 
+MemoryRegion debug_mem_map[] = {
+    {
+        .base=0x0000,
+        .end=0xFFFF,
+        .len=0x10000,
+        .read=&_debug_read_mem,
+        .write=&_debug_write_mem
+    }
+};
+
 BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
     BYTE result = UNINIT;
     Memmap_t *sys_map = state->mem->system;
@@ -1315,12 +1334,27 @@ void teardown_basic_memory(BasicCartState *cart_mem) {
     free(cart_mem);
 }
 
-MemoryState *initialize_memory(BYTE cart_type) {
+DebugMemState *initialize_debug_memory(void) {
+    DebugMemState *debug = malloc(sizeof(DebugMemState));
+    if (debug == NULL) {
+        printf("Error allocating cartridge memory\n");
+        exit(1);
+    }
+    memset(debug->mem, UNINIT, sizeof(debug->mem));
+    return debug; 
+}
+
+void teardown_debug_memory(DebugMemState *debug) {
+    free(debug);
+}
+
+MemoryState *initialize_memory(MemInitFlag flag) {
     MemoryState *mem = malloc(sizeof(MemoryState));
     if (mem == NULL) {
         printf("Error allocating memory state\n");
         exit(1);
     }
+    mem->mode = flag;
     mem->cartridge = malloc(sizeof(Memmap_t));
     mem->system = malloc(sizeof(Memmap_t));
     if (mem->cartridge == NULL || mem->system == NULL) {
@@ -1328,25 +1362,42 @@ MemoryState *initialize_memory(BYTE cart_type) {
         exit(1);
     }
 
-    mem->cartridge->n_regions = 1;
-    mem->cartridge->regions = basic_mem_map;
-    mem->cartridge->initialize = &initialize_basic_memory;
-    mem->cartridge->teardown = &teardown_basic_memory;
-    mem->cartridge->state = initialize_basic_memory();
+    if (flag == BASIC) {
+        mem->cartridge->n_regions = 1;
+        mem->cartridge->regions = basic_mem_map;
+        mem->cartridge->initialize = &initialize_basic_memory;
+        mem->cartridge->teardown = &teardown_basic_memory;
+        // FIXME could do this later, as we save the fn pointer
+        // Also, may need a loadrom function that handles loading
+        // the cartridge
+        mem->cartridge->state = initialize_basic_memory();
 
-    mem->system->n_regions = 9;
-    mem->system->regions = system_mem_map;
-    mem->system->initialize = &initialize_sys_memory;
-    mem->system->teardown = &teardown_sys_memory;
-    mem->system->state = initialize_sys_memory();
+        mem->system->n_regions = 9;
+        mem->system->regions = system_mem_map;
+        mem->system->initialize = &initialize_sys_memory;
+        mem->system->teardown = &teardown_sys_memory;
+        mem->system->state = initialize_sys_memory();
+    } else if (flag == DEBUG) {
+        free(mem->cartridge);
+
+        mem->system->n_regions = 1;
+        mem->system->regions = debug_mem_map;
+        mem->system->initialize = &initialize_debug_memory;
+        mem->system->teardown = &teardown_debug_memory;
+        mem->system->state = initialize_debug_memory();
+    }
 
     return mem;
 }
 
-void teardown_memory(MemoryState *mem, BYTE cart_type) {
-    mem->cartridge->teardown(mem->cartridge->state);
+void teardown_memory(MemoryState *mem) {
+
+    if (mem->mode == BASIC) {
+        mem->cartridge->teardown(mem->cartridge->state);
+        free(mem->cartridge);
+    }
+    
     mem->system->teardown(mem->system->state);
-    free(mem->cartridge);
     free(mem->system);
     free(mem);
 }
