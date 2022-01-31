@@ -236,39 +236,66 @@ WRITE_FUNC(_write_p1) {
 }
 READ_FUNC(_read_div) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->div = state->timer->reg_div;
     return sys_mem->ioregs->div;
 }
 WRITE_FUNC(_write_div) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    state->timer->reg_div = 0;
     sys_mem->ioregs->div = 0;
     return 1;    
 }
 READ_FUNC(_read_tima) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->tima = state->timer->reg_tima;
     return sys_mem->ioregs->tima;
 }
 WRITE_FUNC(_write_tima) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    state->timer->reg_tima = data;
     sys_mem->ioregs->tima = data;
     return 1;
 }
 READ_FUNC(_read_tma) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->tma = state->timer->reg_tma;
     return sys_mem->ioregs->tma;
 }
 WRITE_FUNC(_write_tma) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    state->timer->reg_tma = data;
     sys_mem->ioregs->tma = data;
     return 1;
 }
 READ_FUNC(_read_tac) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME bit 2 is timer enable, bit 0-1 is input clock speed
     return sys_mem->ioregs->tac;
 }
 WRITE_FUNC(_write_tac) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     data &= 0x07;
+
+    if (data & 0x4) 
+        state->timer->timer_enabled = ON;
+    else
+        state->timer->timer_enabled = OFF;
+
+    state->timer->reg_tac = data;
+    switch (data & 0x3) {
+        case 0:
+            state->timer->tima_period_cycles = _00;
+            break;
+        case 1:
+            state->timer->tima_period_cycles = _01;
+            break;
+        case 2:
+            state->timer->tima_period_cycles = _10;
+            break;
+        case 3:
+            state->timer->tima_period_cycles = _11;
+            break;
+    }
+    
     // FIXME bit 2 enables timer, bit 0-1 selects timer frequency
     sys_mem->ioregs->tac = data;
     return 1;
@@ -296,8 +323,6 @@ WRITE_FUNC(_write_ie) {
 
 READ_FUNC(_read_dma) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    //FIXME: bits are set when corresponding interrupts are triggered,
-    // and cleared upon successful interrupt servicing
     return sys_mem->ioregs->dma;
 }
 WRITE_FUNC(_write_dma) {
@@ -311,114 +336,172 @@ WRITE_FUNC(_write_dma) {
 }
 READ_FUNC(_read_lcdc) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    // FIXME 
     return sys_mem->ioregs->lcdc;
 }
 WRITE_FUNC(_write_lcdc) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    LCDControl *lcdc = &state->ppu->lcdc;
     // FIXME: all bits of lcdc control aspects of the PPU
+    lcdc->lcd_enable = (data & 0x80) ? ON : OFF;
+    lcdc->window_map = (data & 0x40) ? 0x9C00 : 0x9800;
+    lcdc->window_enable = (data & 0x20) ? ON : OFF;
+    lcdc->bg_window_data = (data & 0x10) ? 0x8000 : 0x8800;
+    lcdc->bg_map = (data & 0x8) ? 0x9C00 : 0x9800;
+    lcdc->obj_size = (data & 0x4) ? _8x16 : _8x8;
+    lcdc->obj_enable = (data & 0x2) ? ON : OFF;
+    lcdc->bg_window_enable = (data & 0x1) ? ON : OFF;
+
+
     sys_mem->ioregs->lcdc = data;
     return 1;    
 }
 READ_FUNC(_read_stat) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: returns status of PPU-based interrupts, and current
-    // state of PPU (bit 0-1)
-    return sys_mem->ioregs->stat;
+    PPUState *ppu = state->ppu;
+    BYTE result = 0;
+    result |= ((ppu->stat.lyc_ly_interrupt == ON) ? 0x40 : 0x00);
+    result |= ((ppu->stat.mode_2_interrupt == ON) ? 0x20 : 0x00);
+    result |= ((ppu->stat.mode_1_interrupt == ON) ? 0x10 : 0x00);
+    result |= ((ppu->stat.mode_0_interrupt == ON) ? 0x08 : 0x00);
+    ppu->stat.lyc_ly_equal = (ppu->misc.ly == ppu->misc.lyc) ? ON : OFF;
+    result |= ((ppu->stat.lyc_ly_equal == ON) ? 0x04 : 0x00);
+    result |= ((BYTE)ppu->stat.mode & 0x3);
+    sys_mem->ioregs->stat = result;
+    return result;
 }
 WRITE_FUNC(_write_stat) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // Only bits 3-6 are writable
     data &= 0x74;
+    ppu->stat.lyc_ly_interrupt = (data & 0x40) ? ON : OFF;
+    ppu->stat.mode_2_interrupt = (data & 0x20) ? ON : OFF;
+    ppu->stat.mode_1_interrupt = (data & 0x10) ? ON : OFF;
+    ppu->stat.mode_0_interrupt = (data & 0x08) ? ON : OFF;
     sys_mem->ioregs->stat &= (data | 0x7);
     return 1;    
 }
 READ_FUNC(_read_scy) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: top left coords of visible area within 256x256 bg map
+    PPUState *ppu = state->ppu;
+    sys_mem->ioregs->scy = ppu->misc.scy;
     return sys_mem->ioregs->scy;
 }
 WRITE_FUNC(_write_scy) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
+    ppu->misc.scy = data;
     sys_mem->ioregs->scy = data;
     return 1;
 }
 READ_FUNC(_read_scx) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
+    sys_mem->ioregs->scx = ppu->misc.scx;
     return sys_mem->ioregs->scx;
 }
 WRITE_FUNC(_write_scx) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
+    ppu->misc.scx = data;
     sys_mem->ioregs->scx = data;
     return 1;
 }
 READ_FUNC(_read_ly) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: current horizontal line (0-153, 144-154==VBlank)
+    sys_mem->ioregs->ly = ppu->misc.ly;
     return sys_mem->ioregs->ly;
 }
 READ_FUNC(_read_lyc) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: triggers LYC=LY interrupt if it is set in STAT,
     // when this equals LY
+    sys_mem->ioregs->lyc = ppu->misc.lyc;
     return sys_mem->ioregs->lyc;
 }
 WRITE_FUNC(_write_lyc) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
+    ppu->misc.lyc = data;
     sys_mem->ioregs->lyc = data;
     return 1;
 }
 READ_FUNC(_read_wy) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
+    sys_mem->ioregs->wy = ppu->misc.wy;
     return sys_mem->ioregs->wy;
 }
 WRITE_FUNC(_write_wy) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: Sets window position
+    ppu->misc.wy = data;
     sys_mem->ioregs->wy = data;
     return 1;
 }
 READ_FUNC(_read_wx) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
+    sys_mem->ioregs->wx = ppu->misc.wx;
     return sys_mem->ioregs->wx;
 }
 WRITE_FUNC(_write_wx) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: Sets window position
+    ppu->misc.wx = data;
     sys_mem->ioregs->wx = data;
     return 1;
 }
 READ_FUNC(_read_bgp) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: returns color palette to BG/window
+    sys_mem->ioregs->bgp = ppu->misc.bgp;
     return sys_mem->ioregs->bgp;
 }
 WRITE_FUNC(_write_bgp) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: Sets color palette for bg/window
+    ppu->misc.bgp = data;
     sys_mem->ioregs->bgp = data;
     return 1;
 }
 READ_FUNC(_read_obp0) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: returns color palette to obj palette 0
+    sys_mem->ioregs->obp0 = ppu->misc.obp0;
     return sys_mem->ioregs->obp0;
 }
 WRITE_FUNC(_write_obp0) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: sets color palette for objs 0
     data &= 0xFC;
+    ppu->misc.obp0 = data;
     sys_mem->ioregs->obp0 = data;
     return 1;
 }
 READ_FUNC(_read_obp1) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: returns color palette to obj palette 1
+    sys_mem->ioregs->obp1 = ppu->misc.obp1;
     return sys_mem->ioregs->obp1;
 }
 WRITE_FUNC(_write_obp1) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    PPUState *ppu = state->ppu;
     // FIXME: sets color palette for objs 0
     data &= 0xFC;
+    ppu->misc.obp1 = data;
     sys_mem->ioregs->obp1 = data;
     return 1;
 } 
@@ -431,8 +514,11 @@ READ_FUNC(_read_boot) {
 }
 WRITE_FUNC(_write_boot) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->bootrom_mapped = 0;
-    sys_mem->ioregs->boot = data | 1;
+    if (sys_mem->bootrom_mapped && (data & 0x1)) {
+        sys_mem->bootrom_mapped = 0;
+        sys_mem->ioregs->boot = 0x1;
+        state->mem->system->regions[0].flags |= MEM_UNMAPPED; 
+    }
 
     return 1;
 }
@@ -973,6 +1059,7 @@ MemoryRegion mbc1_mem_map[] = {
         .base=0x0000,
         .end=0x1FFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc1_read_rom_base,
         .write=&_mbc1_ram_enable
     },
@@ -980,6 +1067,7 @@ MemoryRegion mbc1_mem_map[] = {
         .base=0x2000,
         .end=0x3FFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc1_read_rom_base,
         .write=&_mbc1_rom_bank_num
     },
@@ -987,6 +1075,7 @@ MemoryRegion mbc1_mem_map[] = {
         .base=0x4000,
         .end=0x5FFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc1_read_rom_1,
         .write=&_mbc1_ram_or_upperrom
     },
@@ -994,6 +1083,7 @@ MemoryRegion mbc1_mem_map[] = {
         .base=0x6000,
         .end=0x7FFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc1_read_rom_1,
         .write=&_mbc1_bank_mode_select
     },
@@ -1001,6 +1091,7 @@ MemoryRegion mbc1_mem_map[] = {
         .base=0xA000,
         .end=0xBFFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc1_read_ram_bank,
         .write=&_mbc1_write_ram_bank
     }
@@ -1011,6 +1102,7 @@ MemoryRegion mbc3_mem_map[] = {
         .base=0x0000,
         .end=0x1FFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc3_read_rom_base,
         .write=&_mbc3_ram_timer_enable
     },
@@ -1018,6 +1110,7 @@ MemoryRegion mbc3_mem_map[] = {
         .base=0x2000,
         .end=0x3FFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc3_read_rom_base,
         .write=&_mbc3_rom_bank_num
     },
@@ -1025,6 +1118,7 @@ MemoryRegion mbc3_mem_map[] = {
         .base=0x4000,
         .end=0x5FFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc3_read_rom_1,
         .write=&_mbc3_ram_or_rtc_sel
     },
@@ -1032,6 +1126,7 @@ MemoryRegion mbc3_mem_map[] = {
         .base=0x6000,
         .end=0x7FFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc3_read_rom_1,
         .write=&_mbc3_latch_clock
     },
@@ -1039,6 +1134,7 @@ MemoryRegion mbc3_mem_map[] = {
         .base=0xA000,
         .end=0xBFFF,
         .len=0x2000,
+        .flags=0,
         .read=&_mbc3_read_ram_or_rtc,
         .write=&_mbc3_write_ram_or_rtc
     }
@@ -1050,6 +1146,7 @@ MemoryRegion system_mem_map[] = {
         .base=0x0000,
         .end=0xFF,
         .len=0x100,
+        .flags=0,
         .read=&_sys_read_boot_rom,
         .write=&_write_unimplemented
     },
@@ -1057,6 +1154,7 @@ MemoryRegion system_mem_map[] = {
         .base=0x8000,
         .end=0x9FFF,
         .len=0x2000,
+        .flags=0,
         .read=&_sys_read_vram,
         .write=&_sys_write_vram
     },
@@ -1064,6 +1162,7 @@ MemoryRegion system_mem_map[] = {
         .base=0xC000,
         .end=0xDFFF,
         .len=0x2000,
+        .flags=0,
         .read=&_sys_read_wram,
         .write=&_sys_write_wram
     },
@@ -1071,6 +1170,7 @@ MemoryRegion system_mem_map[] = {
         .base=0xE000,
         .end=0xFDFF,
         .len=0x1E00,
+        .flags=0,
         .read=&_read_unimplemented,
         .write=&_write_unimplemented
     },
@@ -1078,6 +1178,7 @@ MemoryRegion system_mem_map[] = {
         .base=0xFE00,
         .end=0xFE9F,
         .len=0xA0,
+        .flags=0,
         .read=&_sys_read_oam_table,
         .write=&_sys_write_oam_table
     },
@@ -1085,6 +1186,7 @@ MemoryRegion system_mem_map[] = {
         .base=0xFEA0,
         .end=0xFEFF,
         .len=0x60,
+        .flags=0,
         .read=&_read_unimplemented,
         .write=&_write_unimplemented
     },
@@ -1092,6 +1194,7 @@ MemoryRegion system_mem_map[] = {
         .base=0xFF00,
         .end=0xFF7F,
         .len=0x80,
+        .flags=0,
         .read=&_sys_read_ioreg,
         .write=&_sys_write_ioreg,
     },
@@ -1099,6 +1202,7 @@ MemoryRegion system_mem_map[] = {
         .base=0xFF80,
         .end=0xFFFE,
         .len=0x7F,
+        .flags=0,
         .read=&_sys_read_hiram,
         .write=&_sys_write_hiram
     },
@@ -1106,6 +1210,7 @@ MemoryRegion system_mem_map[] = {
         .base=0xFFFF,
         .end=0xFFFF,
         .len=0x1,
+        .flags=0,
         .read=&_sys_read_ioreg,
         .write=&_sys_write_ioreg
     }
@@ -1116,6 +1221,7 @@ MemoryRegion basic_mem_map[] = {
         .base=0x0000,
         .end=0x7FFF,
         .len=0x8000,
+        .flags=0,
         .read=&_basic_read_rom,
         .write=&_basic_write_rom
     }
@@ -1126,6 +1232,7 @@ MemoryRegion debug_mem_map[] = {
         .base=0x0000,
         .end=0xFFFF,
         .len=0x10000,
+        .flags=0,
         .read=&_debug_read_mem,
         .write=&_debug_write_mem
     }
@@ -1396,7 +1503,7 @@ void teardown_memory(MemoryState *mem) {
         mem->cartridge->teardown(mem->cartridge->state);
         free(mem->cartridge);
     }
-    
+
     mem->system->teardown(mem->system->state);
     free(mem->system);
     free(mem);
@@ -1422,11 +1529,11 @@ void teardown_timer(TimerState *timer) {
     free(timer);
 }
 
-void div_timer(GBState *state) {
+void task_div_timer(GBState *state) {
     state->timer->reg_div++;
 }
 
-void tima_timer(GBState *state) {
+void task_tima_timer(GBState *state) {
     TimerState *timer = state->timer;
     if (timer->timer_enabled) {
         if (state->counter % timer->tima_period_cycles == 0) {

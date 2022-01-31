@@ -7,7 +7,7 @@ CPUState *initialize_cpu(void);
 void teardown_cpu(CPUState *);
 void reset_registers(CPUState *);
 void reset_pipeline(CPUState *);
-void cpu_m_cycle(GBState *);
+void task_cpu_m_cycle(GBState *);
 void cpu_setup_pipeline(GBState *, BYTE);
 void cpu_setup_prefix_pipeline(GBState *, BYTE);
 void print_state_info(GBState *, char);

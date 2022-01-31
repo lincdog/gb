@@ -68,7 +68,7 @@ void test_instruction(CPUTestState *tstate) {
     /* Note we add 1 to n_m_cycles because the first cycle is only fetching
     the first opcode. */
     for (int i = 0; i < tstate->n_m_cycles + 1; i++) {
-        cpu_m_cycle(tstate->test_state);
+        task_cpu_m_cycle(tstate->test_state);
     }
 
     TEST_EQUALS(test_cpu, post_cpu, a);
@@ -1497,6 +1497,13 @@ void run_math_reg_8(CPUTestState *tstate) {
         reg_b(post_cpu) = 0x32;
         reg_a(post_cpu) = 0x03;
         SET_ZNHC(post_cpu, CLEAR, SET, CLEAR, SET);
+    );
+    DO_TEST(tstate, 0xB8, 0x00, 0x00, 1, 1,
+        reg_a(test_cpu) = 0x03;
+        reg_b(test_cpu) = 0x03;
+        reg_b(post_cpu) = 0x03;
+        reg_a(post_cpu) = 0x03;
+        SET_ZNHC(post_cpu, SET, SET, CLEAR, CLEAR);
     );
     DO_TEST(tstate, 0xB9, 0x00, 0x00, 1, 1,
         reg_a(test_cpu) = 0x03;

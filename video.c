@@ -89,6 +89,7 @@ PPUState *initialize_ppu(void) {
         printf("Failed to allocate PPUState\n");
         return NULL;
     }
+    ppu->count = 0;
     // 0x91: 1001 0001
     ppu->lcdc.lcd_enable = ON;
     ppu->lcdc.window_map = 0x9800;
@@ -191,6 +192,28 @@ SDL_Surface *make_tile_surface(const BYTE *packed) {
     }
 
     return surface;
+}
+
+void task_ppu_cycle(GBState *state) {
+    PPUState *ppu = state->ppu;
+
+    if (ppu->lcdc.lcd_enable == OFF)
+        goto ppu_cycle_end;
+    
+    if (ppu->count <= 80)
+    switch (ppu->stat.mode) {
+        case HBLANK:
+            break;
+        case VBLANK:
+            break;
+        case OAMSCAN:
+            break;
+        case DRAW:
+            break;
+    }
+
+    ppu_cycle_end:
+    1;
 }
 
 #ifdef GB_VIDEO_MAIN

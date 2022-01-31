@@ -5,9 +5,9 @@
 #include "mem.h"
 #include <SDL.h>
 
-typedef struct {
-    BYTE x;
+typedef struct __attribute__ ((packed)) {
     BYTE y;
+    BYTE x;
     BYTE index;
     BYTE flags;
 } SpriteAttr;

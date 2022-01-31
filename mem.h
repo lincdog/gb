@@ -273,8 +273,8 @@ void teardown_memory(MemoryState *);
 TimerState *initialize_timer(void);
 void teardown_timer(TimerState *);
 
-void div_timer(GBState *);
-void tima_timer(GBState *);
+void task_div_timer(GBState *);
+void task_tima_timer(GBState *);
 
 #define unused_ioreg(__addr) \
     (IOReg_t){.name="none\0", .addr=__addr, .read=&_read_unimplemented, .write=&_write_unimplemented}

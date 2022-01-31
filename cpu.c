@@ -624,13 +624,18 @@ CYCLE_FUNC(_check_flags) {
 
 }
 
+static int _dummy(void) { return 1; }
+
 /* Execute a single m-cycle (4 clock ticks) of CPU operation. 
 Executes the current pipelined action first, unless in PREINIT,
 increments the pipeline counter, and fetches the next instruction if there
 are no further pipelined actions after this.
 */
-void cpu_m_cycle(GBState *state) {
+void task_cpu_m_cycle(GBState *state) {
     CPUState *cpu = state->cpu;
+
+    if (reg_pc(cpu) > 0xFF)
+        _dummy();
 
     if (cpu->state != PREINIT) {
         // Execute the next cycle step of the current queue
