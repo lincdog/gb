@@ -15,8 +15,15 @@ const BYTE test_tile[] = {
     0xC9, 0x97, 0x7E, 0xFF
 };
 
-const SDL_Color colors[] = {
+const SDL_Color obj_colors[] = {
     {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF },
+    {.r = 0x90, .g = 0x90, .b = 0x90, .a = 0x00 },
+    {.r = 0x50, .g = 0x50, .b = 0x50, .a = 0x00 },
+    {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0x00 }
+};
+
+const SDL_Color bgwin_colors[] = {
+    {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0x00 },
     {.r = 0x90, .g = 0x90, .b = 0x90, .a = 0x00 },
     {.r = 0x50, .g = 0x50, .b = 0x50, .a = 0x00 },
     {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0x00 }
@@ -201,6 +208,12 @@ void ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
     * that respects the various PPU modes, pixel FIFOs, and memory
     * access restrictions.
     */
+    PPUState *ppu = state->ppu;
+    LCDStatus stat = ppu->stat;
+    LCDControl lcdc = ppu->lcdc;
+    if (lcdc.)
+
+
 }
 
 void task_ppu_cycle(GBState *state) {
@@ -231,7 +244,7 @@ int main(int argc, char *argv[]) {
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *texture, *test_texture;
-    SDL_Surface *test_surface;
+    SDL_Surface *window_surface, *test_surface;
     SDL_Event event;
     SDL_Rect r;
 
@@ -250,11 +263,13 @@ int main(int argc, char *argv[]) {
         SDL_WINDOW_RESIZABLE
     );
 
-    r.w = 10;
-    r.h = 5;
+    r.x = 0;
+    r.y = 0;
+    r.w = 8;
+    r.h = 8;
 
     renderer = SDL_CreateRenderer(window, -1, 0);
-    /*
+    
     texture = SDL_CreateTexture(
         renderer, 
         SDL_PIXELFORMAT_RGBA8888, 
@@ -262,9 +277,10 @@ int main(int argc, char *argv[]) {
         160, 
         144
     );
-    */
+    
 
     test_surface = make_tile_surface(test_tile);
+    SDL_BlitSurface(test_surface, NULL, )
     test_texture = SDL_CreateTextureFromSurface(renderer, test_surface);
 
     SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0x00);
