@@ -29,7 +29,55 @@ const BYTE test_tiles_packed[][16] = {
     }
 };
 
-const BYTE test_tilemap[] = {
+const BYTE test_tilemap[TILEMAP_SIZE_BYTES] = {
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
     0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
     1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
     2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
@@ -85,10 +133,6 @@ typedef struct {
     GBState *state;
     BYTE *mem;
     BYTE *final_pixels;
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    SDL_Surface *gb_surface;
-    SDL_Texture *gb_texture;
 } VideoTestState;
 
 VideoTestState *initialize_video_tests(GBState *state) {
@@ -99,7 +143,7 @@ VideoTestState *initialize_video_tests(GBState *state) {
     vtstate->final_pixels = (BYTE *)malloc(GB_HEIGHT_PX * GB_WIDTH_PX);
     memset(vtstate->final_pixels, 0, GB_HEIGHT_PX*GB_WIDTH_PX);
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    /*if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, 
             "Couldn't initialize SDL: %s", SDL_GetError());
         return NULL;
@@ -112,32 +156,28 @@ VideoTestState *initialize_video_tests(GBState *state) {
         SDL_WINDOW_RESIZABLE
     );
     vtstate->renderer = SDL_CreateRenderer(vtstate->window, -1, 0);
-    vtstate->gb_surface = SDL_CreateRGBSurface(
-        0, 
+    vtstate->gb_surface = new_8bit_surface(
         GB_WIDTH_PX, 
         GB_HEIGHT_PX, 
-        8,
-        0,
-        0,
-        0,
-        0
+        PALETTE_DEFAULT,
+        COLORS_BGWIN
     );
 
-    SDL_SetPaletteColors(vtstate->gb_surface->format->palette, bgwin_colors, 0, 4);
     vtstate->gb_texture = NULL;
+    */
 
     return vtstate;
 }
 
-SDL_Surface *run_test(VideoTestState *vtstate) {
+void run_test(VideoTestState *vtstate) {
     GBState *state = vtstate->state;
     PPUState *ppu = state->ppu;
     /* Set LCDC to known state */
     ppu->lcdc.lcd_enable = ON;
-    ppu->lcdc.win_map_area = AREA0;
+    ppu->lcdc.win_map_area = MAP_AREA0;
     ppu->lcdc.window_enable = OFF;
-    ppu->lcdc.bg_win_data_area = AREA1;
-    ppu->lcdc.bg_map_area = AREA0;
+    ppu->lcdc.bg_win_data_area = DATA_AREA1;
+    ppu->lcdc.bg_map_area = MAP_AREA0;
     ppu->lcdc.obj_size = _8x8;
     ppu->lcdc.obj_enable = OFF;
     ppu->lcdc.bg_window_enable = ON;
@@ -146,6 +186,7 @@ SDL_Surface *run_test(VideoTestState *vtstate) {
     ppu->misc.scy = 0;
     ppu->misc.wx = 7;
     ppu->misc.wy = 10;
+    ppu->misc.bgp = PALETTE_DEFAULT;
 
     BYTE *mem = vtstate->mem;
     /* Set up tile data at area 1 */
@@ -156,15 +197,16 @@ SDL_Surface *run_test(VideoTestState *vtstate) {
     /* Set up tile map at area 0 */
     memcpy(&mem[0x9800], &test_tilemap, 32*32);
 
-    return ppu_render_picture(state);
+    ppu_make_surface(state);
+    ppu_render_surface(state);
 }
 
 void teardown_video_tests(VideoTestState *vtstate) {
     free(vtstate->final_pixels);
-    SDL_DestroyTexture(vtstate->gb_texture);
+    /*SDL_DestroyTexture(vtstate->gb_texture);
     SDL_FreeSurface(vtstate->gb_surface);
     SDL_DestroyRenderer(vtstate->renderer);
-    SDL_DestroyWindow(vtstate->window);
+    SDL_DestroyWindow(vtstate->window);*/
     free(vtstate);
 }
 
@@ -179,54 +221,36 @@ int main(int argc, char *argv[]) {
     print_packed(test_tiles_unpacked[1]);
     print_packed(test_tiles_unpacked[2]);
 
+    /*BYTE *test_pixels = malloc(32*32);
+    memset(test_pixels, 0, 32*32);
+    for (int i = 0; i < 32; i += 8) {
+        for (int j = 0; j < 32; j += 8) {
+            unpack_tile(&test_tiles_packed[0], test_pixels, 0, i, j, 32);
+        }
+    }
+
+    for (int i = 0; i < 32; i++) {
+        for (int j = 0; j < 32; j++) {
+            printf("%02X ", test_pixels[32*i + j]);
+        }
+        printf("\n");
+    }*/
+
+    
     GBState *state = initialize_gb(DEBUG);
     VideoTestState *vtstate = initialize_video_tests(state);
 
-    /*
-    SDL_Rect r;
-    r.x = 0;
-    r.y = 0;
-    r.w = 8;
-    r.h = 8;
-
-    test_tile_surface = make_tile_surface(test_tiles_packed[0]);
-
-    for (int i = 0; i < GB_HEIGHT_PX; i += 8) {
-        for (int j = 0; j < GB_WIDTH_PX; j += 8) {
-            r.x = j; 
-            r.y = i;
-            SDL_BlitSurface(test_tile_surface, NULL, vtstate->gb_surface, &r);
-        }
-    }
-    */
-    vtstate->gb_surface = run_test(vtstate);
-    vtstate->gb_texture = SDL_CreateTextureFromSurface(vtstate->renderer, vtstate->gb_surface);
+    run_test(vtstate);
     
-    SDL_RenderClear(vtstate->renderer);
-    SDL_RenderCopy(vtstate->renderer, vtstate->gb_texture, NULL, NULL);
-    SDL_RenderPresent(vtstate->renderer);
     while (1) {
         SDL_PollEvent(&event);
         if(event.type == SDL_QUIT)
             break;
-
-        //r.x = rand() % 500;
-        //r.y = rand() % 500;
-
-        //SDL_SetRenderTarget(renderer, test_texture);
-        //SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-        //SDL_RenderClear(renderer);
-
-        //SDL_RenderDrawRect(renderer,&r);
-        //SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0x00);
-        //SDL_RenderFillRect(renderer, &r);
-        //SDL_SetRenderTarget(renderer, NULL);
     }
     
     teardown_video_tests(vtstate);
     teardown_gb(state);
-
-    SDL_Quit();
+        
  
     return 0;
 }

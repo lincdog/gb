@@ -23,6 +23,8 @@ const SDL_Color bgwin_colors[] = {
     {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0x00 }
 };
 
+
+
 int pack_tile(const BYTE *data_unpacked, BYTE *data, BYTE flags) {
     BYTE packed_byte_1 = 0;
     BYTE packed_byte_2 = 0;
@@ -50,7 +52,14 @@ int pack_tile(const BYTE *data_unpacked, BYTE *data, BYTE flags) {
     }
 }
 
-int unpack_tile(const BYTE *data, BYTE *data_unpacked, BYTE flags) {
+int unpack_tile(
+    const BYTE *data, 
+    BYTE *data_unpacked, 
+    BYTE flags,
+    int x_offset,
+    int y_offset,
+    int x_extent
+) {
 
     int x_flip = 0, y_flip = 0, p_num = 0;
     y_flip = bit_6(flags);
@@ -59,27 +68,28 @@ int unpack_tile(const BYTE *data, BYTE *data_unpacked, BYTE flags) {
     p_num = bit_4(flags);
 
     BYTE tmp1, tmp2;
-    char x_base, x_add, y_base, y_add, row_base;
+    int x_base, y_base, row_base;
+    char x_add, y_add;
     if (x_flip) {
-        x_base = 7;
+        x_base = x_offset + 7;
         x_add = -1;
     } else {
-        x_base = 0;
+        x_base = x_offset + 0;
         x_add = 1;
     }
 
     if (y_flip) {
-        y_base = 7;
+        y_base = y_offset + 7;
         y_add = -1;
     } else {
-        y_base = 0;
+        y_base = y_offset + 0;
         y_add = 1;
     }
 
     for (int i = 0; i < 8; i++) {
         tmp1 = data[2*i];
         tmp2 = data[2*i+1];
-        row_base = 8*(y_base + y_add*i) + x_base;
+        row_base = x_extent*(y_base + y_add*i) + x_base;
 
         // This fills in one row per iteration of the 8x8 sprite
         // To flip Y, we start at the bottom of the 8x8 buffer
@@ -120,10 +130,10 @@ PPUState *initialize_ppu(void) {
     ppu->counter = 0;
     // 0x91: 1001 0001
     ppu->lcdc.lcd_enable = ON;
-    ppu->lcdc.win_map_area = AREA0;
+    ppu->lcdc.win_map_area = MAP_AREA0;
     ppu->lcdc.window_enable = OFF;
-    ppu->lcdc.bg_win_data_area = AREA1;
-    ppu->lcdc.bg_map_area = AREA0;
+    ppu->lcdc.bg_win_data_area = DATA_AREA1;
+    ppu->lcdc.bg_map_area = MAP_AREA0;
     ppu->lcdc.obj_size = _8x8;
     ppu->lcdc.obj_enable = OFF;
     ppu->lcdc.bg_window_enable = ON;
@@ -155,10 +165,18 @@ PPUState *initialize_ppu(void) {
         ppu->fifo_obj.data[i] = 0;
     }
 
+    ppu->sign_check = 0;
+    ppu->bg_pixelbuf = malloc(GB_FULL_SIZE * GB_FULL_SIZE);
+    memset(ppu->bg_pixelbuf, 0, GB_FULL_SIZE * GB_FULL_SIZE);
+    ppu->win_pixelbuf = malloc(GB_FULL_SIZE * GB_FULL_SIZE);
+    memset(ppu->win_pixelbuf, 0, GB_FULL_SIZE * GB_FULL_SIZE);
+
     return ppu;
 }
 
 void teardown_ppu(PPUState *ppu) {
+    free(ppu->bg_pixelbuf);
+    free(ppu->win_pixelbuf);
     free(ppu);
 }
 
@@ -171,7 +189,7 @@ void print_unpacked(const BYTE *packed) {
         exit(1);
     }
 
-    unpack_tile(packed, unpacked, 0);
+    unpack_tile(packed, unpacked, 0, 0, 0, 8);
 
     for (int i = 0; i < 64; i++) {
         if (i % 8 == 0) {
@@ -213,7 +231,7 @@ SDL_Surface *make_tile_surface(const BYTE *packed) {
         exit(1);
     }
 
-    unpack_tile(packed, unpacked, 0x40); 
+    unpack_tile(packed, unpacked, 0, 0, 0, 8); 
 
     SDL_Surface *surface;
     surface = SDL_CreateRGBSurfaceFrom(
@@ -246,7 +264,53 @@ SDL_Surface *make_tile_surface_from_index(GBState *state, BYTE index) {
 
 }
 
-SDL_Surface *ppu_render_picture(GBState *state) {
+void set_8bit_colors(SDL_Surface *surface, BYTE palette, BYTE color_source) {
+    if (color_source != COLORS_NONE) {
+        SDL_Color colors[4];
+        if (color_source == COLORS_BGWIN) {
+            colors[0] = bgwin_colors[palette & 0x3];
+            colors[1] = bgwin_colors[(palette & 0xC)>>2];
+            colors[2] = bgwin_colors[(palette & 0x30)>>4];
+            colors[3] = bgwin_colors[(palette & 0xC0)>>6];
+        } else {
+            colors[0] = obj_colors[palette & 0x3];
+            colors[1] = obj_colors[(palette & 0xC)>>2];
+            colors[2] = obj_colors[(palette & 0x30)>>4];
+            colors[3] = obj_colors[(palette & 0xC0)>>6];
+        }
+    
+        SDL_SetPaletteColors(surface->format->palette, colors, 0, 4);
+    }
+}
+
+SDL_Surface *new_8bit_surface(
+    int width, int height, 
+    BYTE palette, BYTE color_source) {
+    SDL_Surface *surface = SDL_CreateRGBSurface(
+        0, width, height, 
+        8, 0, 0, 0, 0);
+    
+    set_8bit_colors(surface, palette, color_source);
+    return surface;
+}
+
+SDL_Surface *new_8bit_surface_from(
+    BYTE *pixels, int width, int height, 
+    BYTE palette, BYTE color_source) {
+    SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(
+        pixels,
+        width,
+        height,
+        8,
+        width,
+        0, 0, 0, 0
+    );
+
+    set_8bit_colors(surface, palette, color_source);
+    return surface;
+}
+
+SDL_Surface *ppu_make_surface(GBState *state) {
     /*TODO: Given the current PPU state and an SDL Renderer, 
     * produce the entire 160x144 video image and render it.
     * A prelude to breaking this process into cycle-based timing
@@ -256,105 +320,112 @@ SDL_Surface *ppu_render_picture(GBState *state) {
     PPUState *ppu = state->ppu;
     LCDStatus stat = ppu->stat;
     LCDControl lcdc = ppu->lcdc;
-    SDL_Rect tile_r, bg_r, win_r;
-    tile_r.x = 0;
-    tile_r.y = 0;
-    tile_r.h = 8;
-    tile_r.w = 8;
-
-    SDL_Surface *tile_surface, *bg_surface, *win_surface, *obj_surface, *final_surface;
+    SDL_Rect bg_r, win_r;
+    SDL_Surface *tile_surface, *bg_surface, *win_surface, *obj_surface;
     
-    final_surface = SDL_CreateRGBSurface(
-        0, GB_WIDTH_PX, GB_HEIGHT_PX, 
-        8, 0, 0, 0, 0);
-    SDL_SetPaletteColors(final_surface->format->palette, bgwin_colors, 0, 4);
-
     if (lcdc.lcd_enable == OFF)
         goto cleanup_end;
     
-    WORD bg_win_tile_base, bg_map_base, win_map_base;
     WORD map_addr, tile_addr;
-    char signed_offset;
-    BYTE unsigned_offset;
-    BYTE *tile_pointer;
+    BYTE tile_index;
+    int16_t tile_addr_offset;
+    BYTE *tile_mem_pointer;
+    BYTE tile_x, tile_y;
+    tile_x = tile_y = 0;
 
     if (lcdc.bg_window_enable == ON) {
-        bg_surface = SDL_CreateRGBSurface(
-            0, GB_FULL_SIZE, GB_FULL_SIZE, 
-            8, 0, 0, 0, 0);
-        SDL_SetPaletteColors(bg_surface->format->palette, bgwin_colors, 0, 4);
+        /*bg_surface = new_8bit_surface(GB_FULL_SIZE, GB_FULL_SIZE, 
+            ppu->misc.bgp, COLORS_BGWIN);*/
         
         bg_r.x = ppu->misc.scx;
         bg_r.y = ppu->misc.scy;
         bg_r.w = GB_WIDTH_PX;
         bg_r.h = GB_HEIGHT_PX;
         
-        if (lcdc.bg_map_area == AREA1)
-            bg_map_base = 0x9C00;
-        else
-            bg_map_base = 0x9800;
+        //if (lcdc.bg_map_area == MAP_AREA1)
+        //    bg_map_base = TILEMAP_AREA1;
+        //else
+        //    bg_map_base = TILEMAP_AREA0;
         
-        if (lcdc.bg_win_data_area == AREA1) {
-            bg_win_tile_base = 0x8000;
-            for (int i = 0; i < 0x400; i++) {
-                map_addr = bg_map_base + i;
-                unsigned_offset = read_mem(state, map_addr, 0);
-                tile_addr = bg_win_tile_base + (TILE_SIZE_BYTES * unsigned_offset);
-                tile_pointer = get_mem_pointer(state, tile_addr, 0);
-                tile_surface = make_tile_surface(tile_pointer);
-                tile_r.x = 8*(i % 32);
-                tile_r.y = 8*(i >> 5);
-                SDL_BlitSurface(tile_surface, NULL, bg_surface, &tile_r);
-            }
-        } else {
-            bg_win_tile_base = 0x9000;
-            for (int i = 0; i < 0x400; i++) {
-                map_addr = bg_map_base + i;
-                signed_offset = read_mem(state, map_addr, 0);
-                tile_addr = bg_win_tile_base + (TILE_SIZE_BYTES * signed_offset);
-                tile_surface = make_tile_surface(tile_pointer);
-                tile_r.x = 8*(i % 32);
-                tile_r.y = 8*(i >> 5);
-                SDL_BlitSurface(tile_surface, NULL, bg_surface, &tile_r);
-            }
-
+        //if (lcdc.bg_win_data_area == DATA_AREA1) {
+            /* "unsigned" indexing: tile addr = 0x8000 + TILE_SIZE_BYTES * tile_index */
+        //   bg_win_tile_base = TILEDATA_AREA1;
+        //    sign_check = 0;   
+        //} else {
+            /* "signed" indexing": tile addr = 0x9000 + TILE_SIZE_BYTES * (signed)tile_index*/
+        //    bg_win_tile_base = TILEDATA_AREA0;
+        //    sign_check = 0x80;
+        //}
+        for (int i = 0; i < TILEMAP_SIZE_BYTES; i++) {
+            map_addr = lcdc.bg_map_area + i;
+            tile_index = read_mem(state, map_addr, 0);
+            /* tile_index ^ sign_check = tile_index if sign_check is 0,
+            or last 7 bits of tile_index if sign_check is 0x80 (0b1000000).
+            tile_index & sign_check = 0 if sign_check is 0, 
+            or 0x80 (0x10000000) if sign_check is 0x80 and tile_index < 0.
+            */
+            tile_addr_offset = TILE_SIZE_BYTES * 
+                ((tile_index ^ ppu->sign_check) - (tile_index & ppu->sign_check));
+            
+            tile_addr = lcdc.bg_win_data_area + tile_addr_offset;
+                        
+            tile_mem_pointer = get_mem_pointer(state, tile_addr, 0);
+            tile_x = 8*(i % 32);
+            tile_y = 8*(i >> 5);
+            unpack_tile(
+                tile_mem_pointer, 
+                ppu->bg_pixelbuf, 
+                0, tile_x, tile_y, GB_FULL_SIZE);
         }
+        bg_surface = new_8bit_surface_from(
+            ppu->bg_pixelbuf,
+            GB_FULL_SIZE, GB_FULL_SIZE, 
+            ppu->misc.bgp, COLORS_BGWIN);
         
-        SDL_BlitSurface(bg_surface, &bg_r, final_surface, NULL);
+        SDL_BlitSurface(bg_surface, &bg_r, ppu->gb_surface, NULL);
+        SDL_FreeSurface(bg_surface);
 
         if (lcdc.window_enable == ON) {
-            win_surface = SDL_CreateRGBSurface(
-                0, GB_FULL_SIZE, GB_FULL_SIZE, 
-                8, 0, 0, 0, 0);
+            win_surface = new_8bit_surface(GB_FULL_SIZE, GB_FULL_SIZE, 
+                ppu->misc.bgp, COLORS_BGWIN);
             
             win_r.x = ppu->misc.wx - 7;
             win_r.y = ppu->misc.wy;
             win_r.w = GB_WIDTH_PX;
             win_r.h = GB_HEIGHT_PX;
 
-            if (lcdc.win_map_area == AREA1)
-                win_map_base = 0x9C00;
+            /*if (lcdc.win_map_area == MAP_AREA1)
+                win_map_base = TILEMAP_AREA1;
             else
-                win_map_base = 0x9800;
-
-            SDL_BlitSurface(win_surface, &win_r, final_surface, NULL);
+                win_map_base = TILEMAP_AREA0;
+            */
+            SDL_BlitSurface(win_surface, &win_r, ppu->gb_surface, NULL);
 
             SDL_FreeSurface(win_surface);
         }
-        SDL_FreeSurface(bg_surface);
+        
     }
     if (lcdc.obj_enable == ON) {
-        obj_surface = SDL_CreateRGBSurface(
-            0, GB_FULL_SIZE, GB_FULL_SIZE, 
-            8, 0, 0, 0, 0);
+        obj_surface = new_8bit_surface(
+            GB_FULL_SIZE, GB_FULL_SIZE, 
+            PALETTE_DEFAULT, COLORS_OBJ);
 
 
         SDL_FreeSurface(obj_surface);
     }
 
     cleanup_end:
-    return final_surface;
+    return ppu->gb_surface;
 
+}
+
+void ppu_render_surface(GBState *state) {
+    PPUState *ppu = state->ppu;
+    ppu->gb_texture = SDL_CreateTextureFromSurface(ppu->gb_renderer, ppu->gb_surface);
+    
+    SDL_RenderClear(ppu->gb_renderer);
+    SDL_RenderCopy(ppu->gb_renderer, ppu->gb_texture, NULL, NULL);
+    SDL_RenderPresent(ppu->gb_renderer);
 }
 
 

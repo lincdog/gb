@@ -2,10 +2,44 @@
 #include "cpu.h"
 #include "mem.h"
 #include "video.h"
+#include <SDL.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+void initialize_sdl_components(GBState *state) {
+    PPUState *ppu = state->ppu;
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, 
+            "Couldn't initialize SDL: %s", SDL_GetError());
+        exit(1);
+    }
+
+    ppu->gb_window = SDL_CreateWindow("Test",
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        EMU_WIDTH_PX, EMU_HEIGHT_PX,
+        SDL_WINDOW_RESIZABLE
+    );
+    ppu->gb_renderer = SDL_CreateRenderer(ppu->gb_window, -1, 0);
+    ppu->gb_surface = new_8bit_surface(
+        GB_WIDTH_PX, 
+        GB_HEIGHT_PX, 
+        PALETTE_DEFAULT,
+        COLORS_BGWIN
+    );
+
+    ppu->gb_texture = NULL;
+}
+
+void teardown_sdl_components(GBState *state) {
+    PPUState *ppu = state->ppu;
+    SDL_FreeSurface(ppu->gb_surface);
+    SDL_DestroyTexture(ppu->gb_texture);
+    SDL_DestroyRenderer(ppu->gb_renderer);
+    SDL_DestroyWindow(ppu->gb_window);
+    SDL_Quit();
+}
 
 GBState *initialize_gb(MemInitFlag flag) {
     GBState *state = malloc(sizeof(GBState));
@@ -16,6 +50,8 @@ GBState *initialize_gb(MemInitFlag flag) {
     state->mem = initialize_memory(flag);
     state->timer = initialize_timer();
 
+    initialize_sdl_components(state);
+
     /*
         * Load the boot ROM and the cartridge header at least
         * Need info from the header to set up memory (0x147 - cartridge type,
@@ -25,6 +61,7 @@ GBState *initialize_gb(MemInitFlag flag) {
 }
 
 void teardown_gb(GBState *state) {
+    teardown_sdl_components(state);
     teardown_cpu(state->cpu);
     teardown_memory(state->mem);
     teardown_ppu(state->ppu);

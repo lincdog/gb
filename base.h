@@ -2,6 +2,7 @@
 #define GB_BASE
 
 #include <stdint.h>
+#include <SDL.h>
 
 #define WORD uint16_t
 #define BYTE uint8_t
@@ -112,13 +113,14 @@ typedef enum {
 } PPUFifoState;
 
 typedef enum {OFF=0, ON=1} toggle;
-typedef enum {AREA0=0, AREA1=1} area;
+typedef enum {DATA_AREA0=0x9000, DATA_AREA1=0x8000} tile_data_area;
+typedef enum {MAP_AREA0=0x9800, MAP_AREA1=0x9C00} tile_map_area;
 typedef struct {
     toggle lcd_enable;
-    area win_map_area;
+    tile_map_area win_map_area;
     toggle window_enable;
-    area bg_win_data_area;
-    area bg_map_area;
+    tile_data_area bg_win_data_area;
+    tile_map_area bg_map_area;
     enum {_8x8=0, _8x16=1} obj_size;
     toggle obj_enable;
     toggle bg_window_enable;
@@ -163,7 +165,15 @@ typedef struct {
     LCDControl lcdc;
     LCDStatus stat;
     PPUMisc misc;
+    
     unsigned int counter;
+    BYTE sign_check;
+    BYTE *bg_pixelbuf;
+    BYTE *win_pixelbuf;
+    SDL_Window *gb_window;
+    SDL_Renderer *gb_renderer;
+    SDL_Texture *gb_texture;
+    SDL_Surface *gb_surface;
 } PPUState;
 
 

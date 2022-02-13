@@ -11,6 +11,15 @@
 #define EMU_WIDTH_PX (4*GB_WIDTH_PX)
 #define GB_FULL_SIZE 256
 #define TILE_SIZE_BYTES 16
+#define TILEMAP_SIZE_BYTES 1024
+#define TILEMAP_AREA0 0x9800
+#define TILEMAP_AREA1 0x9C00
+#define TILEDATA_AREA0 0x9000
+#define TILEDATA_AREA1 0x8000
+#define COLORS_BGWIN 0
+#define COLORS_OBJ 1
+#define COLORS_NONE 0xFF
+#define PALETTE_DEFAULT 0xE4
 
 typedef struct __attribute__ ((packed)) {
     BYTE y;
@@ -30,5 +39,7 @@ typedef struct {
 
 PPUState *initialize_ppu(void);
 void teardown_ppu(PPUState *);
+SDL_Surface *new_8bit_surface(int, int, BYTE, BYTE);
+SDL_Surface *new_8bit_surface_from(BYTE *, int, int, BYTE, BYTE);
 
 #endif // GB_VIDEO

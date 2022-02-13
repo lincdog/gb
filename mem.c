@@ -344,10 +344,10 @@ WRITE_FUNC(_write_lcdc) {
     LCDControl *lcdc = &state->ppu->lcdc;
     // FIXME: all bits of lcdc control aspects of the PPU
     lcdc->lcd_enable = (data & 0x80) ? ON : OFF;
-    lcdc->win_map_area = (data & 0x40) ? AREA1 : AREA0;
+    lcdc->win_map_area = (data & 0x40) ? MAP_AREA1 : MAP_AREA0;
     lcdc->window_enable = (data & 0x20) ? ON : OFF;
-    lcdc->bg_win_data_area = (data & 0x10) ? AREA1 : AREA0;
-    lcdc->bg_map_area = (data & 0x8) ? AREA1 : AREA0;
+    lcdc->bg_win_data_area = (data & 0x10) ? DATA_AREA1 : DATA_AREA0;
+    lcdc->bg_map_area = (data & 0x8) ? MAP_AREA1 : MAP_AREA0;
     lcdc->obj_size = (data & 0x4) ? _8x16 : _8x8;
     lcdc->obj_enable = (data & 0x2) ? ON : OFF;
     lcdc->bg_window_enable = (data & 0x1) ? ON : OFF;
