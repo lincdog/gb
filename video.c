@@ -8,23 +8,6 @@
 //#include <SDL_timer.h>
 
 
-const BYTE test_tile[] = {
-    0xFF, 0x00, 0x7E, 0xFF, 
-    0x85, 0x81, 0x89, 0x83,
-    0x93, 0x85, 0xA5, 0x8B, 
-    0xC9, 0x97, 0x7E, 0xFF
-};
-
-const BYTE test_tile_unpacked[] = {
-    1, 1, 1, 1, 1, 1, 1, 1,
-    2, 3, 3, 3, 3, 3, 3, 2,
-    3, 0, 0, 0, 0, 1, 0, 3,
-    3, 0, 0, 0, 1, 0, 2, 3,
-    3, 0, 0, 1, 0, 2, 1, 3,
-    3, 0, 1, 0, 2, 1, 2, 3,
-    3, 1, 0, 2, 1, 2, 2, 3,
-    2, 3, 3, 3, 3, 3, 3, 2
-};
 
 const SDL_Color obj_colors[] = {
     {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF },
@@ -45,7 +28,7 @@ int pack_tile(const BYTE *data_unpacked, BYTE *data, BYTE flags) {
     BYTE packed_byte_2 = 0;
 
     for (int i = 0, j = 0; i < 64; i += 8, j += 2) {
-        printf("i: %d j: %d\n", i, j);
+
         packed_byte_1 = ((data_unpacked[i] & 0x1) << 7) |
                         ((data_unpacked[i+1] & 0x1) << 6) |
                         ((data_unpacked[i+2] & 0x1) << 5) |
@@ -263,7 +246,7 @@ SDL_Surface *make_tile_surface_from_index(GBState *state, BYTE index) {
 
 }
 
-SDL_Surface *ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
+SDL_Surface *ppu_render_picture(GBState *state) {
     /*TODO: Given the current PPU state and an SDL Renderer, 
     * produce the entire 160x144 video image and render it.
     * A prelude to breaking this process into cycle-based timing
@@ -273,18 +256,19 @@ SDL_Surface *ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
     PPUState *ppu = state->ppu;
     LCDStatus stat = ppu->stat;
     LCDControl lcdc = ppu->lcdc;
-    SDL_Rect r;
-    r.x = 0;
-    r.y = 0;
-    r.h = 8;
-    r.w = 8;
+    SDL_Rect tile_r, bg_r, win_r;
+    tile_r.x = 0;
+    tile_r.y = 0;
+    tile_r.h = 8;
+    tile_r.w = 8;
 
     SDL_Surface *tile_surface, *bg_surface, *win_surface, *obj_surface, *final_surface;
     
     final_surface = SDL_CreateRGBSurface(
         0, GB_WIDTH_PX, GB_HEIGHT_PX, 
         8, 0, 0, 0, 0);
-    
+    SDL_SetPaletteColors(final_surface->format->palette, bgwin_colors, 0, 4);
+
     if (lcdc.lcd_enable == OFF)
         goto cleanup_end;
     
@@ -298,6 +282,12 @@ SDL_Surface *ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
         bg_surface = SDL_CreateRGBSurface(
             0, GB_FULL_SIZE, GB_FULL_SIZE, 
             8, 0, 0, 0, 0);
+        SDL_SetPaletteColors(bg_surface->format->palette, bgwin_colors, 0, 4);
+        
+        bg_r.x = ppu->misc.scx;
+        bg_r.y = ppu->misc.scy;
+        bg_r.w = GB_WIDTH_PX;
+        bg_r.h = GB_HEIGHT_PX;
         
         if (lcdc.bg_map_area == AREA1)
             bg_map_base = 0x9C00;
@@ -312,9 +302,9 @@ SDL_Surface *ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
                 tile_addr = bg_win_tile_base + (TILE_SIZE_BYTES * unsigned_offset);
                 tile_pointer = get_mem_pointer(state, tile_addr, 0);
                 tile_surface = make_tile_surface(tile_pointer);
-                r.x = (i & 0x3F) << 3;
-                r.y =  (i >> 5) << 3;
-                SDL_BlitSurface(tile_surface, NULL, bg_surface, &r);
+                tile_r.x = 8*(i % 32);
+                tile_r.y = 8*(i >> 5);
+                SDL_BlitSurface(tile_surface, NULL, bg_surface, &tile_r);
             }
         } else {
             bg_win_tile_base = 0x9000;
@@ -323,24 +313,31 @@ SDL_Surface *ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
                 signed_offset = read_mem(state, map_addr, 0);
                 tile_addr = bg_win_tile_base + (TILE_SIZE_BYTES * signed_offset);
                 tile_surface = make_tile_surface(tile_pointer);
-                r.x = (i & 0x3F) << 3;
-                r.y =  (i >> 5) << 3;
-                SDL_BlitSurface(tile_surface, NULL, bg_surface, &r);
+                tile_r.x = 8*(i % 32);
+                tile_r.y = 8*(i >> 5);
+                SDL_BlitSurface(tile_surface, NULL, bg_surface, &tile_r);
             }
+
         }
         
-        
+        SDL_BlitSurface(bg_surface, &bg_r, final_surface, NULL);
 
         if (lcdc.window_enable == ON) {
             win_surface = SDL_CreateRGBSurface(
                 0, GB_FULL_SIZE, GB_FULL_SIZE, 
                 8, 0, 0, 0, 0);
+            
+            win_r.x = ppu->misc.wx - 7;
+            win_r.y = ppu->misc.wy;
+            win_r.w = GB_WIDTH_PX;
+            win_r.h = GB_HEIGHT_PX;
 
             if (lcdc.win_map_area == AREA1)
                 win_map_base = 0x9C00;
             else
                 win_map_base = 0x9800;
 
+            SDL_BlitSurface(win_surface, &win_r, final_surface, NULL);
 
             SDL_FreeSurface(win_surface);
         }
