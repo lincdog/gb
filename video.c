@@ -15,6 +15,17 @@ const BYTE test_tile[] = {
     0xC9, 0x97, 0x7E, 0xFF
 };
 
+const BYTE test_tile_unpacked[] = {
+    1, 1, 1, 1, 1, 1, 1, 1,
+    2, 3, 3, 3, 3, 3, 3, 2,
+    3, 0, 0, 0, 0, 1, 0, 3,
+    3, 0, 0, 0, 1, 0, 2, 3,
+    3, 0, 0, 1, 0, 2, 1, 3,
+    3, 0, 1, 0, 2, 1, 2, 3,
+    3, 1, 0, 2, 1, 2, 2, 3,
+    2, 3, 3, 3, 3, 3, 3, 2
+};
+
 const SDL_Color obj_colors[] = {
     {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF },
     {.r = 0x90, .g = 0x90, .b = 0x90, .a = 0x00 },
@@ -28,6 +39,33 @@ const SDL_Color bgwin_colors[] = {
     {.r = 0x50, .g = 0x50, .b = 0x50, .a = 0x00 },
     {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0x00 }
 };
+
+int pack_tile(const BYTE *data_unpacked, BYTE *data, BYTE flags) {
+    BYTE packed_byte_1 = 0;
+    BYTE packed_byte_2 = 0;
+
+    for (int i = 0, j = 0; i < 64; i += 8, j += 2) {
+        printf("i: %d j: %d\n", i, j);
+        packed_byte_1 = ((data_unpacked[i] & 0x1) << 7) |
+                        ((data_unpacked[i+1] & 0x1) << 6) |
+                        ((data_unpacked[i+2] & 0x1) << 5) |
+                        ((data_unpacked[i+3] & 0x1) << 4) |
+                        ((data_unpacked[i+4] & 0x1) << 3) |
+                        ((data_unpacked[i+5] & 0x1) << 2) |
+                        ((data_unpacked[i+6] & 0x1) << 1) |
+                        ((data_unpacked[i+7] & 0x1) << 0);
+        packed_byte_2 = ((data_unpacked[i] & 0x2) << 6) |
+                        ((data_unpacked[i+1] & 0x2) << 5) |
+                        ((data_unpacked[i+2] & 0x2) << 4) |
+                        ((data_unpacked[i+3] & 0x2) << 3) |
+                        ((data_unpacked[i+4] & 0x2) << 2) |
+                        ((data_unpacked[i+5] & 0x2) << 1) |
+                        ((data_unpacked[i+6] & 0x2) << 0) |
+                        ((data_unpacked[i+7] & 0x2) >> 1);
+        data[j] = packed_byte_1;
+        data[j+1] = packed_byte_2;
+    }
+}
 
 int unpack_tile(const BYTE *data, BYTE *data_unpacked, BYTE flags) {
 
@@ -150,7 +188,7 @@ void print_unpacked(const BYTE *packed) {
         exit(1);
     }
 
-    unpack_tile(packed, unpacked, 0x20);
+    unpack_tile(packed, unpacked, 0);
 
     for (int i = 0; i < 64; i++) {
         if (i % 8 == 0) {
@@ -161,6 +199,26 @@ void print_unpacked(const BYTE *packed) {
     printf("\n");
 
     free(unpacked);
+}
+
+void print_packed(const BYTE *unpacked) {
+    BYTE *packed;
+    packed = malloc(16 * sizeof(BYTE));
+    if (packed == NULL) {
+        printf("Error on allocating packed buffer");
+        exit(1);
+    }
+
+    pack_tile(unpacked, packed, 0);
+
+    for (int i = 0; i < 16; i++) {
+        if (i % 4 == 0)
+            printf("\n");
+        printf("%02X ", packed[i]);
+    }
+    printf("\n");
+
+    free(packed);
 }
 
 SDL_Surface *make_tile_surface(const BYTE *packed) {
@@ -205,7 +263,7 @@ SDL_Surface *make_tile_surface_from_index(GBState *state, BYTE index) {
 
 }
 
-void ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
+SDL_Surface *ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
     /*TODO: Given the current PPU state and an SDL Renderer, 
     * produce the entire 160x144 video image and render it.
     * A prelude to breaking this process into cycle-based timing
@@ -215,47 +273,90 @@ void ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
     PPUState *ppu = state->ppu;
     LCDStatus stat = ppu->stat;
     LCDControl lcdc = ppu->lcdc;
+    SDL_Rect r;
+    r.x = 0;
+    r.y = 0;
+    r.h = 8;
+    r.w = 8;
 
+    SDL_Surface *tile_surface, *bg_surface, *win_surface, *obj_surface, *final_surface;
+    
+    final_surface = SDL_CreateRGBSurface(
+        0, GB_WIDTH_PX, GB_HEIGHT_PX, 
+        8, 0, 0, 0, 0);
+    
     if (lcdc.lcd_enable == OFF)
-        goto ppu_render_end;
-
-    BYTE *actual_pixels;
-    actual_pixels = malloc(23040);
-    if (actual_pixels == NULL) {
-        printf("Failure allocating actual_pixels\n");
-        exit(1);
-    }
+        goto cleanup_end;
+    
     WORD bg_win_tile_base, bg_map_base, win_map_base;
+    WORD map_addr, tile_addr;
     char signed_offset;
     BYTE unsigned_offset;
+    BYTE *tile_pointer;
 
     if (lcdc.bg_window_enable == ON) {
-        if (lcdc.bg_win_data_area == AREA1)
-            bg_win_tile_base = 0x8000;
-        else
-            bg_win_tile_base = 0x9000;
+        bg_surface = SDL_CreateRGBSurface(
+            0, GB_FULL_SIZE, GB_FULL_SIZE, 
+            8, 0, 0, 0, 0);
         
         if (lcdc.bg_map_area == AREA1)
             bg_map_base = 0x9C00;
         else
             bg_map_base = 0x9800;
-
-        if (lcdc.win_map_area == AREA1)
-            win_map_base = 0x9C00;
-        else
-            win_map_base = 0x9800;
+        
+        if (lcdc.bg_win_data_area == AREA1) {
+            bg_win_tile_base = 0x8000;
+            for (int i = 0; i < 0x400; i++) {
+                map_addr = bg_map_base + i;
+                unsigned_offset = read_mem(state, map_addr, 0);
+                tile_addr = bg_win_tile_base + (TILE_SIZE_BYTES * unsigned_offset);
+                tile_pointer = get_mem_pointer(state, tile_addr, 0);
+                tile_surface = make_tile_surface(tile_pointer);
+                r.x = (i & 0x3F) << 3;
+                r.y =  (i >> 5) << 3;
+                SDL_BlitSurface(tile_surface, NULL, bg_surface, &r);
+            }
+        } else {
+            bg_win_tile_base = 0x9000;
+            for (int i = 0; i < 0x400; i++) {
+                map_addr = bg_map_base + i;
+                signed_offset = read_mem(state, map_addr, 0);
+                tile_addr = bg_win_tile_base + (TILE_SIZE_BYTES * signed_offset);
+                tile_surface = make_tile_surface(tile_pointer);
+                r.x = (i & 0x3F) << 3;
+                r.y =  (i >> 5) << 3;
+                SDL_BlitSurface(tile_surface, NULL, bg_surface, &r);
+            }
+        }
+        
+        
 
         if (lcdc.window_enable == ON) {
-            
+            win_surface = SDL_CreateRGBSurface(
+                0, GB_FULL_SIZE, GB_FULL_SIZE, 
+                8, 0, 0, 0, 0);
 
+            if (lcdc.win_map_area == AREA1)
+                win_map_base = 0x9C00;
+            else
+                win_map_base = 0x9800;
+
+
+            SDL_FreeSurface(win_surface);
         }
+        SDL_FreeSurface(bg_surface);
     }
     if (lcdc.obj_enable == ON) {
-        
+        obj_surface = SDL_CreateRGBSurface(
+            0, GB_FULL_SIZE, GB_FULL_SIZE, 
+            8, 0, 0, 0, 0);
+
+
+        SDL_FreeSurface(obj_surface);
     }
 
-    ppu_render_end:
-    1;
+    cleanup_end:
+    return final_surface;
 
 }
 
@@ -282,85 +383,3 @@ void task_ppu_cycle(GBState *state) {
     1;
 }
 
-#ifdef GB_VIDEO_MAIN
-
-int main(int argc, char *argv[]) {
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    SDL_Texture *texture, *test_texture;
-    SDL_Surface *gb_surface, *test_tile_surface;
-    SDL_Event event;
-
-    print_unpacked(test_tile);
-
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, 
-            "Couldn't initialize SDL: %s", SDL_GetError());
-        return 3;
-    }
-
-    window = SDL_CreateWindow("Test",
-        SDL_WINDOWPOS_UNDEFINED,
-        SDL_WINDOWPOS_UNDEFINED,
-        EMU_WIDTH_PX, EMU_HEIGHT_PX,
-        SDL_WINDOW_RESIZABLE
-    );
-    renderer = SDL_CreateRenderer(window, -1, 0);
-    gb_surface = SDL_CreateRGBSurface(
-        0, 
-        GB_WIDTH_PX, 
-        GB_HEIGHT_PX, 
-        8,
-        0,
-        0,
-        0,
-        0
-    );
-
-    SDL_Rect r;
-    r.x = 0;
-    r.y = 0;
-    r.w = 8;
-    r.h = 8;
-    SDL_SetPaletteColors(gb_surface->format->palette, obj_colors, 0, 4);
-
-    test_tile_surface = make_tile_surface(test_tile);
-
-    for (int i = 0; i < GB_HEIGHT_PX; i += 8) {
-        for (int j = 0; j < GB_WIDTH_PX; j += 8) {
-            r.x = j; 
-            r.y = i;
-            SDL_BlitSurface(test_tile_surface, NULL, gb_surface, &r);
-        }
-    }
-    
-    texture = SDL_CreateTextureFromSurface(renderer, gb_surface);
-    
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
-    while (1) {
-        SDL_PollEvent(&event);
-        if(event.type == SDL_QUIT)
-            break;
-
-        //r.x = rand() % 500;
-        //r.y = rand() % 500;
-
-        //SDL_SetRenderTarget(renderer, test_texture);
-        //SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-        //SDL_RenderClear(renderer);
-
-        //SDL_RenderDrawRect(renderer,&r);
-        //SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0x00);
-        //SDL_RenderFillRect(renderer, &r);
-        //SDL_SetRenderTarget(renderer, NULL);
-    }
-    
-    SDL_DestroyRenderer(renderer);
-    SDL_Quit();
- 
-    return 0;
-}
-
-#endif // GB_VIDEO_MAIN

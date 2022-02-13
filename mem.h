@@ -27,6 +27,7 @@
 
 BYTE read_mem(GBState *, WORD, BYTE);
 int write_mem(GBState *, WORD, BYTE, BYTE);
+BYTE *get_mem_pointer(GBState *, WORD, BYTE);
 
 #define __READ_ARGS_DECL GBState *state, WORD rel_addr, BYTE flags
 #define __READ_ARGS state, rel_addr, flags
@@ -34,7 +35,9 @@ int write_mem(GBState *, WORD, BYTE, BYTE);
 #define __WRITE_ARGS state, rel_addr, data, flags
 #define READ_FUNC(__name) static inline BYTE __name(__READ_ARGS_DECL)
 #define WRITE_FUNC(__name) static inline int __name(__WRITE_ARGS_DECL)
-
+#define __GET_PTR_ARGS_DECL GBState *state, WORD rel_addr, BYTE flags
+#define __GET_PTR_ARGS state, rel_addr, flags
+#define GET_PTR_FUNC(__name) static inline BYTE *__name(__GET_PTR_ARGS_DECL)
 
 /* Memory access flags */
 #define mem_source(__f) ((__f) & 0x3)

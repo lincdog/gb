@@ -9,6 +9,8 @@
 #define GB_WIDTH_PX 144
 #define EMU_HEIGHT_PX (4*GB_HEIGHT_PX)
 #define EMU_WIDTH_PX (4*GB_WIDTH_PX)
+#define GB_FULL_SIZE 256
+#define TILE_SIZE_BYTES 16
 
 typedef struct __attribute__ ((packed)) {
     BYTE y;

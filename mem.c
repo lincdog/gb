@@ -1053,6 +1053,45 @@ WRITE_FUNC(_sys_write_ioreg) {
     else
         return UNINIT; 
 }
+
+GET_PTR_FUNC(_ptr_unimplemented) {
+    return NULL;
+}
+GET_PTR_FUNC(_sys_ptr_boot_rom) {
+    SysMemState *sys_mem;
+    sys_mem = (SysMemState *)state->mem->system->state;
+    return &sys_mem->bootrom[rel_addr];
+}
+GET_PTR_FUNC(_sys_ptr_vram) {
+    SysMemState *sys_mem;
+    sys_mem = (SysMemState *)state->mem->system->state;
+    return &sys_mem->vram[rel_addr];
+}
+GET_PTR_FUNC(_sys_ptr_wram) {
+    SysMemState *sys_mem;
+    sys_mem = (SysMemState *)state->mem->system->state;
+    return &sys_mem->wram[rel_addr];
+}
+GET_PTR_FUNC(_sys_ptr_hiram) {
+    SysMemState *sys_mem;
+    sys_mem = (SysMemState *)state->mem->system->state;
+    return &sys_mem->hram[rel_addr];
+}
+GET_PTR_FUNC(_sys_ptr_oam_table) {
+    SysMemState *sys_mem;
+    sys_mem = (SysMemState *)state->mem->system->state;
+    return &sys_mem->oam_table[rel_addr];
+}
+GET_PTR_FUNC(_basic_ptr) {
+    BasicCartState *basic_mem;
+    basic_mem = (BasicCartState *)state->mem->cartridge->state;
+    return &basic_mem->rom[rel_addr];
+}
+GET_PTR_FUNC(_debug_ptr) {
+    DebugMemState *debug_mem;
+    debug_mem = (DebugMemState *)state->mem->system->state;
+    return &debug_mem->mem[rel_addr];
+}
 /*
 MemoryRegion mbc1_mem_map[] = {
     { // 0001 1111 1111 1111
@@ -1148,7 +1187,8 @@ MemoryRegion system_mem_map[] = {
         .len=0x100,
         .flags=0,
         .read=&_sys_read_boot_rom,
-        .write=&_write_unimplemented
+        .write=&_write_unimplemented,
+        .get_ptr=&_sys_ptr_boot_rom
     },
     { // 1001 1111 1111 1111
         .base=0x8000,
@@ -1156,7 +1196,8 @@ MemoryRegion system_mem_map[] = {
         .len=0x2000,
         .flags=0,
         .read=&_sys_read_vram,
-        .write=&_sys_write_vram
+        .write=&_sys_write_vram,
+        .get_ptr=&_sys_ptr_vram
     },
     { // 1101 1111 1111 1111
         .base=0xC000,
@@ -1164,7 +1205,8 @@ MemoryRegion system_mem_map[] = {
         .len=0x2000,
         .flags=0,
         .read=&_sys_read_wram,
-        .write=&_sys_write_wram
+        .write=&_sys_write_wram,
+        .get_ptr=&_sys_ptr_wram
     },
     { // 1111 1101 1111 1111
         .base=0xE000,
@@ -1172,7 +1214,8 @@ MemoryRegion system_mem_map[] = {
         .len=0x1E00,
         .flags=0,
         .read=&_read_unimplemented,
-        .write=&_write_unimplemented
+        .write=&_write_unimplemented,
+        .get_ptr=&_ptr_unimplemented
     },
     { // 1111 1110 1001 1111
         .base=0xFE00,
@@ -1180,7 +1223,8 @@ MemoryRegion system_mem_map[] = {
         .len=0xA0,
         .flags=0,
         .read=&_sys_read_oam_table,
-        .write=&_sys_write_oam_table
+        .write=&_sys_write_oam_table,
+        .get_ptr=&_sys_ptr_oam_table
     },
     { // 1111 1110 1111 1111
         .base=0xFEA0,
@@ -1188,7 +1232,8 @@ MemoryRegion system_mem_map[] = {
         .len=0x60,
         .flags=0,
         .read=&_read_unimplemented,
-        .write=&_write_unimplemented
+        .write=&_write_unimplemented,
+        .get_ptr=&_ptr_unimplemented
     },
     { // 1111 1111 0111 1111
         .base=0xFF00,
@@ -1197,6 +1242,7 @@ MemoryRegion system_mem_map[] = {
         .flags=0,
         .read=&_sys_read_ioreg,
         .write=&_sys_write_ioreg,
+        .get_ptr=&_ptr_unimplemented
     },
     { // 1111 1111 1111 1110
         .base=0xFF80,
@@ -1204,7 +1250,8 @@ MemoryRegion system_mem_map[] = {
         .len=0x7F,
         .flags=0,
         .read=&_sys_read_hiram,
-        .write=&_sys_write_hiram
+        .write=&_sys_write_hiram,
+        .get_ptr=&_sys_ptr_hiram
     },
     { // 1111 1111 1111 1111
         .base=0xFFFF,
@@ -1212,7 +1259,8 @@ MemoryRegion system_mem_map[] = {
         .len=0x1,
         .flags=0,
         .read=&_sys_read_ioreg,
-        .write=&_sys_write_ioreg
+        .write=&_sys_write_ioreg,
+        .get_ptr=&_ptr_unimplemented
     }
 };
 
@@ -1223,7 +1271,8 @@ MemoryRegion basic_mem_map[] = {
         .len=0x8000,
         .flags=0,
         .read=&_basic_read_rom,
-        .write=&_basic_write_rom
+        .write=&_basic_write_rom,
+        .get_ptr=&_basic_ptr
     }
 };
 
@@ -1234,7 +1283,8 @@ MemoryRegion debug_mem_map[] = {
         .len=0x10000,
         .flags=0,
         .read=&_debug_read_mem,
-        .write=&_debug_write_mem
+        .write=&_debug_write_mem,
+        .get_ptr=&_debug_ptr
     }
 };
 
@@ -1298,6 +1348,20 @@ int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
         status = (*source->write)(state, rel_addr, data, flags);
     }
     return status;
+}
+
+BYTE *get_mem_pointer(GBState *state, WORD addr, BYTE flags) {
+    WORD rel_addr;
+    BYTE *pointer = NULL;
+    MemoryRegion *source;
+    source = find_mem_region(state, addr, flags);
+
+    if (source != NULL) {
+        rel_addr = addr - source->base;
+        pointer = (*source->get_ptr)(state, rel_addr, flags);
+    }
+
+    return pointer;
 }
 
 IORegs *initialize_ioregs(void) {

@@ -14,8 +14,7 @@ test: cpu_test.c gb.c mem.c video.c
 	./cpu_test
 
 clean:
-	rm -f gb cpu_test video
+	rm -f gb cpu_test video video_test
 
-VIDEO_CFLAGS := `sdl2-config --libs --cflags` -lSDL2_image -DGB_VIDEO_MAIN
-video: video.c
-	gcc $(VIDEO_CFLAGS) -o video video.c && ./video
+video: video_test.c mem.c gb.c cpu.c
+	gcc $(CFLAGS) -g -o video_test video_test.c gb.c mem.c cpu.c && ./video_test
