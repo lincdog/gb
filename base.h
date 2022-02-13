@@ -112,13 +112,13 @@ typedef enum {
 } PPUFifoState;
 
 typedef enum {OFF=0, ON=1} toggle;
-
+typedef enum {AREA0=0, AREA1=1} area;
 typedef struct {
     toggle lcd_enable;
-    WORD window_map;
+    area win_map_area;
     toggle window_enable;
-    WORD bg_window_data;
-    WORD bg_map;
+    area bg_win_data_area;
+    area bg_map_area;
     enum {_8x8=0, _8x16=1} obj_size;
     toggle obj_enable;
     toggle bg_window_enable;
@@ -181,6 +181,7 @@ typedef struct {
     BYTE flags; // owner / lock status? / priority
     BYTE (*read)(void *, WORD, BYTE);
     BYTE (*write)(void *, WORD, BYTE, BYTE);
+    BYTE *(*get_ptr)(void *, WORD, BYTE);
 } MemoryRegion;
 
 /* Represents a generic memory mapping system on the GB.

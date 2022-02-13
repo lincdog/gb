@@ -99,10 +99,10 @@ PPUState *initialize_ppu(void) {
     ppu->counter = 0;
     // 0x91: 1001 0001
     ppu->lcdc.lcd_enable = ON;
-    ppu->lcdc.window_map = 0x9800;
+    ppu->lcdc.win_map_area = AREA0;
     ppu->lcdc.window_enable = OFF;
-    ppu->lcdc.bg_window_data = 0x8000;
-    ppu->lcdc.bg_map = 0x9800;
+    ppu->lcdc.bg_win_data_area = AREA1;
+    ppu->lcdc.bg_map_area = AREA0;
     ppu->lcdc.obj_size = _8x8;
     ppu->lcdc.obj_enable = OFF;
     ppu->lcdc.bg_window_enable = ON;
@@ -191,7 +191,7 @@ SDL_Surface *make_tile_surface(const BYTE *packed) {
         return NULL;
     }
 
-    if (SDL_SetPaletteColors(surface->format->palette, colors, 0, 4) < 0) {
+    if (SDL_SetPaletteColors(surface->format->palette, obj_colors, 0, 4) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
             "Couldn't set palette colors: %s\n", SDL_GetError());
         
@@ -199,6 +199,10 @@ SDL_Surface *make_tile_surface(const BYTE *packed) {
     }
 
     return surface;
+}
+
+SDL_Surface *make_tile_surface_from_index(GBState *state, BYTE index) {
+
 }
 
 void ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
@@ -211,10 +215,50 @@ void ppu_render_picture(GBState *state, SDL_Renderer *renderer) {
     PPUState *ppu = state->ppu;
     LCDStatus stat = ppu->stat;
     LCDControl lcdc = ppu->lcdc;
-    if (lcdc.)
 
+    if (lcdc.lcd_enable == OFF)
+        goto ppu_render_end;
+
+    BYTE *actual_pixels;
+    actual_pixels = malloc(23040);
+    if (actual_pixels == NULL) {
+        printf("Failure allocating actual_pixels\n");
+        exit(1);
+    }
+    WORD bg_win_tile_base, bg_map_base, win_map_base;
+    char signed_offset;
+    BYTE unsigned_offset;
+
+    if (lcdc.bg_window_enable == ON) {
+        if (lcdc.bg_win_data_area == AREA1)
+            bg_win_tile_base = 0x8000;
+        else
+            bg_win_tile_base = 0x9000;
+        
+        if (lcdc.bg_map_area == AREA1)
+            bg_map_base = 0x9C00;
+        else
+            bg_map_base = 0x9800;
+
+        if (lcdc.win_map_area == AREA1)
+            win_map_base = 0x9C00;
+        else
+            win_map_base = 0x9800;
+
+        if (lcdc.window_enable == ON) {
+            
+
+        }
+    }
+    if (lcdc.obj_enable == ON) {
+        
+    }
+
+    ppu_render_end:
+    1;
 
 }
+
 
 void task_ppu_cycle(GBState *state) {
     PPUState *ppu = state->ppu;
@@ -244,9 +288,8 @@ int main(int argc, char *argv[]) {
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *texture, *test_texture;
-    SDL_Surface *window_surface, *test_surface;
+    SDL_Surface *gb_surface, *test_tile_surface;
     SDL_Event event;
-    SDL_Rect r;
 
     print_unpacked(test_tile);
 
@@ -256,38 +299,46 @@ int main(int argc, char *argv[]) {
         return 3;
     }
 
-    window = SDL_CreateWindow("SDL_CreateTexture",
+    window = SDL_CreateWindow("Test",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        512, 512,
+        EMU_WIDTH_PX, EMU_HEIGHT_PX,
         SDL_WINDOW_RESIZABLE
     );
+    renderer = SDL_CreateRenderer(window, -1, 0);
+    gb_surface = SDL_CreateRGBSurface(
+        0, 
+        GB_WIDTH_PX, 
+        GB_HEIGHT_PX, 
+        8,
+        0,
+        0,
+        0,
+        0
+    );
 
+    SDL_Rect r;
     r.x = 0;
     r.y = 0;
     r.w = 8;
     r.h = 8;
+    SDL_SetPaletteColors(gb_surface->format->palette, obj_colors, 0, 4);
 
-    renderer = SDL_CreateRenderer(window, -1, 0);
+    test_tile_surface = make_tile_surface(test_tile);
+
+    for (int i = 0; i < GB_HEIGHT_PX; i += 8) {
+        for (int j = 0; j < GB_WIDTH_PX; j += 8) {
+            r.x = j; 
+            r.y = i;
+            SDL_BlitSurface(test_tile_surface, NULL, gb_surface, &r);
+        }
+    }
     
-    texture = SDL_CreateTexture(
-        renderer, 
-        SDL_PIXELFORMAT_RGBA8888, 
-        SDL_TEXTUREACCESS_TARGET, 
-        160, 
-        144
-    );
+    texture = SDL_CreateTextureFromSurface(renderer, gb_surface);
     
-
-    test_surface = make_tile_surface(test_tile);
-    SDL_BlitSurface(test_surface, NULL, )
-    test_texture = SDL_CreateTextureFromSurface(renderer, test_surface);
-
-    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0x00);
     SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, test_texture, NULL, NULL);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
-
     while (1) {
         SDL_PollEvent(&event);
         if(event.type == SDL_QUIT)
@@ -305,8 +356,6 @@ int main(int argc, char *argv[]) {
         //SDL_RenderFillRect(renderer, &r);
         //SDL_SetRenderTarget(renderer, NULL);
     }
-
-    free(test_surface->pixels);
     
     SDL_DestroyRenderer(renderer);
     SDL_Quit();

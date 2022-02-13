@@ -5,6 +5,11 @@
 #include "mem.h"
 #include <SDL.h>
 
+#define GB_HEIGHT_PX 160
+#define GB_WIDTH_PX 144
+#define EMU_HEIGHT_PX (4*GB_HEIGHT_PX)
+#define EMU_WIDTH_PX (4*GB_WIDTH_PX)
+
 typedef struct __attribute__ ((packed)) {
     BYTE y;
     BYTE x;

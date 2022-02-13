@@ -344,10 +344,10 @@ WRITE_FUNC(_write_lcdc) {
     LCDControl *lcdc = &state->ppu->lcdc;
     // FIXME: all bits of lcdc control aspects of the PPU
     lcdc->lcd_enable = (data & 0x80) ? ON : OFF;
-    lcdc->window_map = (data & 0x40) ? 0x9C00 : 0x9800;
+    lcdc->win_map_area = (data & 0x40) ? AREA1 : AREA0;
     lcdc->window_enable = (data & 0x20) ? ON : OFF;
-    lcdc->bg_window_data = (data & 0x10) ? 0x8000 : 0x8800;
-    lcdc->bg_map = (data & 0x8) ? 0x9C00 : 0x9800;
+    lcdc->bg_win_data_area = (data & 0x10) ? AREA1 : AREA0;
+    lcdc->bg_map_area = (data & 0x8) ? AREA1 : AREA0;
     lcdc->obj_size = (data & 0x4) ? _8x16 : _8x8;
     lcdc->obj_enable = (data & 0x2) ? ON : OFF;
     lcdc->bg_window_enable = (data & 0x1) ? ON : OFF;
@@ -1238,25 +1238,20 @@ MemoryRegion debug_mem_map[] = {
     }
 };
 
-BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
-    BYTE result = UNINIT;
+MemoryRegion *find_mem_region(GBState *state, WORD addr, BYTE flags) {
+    MemoryRegion *source = NULL;
     Memmap_t *sys_map = state->mem->system;
     Memmap_t *cart_map = state->mem->cartridge;
     MemoryRegion *sys_regions = sys_map->regions;
     MemoryRegion *cart_regions = cart_map->regions;
-    WORD rel_addr;
-
-    MemoryRegion source;
 
     for (int i = 0; i < sys_map->n_regions; i++) {
         if (sys_regions[i].flags & MEM_UNMAPPED)
             continue;
         
         if (addr >= sys_regions[i].base && addr <= sys_regions[i].end) {
-            source = sys_regions[i];
-            rel_addr = addr - source.base;
-
-            goto read_mem_do_read;
+            source = &sys_regions[i];
+            goto found_mem_region;
         }
     }
 
@@ -1265,59 +1260,44 @@ BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
             continue;
 
         if (addr >= cart_regions[i].base && addr <= cart_regions[i].end) {
-            source = cart_regions[i];
-            rel_addr = addr - source.base;
-
-            goto read_mem_do_read;
+            source = &cart_regions[i];
+            goto found_mem_region;
         } 
 
     }
-    
-    return UNINIT;
 
-    read_mem_do_read:
-    return (*source.read)(state, rel_addr, flags);
+    found_mem_region:
+    return source;
+
+}
+
+BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
+    BYTE result = UNINIT;
+    WORD rel_addr;
+
+    MemoryRegion *source;
+    source = find_mem_region(state, addr, flags);
+
+    if (source != NULL) {
+        rel_addr = addr - source->base;
+        result = (*source->read)(state, rel_addr, flags);
+    }
+    return result;
 }
 
 int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
-    int status;
-    BYTE result = UNINIT;
-    Memmap_t *sys_map = state->mem->system;
-    Memmap_t *cart_map = state->mem->cartridge;
-    MemoryRegion *sys_regions = sys_map->regions;
-    MemoryRegion *cart_regions = cart_map->regions;
+    int status = -1;
     WORD rel_addr;
 
-    MemoryRegion source;
+    MemoryRegion *source;
 
-    for (int i = 0; i < sys_map->n_regions; i++) {
-        if (sys_regions[i].flags & MEM_UNMAPPED)
-            continue;
-        
-        if (addr >= sys_regions[i].base && addr <= sys_regions[i].end) {
-            source = sys_regions[i];
-            rel_addr = addr - source.base;
-            
-            goto write_mem_do_write;
-        }
+    source = find_mem_region(state, addr, flags);
+
+    if (source != NULL) {
+        rel_addr = addr - source->base; 
+        status = (*source->write)(state, rel_addr, data, flags);
     }
-
-    for (int i = 0; i < cart_map->n_regions; i++) {
-        if (cart_regions[i].flags & MEM_UNMAPPED)
-            continue;
-
-        if (addr >= cart_regions[i].base && addr <= cart_regions[i].end) {
-            source = cart_regions[i];
-            rel_addr = addr - source.base;
-            
-            goto write_mem_do_write;
-        } 
-
-    }
-
-    write_mem_do_write:
-    return (*source.write)(state, rel_addr, data, flags);
-    
+    return status;
 }
 
 IORegs *initialize_ioregs(void) {
