@@ -143,29 +143,6 @@ VideoTestState *initialize_video_tests(GBState *state) {
     vtstate->final_pixels = (BYTE *)malloc(GB_HEIGHT_PX * GB_WIDTH_PX);
     memset(vtstate->final_pixels, 0, GB_HEIGHT_PX*GB_WIDTH_PX);
 
-    /*if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, 
-            "Couldn't initialize SDL: %s", SDL_GetError());
-        return NULL;
-    }
-
-    vtstate->window = SDL_CreateWindow("Test",
-        SDL_WINDOWPOS_UNDEFINED,
-        SDL_WINDOWPOS_UNDEFINED,
-        EMU_WIDTH_PX, EMU_HEIGHT_PX,
-        SDL_WINDOW_RESIZABLE
-    );
-    vtstate->renderer = SDL_CreateRenderer(vtstate->window, -1, 0);
-    vtstate->gb_surface = new_8bit_surface(
-        GB_WIDTH_PX, 
-        GB_HEIGHT_PX, 
-        PALETTE_DEFAULT,
-        COLORS_BGWIN
-    );
-
-    vtstate->gb_texture = NULL;
-    */
-
     return vtstate;
 }
 
@@ -178,8 +155,8 @@ void run_test(VideoTestState *vtstate) {
     ppu->lcdc.window_enable = OFF;
     ppu->lcdc.bg_win_data_area = DATA_AREA1;
     ppu->lcdc.bg_map_area = MAP_AREA0;
-    ppu->lcdc.obj_size = _8x8;
-    ppu->lcdc.obj_enable = OFF;
+    ppu->lcdc.obj_size = OBJ_8x8;
+    ppu->lcdc.obj_enable = ON;
     ppu->lcdc.bg_window_enable = ON;
 
     ppu->misc.scx = 0;
@@ -187,15 +164,31 @@ void run_test(VideoTestState *vtstate) {
     ppu->misc.wx = 7;
     ppu->misc.wy = 10;
     ppu->misc.bgp = PALETTE_DEFAULT;
+    ppu->misc.obp0 = 0b11001100;
+    ppu->misc.obp1 = 0b00110011;
 
     BYTE *mem = vtstate->mem;
     /* Set up tile data at area 1 */
+    memset(&mem[0x8000], 0xFF, 0x1000);
     memcpy(&mem[0x8000], &test_tiles_packed[0], 16);
     memcpy(&mem[0x8010], &test_tiles_packed[1], 16);
     memcpy(&mem[0x8020], &test_tiles_packed[2], 16);
 
+
     /* Set up tile map at area 0 */
     memcpy(&mem[0x9800], &test_tilemap, 32*32);
+
+    /* Set up a few OAM entries */
+    SpriteAttr *oam_table = &mem[OAM_BASE];
+    oam_table[0].x = 8;
+    oam_table[0].y = 16;
+    oam_table[0].index = 0;
+    oam_table[0].flags = 0xF0;
+
+    oam_table[1].x = 16;
+    oam_table[1].y = 106;
+    oam_table[1].index = 1;
+    oam_table[1].flags = 0x00;
 
     unsigned long long pre_ns, post_ns, rend_ns;
     pre_ns = clock_gettime_nsec_np(CLOCK_REALTIME);

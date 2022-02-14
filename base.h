@@ -115,13 +115,14 @@ typedef enum {
 typedef enum {OFF=0, ON=1} ToggleEnum;
 typedef enum {DATA_AREA0=0x9000, DATA_AREA1=0x8000} TileDataArea;
 typedef enum {MAP_AREA0=0x9800, MAP_AREA1=0x9C00} TileMapArea;
+typedef enum {OBJ_8x8=0, OBJ_8x16=1} ObjectSize;
 typedef struct {
     ToggleEnum lcd_enable;
     TileMapArea win_map_area;
     ToggleEnum window_enable;
     TileDataArea bg_win_data_area;
     TileMapArea bg_map_area;
-    enum {_8x8=0, _8x16=1} obj_size;
+    ObjectSize obj_size;
     ToggleEnum obj_enable;
     ToggleEnum bg_window_enable;
 } LCDControl;

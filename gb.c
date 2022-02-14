@@ -25,9 +25,9 @@ void initialize_sdl_components(GBState *state) {
     ppu->gb_surface = new_8bit_surface(
         GB_WIDTH_PX, 
         GB_HEIGHT_PX, 
-        PALETTE_DEFAULT,
         COLORS_BGWIN
     );
+    SDL_SetSurfaceAlphaMod(ppu->gb_surface, 0);
 
     ppu->gb_texture = NULL;
 }

@@ -16,6 +16,8 @@
 #define TILEMAP_AREA1 0x9C00
 #define TILEDATA_AREA0 0x9000
 #define TILEDATA_AREA1 0x8000
+#define TILEDATA_OBJ 0x8000
+#define OAM_BASE 0xFE00
 #define COLORS_BGWIN 0
 #define COLORS_OBJ 1
 #define COLORS_NONE 0xFF
@@ -28,10 +30,6 @@ typedef struct __attribute__ ((packed)) {
     BYTE flags;
 } SpriteAttr;
 
-typedef struct {
-    SpriteAttr oam_attrs[40];
-} OAMAttrTable;
-
 // If LCDC.4 == 1:
 #define TILE_INDEX_TO_ADDR_8000(__i) (WORD)(0x8000 + 0x10 * (BYTE)__i)
 // If LCDC.4 == 0:
@@ -39,7 +37,7 @@ typedef struct {
 
 PPUState *initialize_ppu(void);
 void teardown_ppu(PPUState *);
-SDL_Surface *new_8bit_surface(int, int, BYTE, BYTE);
-SDL_Surface *new_8bit_surface_from(BYTE *, int, int, BYTE, BYTE);
+SDL_Surface *new_8bit_surface(int, int, BYTE);
+SDL_Surface *new_8bit_surface_from(BYTE *, int, int, BYTE);
 
 #endif // GB_VIDEO
