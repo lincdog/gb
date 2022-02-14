@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <SDL.h>
-
+#include <sys/time.h>
 
 
 const BYTE test_tiles_packed[][16] = {
@@ -197,8 +197,14 @@ void run_test(VideoTestState *vtstate) {
     /* Set up tile map at area 0 */
     memcpy(&mem[0x9800], &test_tilemap, 32*32);
 
+    unsigned long long pre_ns, post_ns, rend_ns;
+    pre_ns = clock_gettime_nsec_np(CLOCK_REALTIME);
     ppu_make_surface(state);
+    post_ns = clock_gettime_nsec_np(CLOCK_REALTIME);
     ppu_render_surface(state);
+    rend_ns = clock_gettime_nsec_np(CLOCK_REALTIME);
+    printf("Nanosec to generate surface: %llu\n", post_ns-pre_ns);
+    printf("Nanosec to render surface: %llu\n", rend_ns-post_ns);
 }
 
 void teardown_video_tests(VideoTestState *vtstate) {
@@ -235,18 +241,24 @@ int main(int argc, char *argv[]) {
         }
         printf("\n");
     }*/
-
+    struct timespec preinit_ts, postinit_ts, pretest_ts, posttest_ts;
+    clock_gettime(CLOCK_REALTIME, &preinit_ts);
     
     GBState *state = initialize_gb(DEBUG);
+    clock_gettime(CLOCK_REALTIME, &postinit_ts);
+    
     VideoTestState *vtstate = initialize_video_tests(state);
+    clock_gettime(CLOCK_REALTIME, &pretest_ts);
 
     run_test(vtstate);
-    
+    clock_gettime(CLOCK_REALTIME, &posttest_ts);    
     while (1) {
         SDL_PollEvent(&event);
         if(event.type == SDL_QUIT)
             break;
     }
+    
+    printf("%lu\n", posttest_ts.tv_nsec - pretest_ts.tv_nsec);
     
     teardown_video_tests(vtstate);
     teardown_gb(state);

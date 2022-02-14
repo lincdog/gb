@@ -5,8 +5,8 @@
 #include "mem.h"
 #include <SDL.h>
 
-#define GB_HEIGHT_PX 160
-#define GB_WIDTH_PX 144
+#define GB_HEIGHT_PX 144
+#define GB_WIDTH_PX 160
 #define EMU_HEIGHT_PX (4*GB_HEIGHT_PX)
 #define EMU_WIDTH_PX (4*GB_WIDTH_PX)
 #define GB_FULL_SIZE 256

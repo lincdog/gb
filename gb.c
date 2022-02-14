@@ -9,7 +9,7 @@
 
 void initialize_sdl_components(GBState *state) {
     PPUState *ppu = state->ppu;
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, 
             "Couldn't initialize SDL: %s", SDL_GetError());
         exit(1);
@@ -21,7 +21,7 @@ void initialize_sdl_components(GBState *state) {
         EMU_WIDTH_PX, EMU_HEIGHT_PX,
         SDL_WINDOW_RESIZABLE
     );
-    ppu->gb_renderer = SDL_CreateRenderer(ppu->gb_window, -1, 0);
+    ppu->gb_renderer = SDL_CreateRenderer(ppu->gb_window, -1, SDL_RENDERER_ACCELERATED);
     ppu->gb_surface = new_8bit_surface(
         GB_WIDTH_PX, 
         GB_HEIGHT_PX, 
@@ -69,9 +69,19 @@ void teardown_gb(GBState *state) {
     free(state);
 }
 
+void task_event(GBState *state) {
+    SDL_PollEvent(&state->event);
+    switch (state->event.type) {
+        
+    }
+}
+
 int _dummy(void) { return 1; }
 
 GBTask gb_tasks[] = {
+    {.period=1,
+    .run_task=&task_event
+    },
     {.period=256,
     .run_task=&task_div_timer
     },

@@ -112,26 +112,26 @@ typedef enum {
     PUSH
 } PPUFifoState;
 
-typedef enum {OFF=0, ON=1} toggle;
-typedef enum {DATA_AREA0=0x9000, DATA_AREA1=0x8000} tile_data_area;
-typedef enum {MAP_AREA0=0x9800, MAP_AREA1=0x9C00} tile_map_area;
+typedef enum {OFF=0, ON=1} ToggleEnum;
+typedef enum {DATA_AREA0=0x9000, DATA_AREA1=0x8000} TileDataArea;
+typedef enum {MAP_AREA0=0x9800, MAP_AREA1=0x9C00} TileMapArea;
 typedef struct {
-    toggle lcd_enable;
-    tile_map_area win_map_area;
-    toggle window_enable;
-    tile_data_area bg_win_data_area;
-    tile_map_area bg_map_area;
+    ToggleEnum lcd_enable;
+    TileMapArea win_map_area;
+    ToggleEnum window_enable;
+    TileDataArea bg_win_data_area;
+    TileMapArea bg_map_area;
     enum {_8x8=0, _8x16=1} obj_size;
-    toggle obj_enable;
-    toggle bg_window_enable;
+    ToggleEnum obj_enable;
+    ToggleEnum bg_window_enable;
 } LCDControl;
 
 typedef struct {
-    toggle lyc_ly_interrupt;
-    toggle mode_2_interrupt;
-    toggle mode_1_interrupt;
-    toggle mode_0_interrupt;
-    toggle lyc_ly_equal;
+    ToggleEnum lyc_ly_interrupt;
+    ToggleEnum mode_2_interrupt;
+    ToggleEnum mode_1_interrupt;
+    ToggleEnum mode_0_interrupt;
+    ToggleEnum lyc_ly_equal;
     PPUMode mode;
 } LCDStatus;
 
@@ -167,9 +167,9 @@ typedef struct {
     PPUMisc misc;
     
     unsigned int counter;
-    BYTE sign_check;
     BYTE *bg_pixelbuf;
     BYTE *win_pixelbuf;
+    BYTE *obj_pixelbuf;
     SDL_Window *gb_window;
     SDL_Renderer *gb_renderer;
     SDL_Texture *gb_texture;
@@ -224,7 +224,7 @@ typedef struct {
     BYTE reg_tima;
     BYTE reg_tma;
     BYTE reg_tac;
-    toggle timer_enabled;
+    ToggleEnum timer_enabled;
     enum {
         _00=1024,
         _01=16,
@@ -240,6 +240,7 @@ typedef struct {
     PPUState *ppu;
     MemoryState *mem;
     TimerState *timer;
+    SDL_Event event;
 } GBState;
 
 typedef struct {
