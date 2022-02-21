@@ -1321,32 +1321,85 @@ MemoryRegion *find_mem_region(GBState *state, WORD addr, BYTE flags) {
 
 }
 
+MemLockResult acquire_mem_lock(MemoryRegion *region, BYTE flags) {
+    BYTE current_flags = region->flags;
+    MemLockResult result;
+
+    if (current_flags & MEM_LOCKED) {
+        if (get_mem_source(current_flags) == get_mem_source(flags))
+            result = ACQUIRED;
+        else
+            result = FAILED;
+    } else {
+        region->flags |= MEM_LOCKED;
+        region->flags |= get_mem_source(flags);
+        result = ACQUIRED;
+    }
+
+    return result;
+}
+
+MemLockResult release_mem_lock(MemoryRegion *region, BYTE flags) {
+    BYTE current_flags = region->flags;
+    MemLockResult result;
+
+    if (current_flags & MEM_LOCKED) {
+        if (get_mem_source(current_flags) == get_mem_source(flags)) {
+            result = RELEASED;
+            region->flags ^= MEM_LOCKED;
+        } else {
+            result = FAILED;
+        }
+    } else {
+        result = RELEASED;
+    } 
+
+    return result;
+}
+
 BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
     BYTE result = UNINIT;
     WORD rel_addr;
-
+    MemLockResult lock;
     MemoryRegion *source;
-    source = find_mem_region(state, addr, flags);
 
+    source = find_mem_region(state, addr, flags);
+    
     if (source != NULL) {
-        rel_addr = addr - source->base;
-        result = (*source->read)(state, rel_addr, flags);
+        lock = acquire_mem_lock(source, flags);
+
+        if (lock == ACQUIRED) {
+            rel_addr = addr - source->base;
+            result = (*source->read)(state, rel_addr, flags);
+        } else {
+            result = UNINIT;
+        }
     }
+
+    release_mem_lock(source, flags);
     return result;
 }
 
 int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
     int status = -1;
     WORD rel_addr;
-
+    MemLockResult lock;
     MemoryRegion *source;
 
     source = find_mem_region(state, addr, flags);
 
     if (source != NULL) {
-        rel_addr = addr - source->base; 
-        status = (*source->write)(state, rel_addr, data, flags);
+        lock = acquire_mem_lock(source, flags);
+
+        if (lock == ACQUIRED) {
+            rel_addr = addr - source->base; 
+            status = (*source->write)(state, rel_addr, data, flags);
+        } else {
+            status = -1;
+        }
     }
+    
+    release_mem_lock(source, flags);
     return status;
 }
 

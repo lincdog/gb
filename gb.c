@@ -27,7 +27,7 @@ void initialize_sdl_components(GBState *state) {
         GB_HEIGHT_PX, 
         COLORS_BGWIN
     );
-    SDL_SetSurfaceAlphaMod(ppu->gb_surface, 0);
+    SDL_SetSurfaceAlphaMod(ppu->gb_surface, 0xFF);
 
     ppu->gb_texture = NULL;
 }
@@ -88,15 +88,17 @@ GBTask gb_tasks[] = {
     {.period=16,
     .run_task=&task_tima_timer
     },
-    /*{.period=1,
-    .run_task=&task_ppu_cycle
+    /*
+    {.period=4,
+    .run_task=&task_interrupt_cycle
     },
     {.period=4,
     .run_task=&task_dma_cycle
     },
-    {.period=4,
-    .run_task=&task_interrupt_cycle
-    },*/
+    {.period=1,
+    .run_task=&task_ppu_cycle
+    },
+    */
     {.period=4,
     .run_task=&task_cpu_m_cycle
     },

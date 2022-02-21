@@ -267,7 +267,7 @@ void set_8bit_colors(SDL_Surface *surface, BYTE color_source) {
             blend_mode = SDL_BLENDMODE_NONE;
         } else {
             colors = &obj_colors;
-            blend_mode = SDL_BLENDMODE_NONE;
+            blend_mode = SDL_BLENDMODE_ADD;
         }
 
         SDL_SetSurfaceBlendMode(surface, blend_mode);
@@ -322,7 +322,7 @@ void fill_tilemap_pixels(
 
     for (int i = 0; i < TILEMAP_SIZE_BYTES; i++) {
         map_addr = map_area_base + i;
-        tile_index = read_mem(state, map_addr, 0);
+        tile_index = ppu_read_mem(state, map_addr, 0);
         /* tile_index ^ sign_check = tile_index if sign_check is 0,
         or last 7 bits of tile_index if sign_check is 0x80 (0b1000000).
         tile_index & sign_check = 0 if sign_check is 0, 
@@ -473,12 +473,14 @@ void ppu_render_surface(GBState *state) {
 
 void task_ppu_cycle(GBState *state) {
     PPUState *ppu = state->ppu;
+    LCDControl lcdc = ppu->lcdc;
+    LCDStatus stat = ppu->stat;
 
-    if (ppu->lcdc.lcd_enable == OFF)
+    if (lcdc.lcd_enable == OFF)
         goto ppu_cycle_end;
     
     if (ppu->counter <= 80)
-    switch (ppu->stat.mode) {
+    switch (stat.mode) {
         case HBLANK:
             break;
         case VBLANK:

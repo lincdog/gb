@@ -40,13 +40,18 @@ BYTE *get_mem_pointer(GBState *, WORD, BYTE);
 #define GET_PTR_FUNC(__name) static inline BYTE *__name(__GET_PTR_ARGS_DECL)
 
 /* Memory access flags */
-#define mem_source(__f) ((__f) & 0x3)
+#define get_mem_source(__f) ((__f) & 0x7)
 #define MEM_SOURCE_CPU 0x0
 #define MEM_SOURCE_PPU 0x1
 #define MEM_SOURCE_BUTTONS 0x2
 #define MEM_SOURCE_TIMER 0x3
+#define MEM_SOURCE_INTERRUPT 0x4
+#define MEM_LOCKED 0x20
 #define MEM_DEBUG 0x80
-#define MEM_UNMAPPED 0x4
+#define MEM_UNMAPPED 0x40
+#define is_mem_accessible(__f) ((__f) & MEM_DEBUG )
+
+typedef enum {FAILED=0, ACQUIRED=1, RELEASED=2} MemLockResult;
 
 typedef struct {
     char name[6];

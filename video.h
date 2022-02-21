@@ -35,6 +35,9 @@ typedef struct __attribute__ ((packed)) {
 // If LCDC.4 == 0:
 #define TILE_INDEX_TO_ADDR_8800(__i) (WORD)(0x9000 + 0x10 * (char)__i)
 
+#define ppu_write_mem(__state, __addr, __data) write_mem(__state, __addr, __data, MEM_SOURCE_PPU)
+#define ppu_read_mem(__state, __addr, __data) read_mem(__state, __addr, MEM_SOURCE_PPU)
+
 PPUState *initialize_ppu(void);
 void teardown_ppu(PPUState *);
 SDL_Surface *new_8bit_surface(int, int, BYTE);
