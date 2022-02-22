@@ -156,7 +156,7 @@ void run_test(VideoTestState *vtstate) {
     ppu->lcdc.bg_win_data_area = DATA_AREA1;
     ppu->lcdc.bg_map_area = MAP_AREA0;
     ppu->lcdc.obj_size = OBJ_8x8;
-    ppu->lcdc.obj_enable = ON;
+    ppu->lcdc.obj_enable = OFF;
     ppu->lcdc.bg_window_enable = ON;
 
     ppu->misc.scx = 0;

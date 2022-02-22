@@ -38,24 +38,37 @@ BYTE *get_mem_pointer(GBState *, WORD, BYTE);
 #define __GET_PTR_ARGS_DECL GBState *state, WORD rel_addr, BYTE flags
 #define __GET_PTR_ARGS state, rel_addr, flags
 #define GET_PTR_FUNC(__name) static inline BYTE *__name(__GET_PTR_ARGS_DECL)
+#define __CHECK_ACCESS_ARGS_DECL GBState *state, WORD rel_addr, BYTE flags
+#define __CHECK_ACCESS_ARGS state, rel_addr, flags
+#define CHECK_ACCESS_FUNC(__name) static inline int __name(__CHECK_ACCESS_ARGS_DECL)
 
-/* Memory access flags */
+/* Memory access flags
+7 | 6 | 5 | 4 | 3 | 2  1  0
+D | U | L | A | R | S  S  S
+D: MEM_DEBUG - bypass locks/ownership
+U: MEM_UNMAPPED - used for boot ROM, this region is inaccessible
+L: MEM_LOCKED - this region is locked by something
+A: MEM_TRY_ACQUIRE - try to acquire a lock on this region now
+R: MEM_TRY_RELEASE - try to release a lock on this region now
+S: MEM_SOURCE_* - the owner of this region, or the source of this memory access
+ */
+
 #define get_mem_source(__f) ((__f) & 0x7)
 #define MEM_SOURCE_CPU 0x0
 #define MEM_SOURCE_PPU 0x1
 #define MEM_SOURCE_BUTTONS 0x2
 #define MEM_SOURCE_TIMER 0x3
 #define MEM_SOURCE_INTERRUPT 0x4
+#define MEM_SOURCE_DMA 0x5
+
 #define MEM_LOCKED 0x20
 #define MEM_DEBUG 0x80
 #define MEM_UNMAPPED 0x40
-#define is_mem_accessible(__f) ((__f) & MEM_DEBUG )
-
-typedef enum {FAILED=0, ACQUIRED=1, RELEASED=2} MemLockResult;
 
 typedef struct {
     char name[6];
     WORD addr;
+    int (*check_access)(GBState *, WORD, BYTE);
     BYTE (*read)(GBState *, WORD, BYTE);
     BYTE (*write)(GBState *, WORD, BYTE, BYTE);
 } IOReg_t;
@@ -285,7 +298,7 @@ void task_div_timer(GBState *);
 void task_tima_timer(GBState *);
 
 #define unused_ioreg(__addr) \
-    (IOReg_t){.name="none\0", .addr=__addr, .read=&_read_unimplemented, .write=&_write_unimplemented}
+    (IOReg_t){.name="none\0", .addr=__addr, .check_access=&_check_always_yes, .read=&_read_unimplemented, .write=&_write_unimplemented}
 #define named_ioregs(__ptr) (IORegs *)(__ptr)
 
 

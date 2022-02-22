@@ -148,7 +148,6 @@ PPUState *initialize_ppu(void) {
         printf("Failed to allocate PPUState\n");
         return NULL;
     }
-    ppu->counter = 0;
     // 0x91: 1001 0001
     ppu->lcdc.lcd_enable = ON;
     ppu->lcdc.win_map_area = MAP_AREA0;
@@ -166,6 +165,8 @@ PPUState *initialize_ppu(void) {
     ppu->stat.mode_0_interrupt = OFF;
     ppu->stat.lyc_ly_equal = ON;
     ppu->stat.mode = VBLANK;
+
+    ppu->counter = COUNTER_VBLANK_START;
 
     ppu->misc.scy = 0x00;
     ppu->misc.scx = 0x00;
@@ -322,7 +323,7 @@ void fill_tilemap_pixels(
 
     for (int i = 0; i < TILEMAP_SIZE_BYTES; i++) {
         map_addr = map_area_base + i;
-        tile_index = ppu_read_mem(state, map_addr, 0);
+        tile_index = ppu_read_mem(state, map_addr);
         /* tile_index ^ sign_check = tile_index if sign_check is 0,
         or last 7 bits of tile_index if sign_check is 0x80 (0b1000000).
         tile_index & sign_check = 0 if sign_check is 0, 
@@ -333,7 +334,7 @@ void fill_tilemap_pixels(
         
         tile_addr = data_area_base + tile_addr_offset;
                     
-        tile_mem_pointer = get_mem_pointer(state, tile_addr, 0);
+        tile_mem_pointer = ppu_get_mem_pointer(state, tile_addr);
         tile_x = 8*(i % 32);
         tile_y = 8*(i >> 5);
         unpack_tile(
@@ -355,7 +356,7 @@ SDL_Surface *ppu_make_surface(GBState *state) {
     PPUState *ppu = state->ppu;
     LCDStatus stat = ppu->stat;
     LCDControl lcdc = ppu->lcdc;
-    SDL_Rect bg_r, win_r, obj_r;
+    SDL_Rect bg_r, win_r, obj_r, gb_r;
     BYTE obj_flags, obj_palette, obj_x, obj_y;
     SDL_Surface *tile_surface, *bg_surface, *win_surface, *obj_surface;
     SpriteAttr *oam_table_ptr;
@@ -364,6 +365,11 @@ SDL_Surface *ppu_make_surface(GBState *state) {
 
     if (lcdc.lcd_enable == OFF)
         goto cleanup_end;
+    
+    gb_r.x = 0;
+    gb_r.y = 0;
+    gb_r.w = EMU_WIDTH_PX;
+    gb_r.h = EMU_HEIGHT_PX;
 
     if (lcdc.bg_window_enable == ON) {
         
@@ -384,7 +390,7 @@ SDL_Surface *ppu_make_surface(GBState *state) {
             COLORS_BGWIN
         );
         
-        SDL_BlitSurface(bg_surface, &bg_r, ppu->gb_surface, NULL);
+        SDL_BlitSurface(bg_surface, &bg_r, ppu->gb_surface, &gb_r);
         SDL_FreeSurface(bg_surface);
 
         if (lcdc.window_enable == ON) {
@@ -421,14 +427,14 @@ SDL_Surface *ppu_make_surface(GBState *state) {
 
         */
         
-        oam_table_ptr = get_mem_pointer(state, OAM_BASE, 0);
+        oam_table_ptr = ppu_get_mem_pointer(state, OAM_BASE);
         for (int i = 0; i < 40; i++) {
             obj_y = oam_table_ptr[i].y;
             obj_x = oam_table_ptr[i].x;
             obj_flags = oam_table_ptr[i].flags;
             obj_palette = (bit_4(obj_flags)) ? ppu->misc.obp0 : ppu->misc.obp1;
             obj_tile_addr = (WORD)TILEDATA_OBJ + TILE_SIZE_BYTES * oam_table_ptr[i].index;
-            obj_tile_ptr = get_mem_pointer(state, obj_tile_addr, 0);
+            obj_tile_ptr = ppu_get_mem_pointer(state, obj_tile_addr);
             unpack_tile(
                 obj_tile_ptr, 
                 ppu->obj_pixelbuf,
@@ -463,11 +469,15 @@ SDL_Surface *ppu_make_surface(GBState *state) {
 
 void ppu_render_surface(GBState *state) {
     PPUState *ppu = state->ppu;
-    ppu->gb_texture = SDL_CreateTextureFromSurface(ppu->gb_renderer, ppu->gb_surface);
+    SDL_Rect r;
+    /*ppu->gb_texture = SDL_CreateTextureFromSurface(ppu->gb_renderer, ppu->gb_surface);
     
     SDL_RenderClear(ppu->gb_renderer);
     SDL_RenderCopy(ppu->gb_renderer, ppu->gb_texture, NULL, NULL);
-    SDL_RenderPresent(ppu->gb_renderer);
+    SDL_RenderPresent(ppu->gb_renderer);*/
+    SDL_RenderGetViewport(ppu->gb_renderer, &r);
+    printf("r.x: %d r.y: %d r.w: %d r.h: %d\n", r.x, r.y, r.w, r.h);
+    SDL_UpdateWindowSurface(ppu->gb_window);
 }
 
 
@@ -476,22 +486,41 @@ void task_ppu_cycle(GBState *state) {
     LCDControl lcdc = ppu->lcdc;
     LCDStatus stat = ppu->stat;
 
+    BYTE mem_access_flags = MEM_SOURCE_PPU;
+
     if (lcdc.lcd_enable == OFF)
         goto ppu_cycle_end;
     
-    if (ppu->counter <= 80)
     switch (stat.mode) {
         case HBLANK:
+            if (ppu->counter % PPU_PER_SCANLINE == 0) {
+                if (ppu->counter < COUNTER_VBLANK_START)
+                    ppu->stat.mode = OAMSCAN;
+                else
+                    ppu->stat.mode = VBLANK;
+            }
             break;
         case VBLANK:
+            if (ppu->counter == COUNTER_VBLANK_STOP) {
+                ppu->stat.mode = OAMSCAN;
+            }
             break;
         case OAMSCAN:
+
+            if (ppu->counter == COUNTER_OAMSEARCH_STOP) {
+                ppu->stat.mode = DRAW;
+            }
             break;
         case DRAW:
+
+            
             break;
     }
 
     ppu_cycle_end:
-    1;
+    if (ppu->counter < PPU_PER_FRAME)
+        ppu->counter++;
+    else
+        ppu->counter = 0;
 }
 

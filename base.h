@@ -171,6 +171,10 @@ typedef struct {
     BYTE *bg_pixelbuf;
     BYTE *win_pixelbuf;
     BYTE *obj_pixelbuf;
+    BYTE *current_bg_tile;
+    BYTE *current_win_tile;
+    BYTE *current_obj_tile;
+
     SDL_Window *gb_window;
     SDL_Renderer *gb_renderer;
     SDL_Texture *gb_texture;
@@ -190,6 +194,7 @@ typedef struct {
     WORD end;
     WORD len;
     BYTE flags; // owner / lock status? / priority
+    int (*check_access)(void *, WORD, BYTE);
     BYTE (*read)(void *, WORD, BYTE);
     BYTE (*write)(void *, WORD, BYTE, BYTE);
     BYTE *(*get_ptr)(void *, WORD, BYTE);
@@ -262,6 +267,7 @@ typedef struct {
 #define PPU_PERIOD_US CPU_PERIOD_US
 #define PPU_PER_SCANLINE 456
 #define SCANLINE_PER_FRAME 154
+#define PPU_PER_FRAME (PPU_PER_SCANLINE * SCANLINE_PER_FRAME)
 
 #define HSYNC_FREQ 9198
 #define HSYNC_PERIOD_S  (float)(1.0 / (float)HSYNC_FREQ)

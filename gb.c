@@ -21,14 +21,17 @@ void initialize_sdl_components(GBState *state) {
         EMU_WIDTH_PX, EMU_HEIGHT_PX,
         SDL_WINDOW_RESIZABLE
     );
-    ppu->gb_renderer = SDL_CreateRenderer(ppu->gb_window, -1, SDL_RENDERER_ACCELERATED);
-    ppu->gb_surface = new_8bit_surface(
+    ppu->gb_surface = SDL_GetWindowSurface(ppu->gb_window);
+    ppu->gb_renderer = SDL_CreateSoftwareRenderer(ppu->gb_surface);
+    SDL_RenderSetLogicalSize(ppu->gb_renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
+    SDL_RenderSetScale(ppu->gb_renderer, 4, 4);
+    /*ppu->gb_surface = new_8bit_surface(
         GB_WIDTH_PX, 
         GB_HEIGHT_PX, 
         COLORS_BGWIN
     );
     SDL_SetSurfaceAlphaMod(ppu->gb_surface, 0xFF);
-
+    */
     ppu->gb_texture = NULL;
 }
 
