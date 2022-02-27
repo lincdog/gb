@@ -159,8 +159,8 @@ void setup_test(VideoTestState *vtstate) {
     ppu->lcdc.obj_enable = OFF;
     ppu->lcdc.bg_window_enable = ON;
 
-    ppu->misc.scx = 18;
-    ppu->misc.scy = 22;
+    ppu->misc.scx = 100;
+    ppu->misc.scy = 100;
     ppu->misc.wx = 7;
     ppu->misc.wy = 10;
     ppu->misc.bgp = PALETTE_DEFAULT;

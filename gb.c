@@ -31,9 +31,13 @@ void initialize_sdl_core(GBState *state) {
     state->gb_window_surface = SDL_GetWindowSurface(state->gb_window);
     state->gb_surface = new_8bit_surface(GB_WIDTH_PX, GB_HEIGHT_PX, COLORS_BGWIN);
     
-    //state->gb_renderer = SDL_CreateSoftwareRenderer(state->gb_surface);
-    //SDL_RenderSetLogicalSize(ppu->gb_renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
-    //SDL_RenderSetScale(ppu->gb_renderer, 4, 4);
+    state->gb_renderer = SDL_CreateSoftwareRenderer(state->gb_window_surface);
+    SDL_RenderSetLogicalSize(state->gb_renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
+    SDL_SetSurfaceBlendMode(state->gb_window_surface, SDL_BLENDMODE_NONE);
+    SDL_SetColorKey(state->gb_window_surface, SDL_TRUE, 0);
+    SDL_SetRenderDrawColor(state->gb_renderer, 0, 0, 0, 0xFF);
+    SDL_RenderClear(state->gb_renderer);
+    //SDL_RenderSetScale(state->gb_renderer, 4, 4);
     /*ppu->gb_surface = new_8bit_surface(
         GB_WIDTH_PX, 
         GB_HEIGHT_PX, 

@@ -347,20 +347,41 @@ SDL_Surface *new_8bit_surface_from(
 
 void ppu_render_surface(GBState *state) {
     PPUState *ppu = state->ppu;
-    /*ppu->gb_texture = SDL_CreateTextureFromSurface(ppu->gb_renderer, ppu->gb_surface);
-    
-    SDL_RenderClear(ppu->gb_renderer);
-    SDL_RenderCopy(ppu->gb_renderer, ppu->gb_texture, NULL, NULL);
-    SDL_RenderPresent(ppu->gb_renderer);*/
+    SDL_Rect r;
     //SDL_RenderGetViewport(state->gb_renderer, &r);
-    //printf("r.x: %d r.y: %d r.w: %d r.h: %d\n", r.x, r.y, r.w, r.h);
-    SDL_SetSurfaceBlendMode(state->gb_window_surface, SDL_BLENDMODE_NONE);
-    SDL_SetColorKey(state->gb_window_surface, SDL_TRUE, 0);
-    SDL_FillRect(state->gb_window_surface, NULL, 0);
 
-    SDL_SetSurfaceBlendMode(state->gb_surface, SDL_BLENDMODE_NONE);
-    SDL_FillRect(state->gb_surface, NULL, 0);
-    SDL_BlitSurface(state->gb_surface, NULL, state->gb_window_surface, NULL);
+    r.y = ppu->misc.ly;
+    r.x = 0;//ppu->scanline.x_pos;
+    r.w = 1; 
+    r.h = 1;
+    int start_ind = ppu->scanline.pixelbuf_start_offset;
+
+    for (; r.x < GB_WIDTH_PX; r.x++) {
+        switch (ppu->scanline.pixelbuf[r.x + start_ind]) {
+            case 0:
+                SDL_SetRenderDrawColor(state->gb_renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+                break;
+            case 1:
+                SDL_SetRenderDrawColor(state->gb_renderer, 0x90, 0x90, 0x90, 0xFF);
+                break;
+            case 2:
+                SDL_SetRenderDrawColor(state->gb_renderer, 0x50, 0x50, 0x50, 0xFF);
+                break;
+            case 3:
+                SDL_SetRenderDrawColor(state->gb_renderer, 0, 0, 0, 0xFF);
+                break;
+            default:
+                SDL_SetRenderDrawColor(state->gb_renderer, 0, 0, 0, 0xFF);
+                break;
+        }
+        
+        SDL_RenderFillRect(state->gb_renderer, &r);
+    }
+    //SDL_FillRect(state->gb_window_surface, NULL, 0);
+    //SDL_SetSurfaceBlendMode(state->gb_surface, SDL_BLENDMODE_NONE);
+    //SDL_FillRect(state->gb_surface, NULL, 0);
+    //SDL_BlitSurface(state->gb_surface, NULL, state->gb_window_surface, NULL);
+    
     SDL_UpdateWindowSurface(state->gb_window);
 }
 
@@ -412,6 +433,7 @@ void ppu_do_mode_switch(GBState *state) {
         case DRAW:
             next_mode_counter = PPU_PER_SCANLINE - ppu->scanline.counter;
             next_mode = HBLANK;
+            
             break;
         case HBLANK:
             if (ppu->misc.ly < 144) {
@@ -499,7 +521,6 @@ void ppu_draw_cycle(GBState *state) {
         //}
         //printf("\n");
     }
-
 }
 
 void ppu_next_scanline(PPUState *ppu) {
@@ -507,11 +528,13 @@ void ppu_next_scanline(PPUState *ppu) {
     memset(ppu->scanline.pixelbuf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.pixelbuf_start_offset = ppu->misc.scx & 0x7;
     ppu->scanline.x_pos = 0;
+    ppu->misc.ly++;
 }
 
 void ppu_next_frame(PPUState *ppu) {
     ppu->frame.counter = 0;
     ppu->frame.win_y = 0;
+    ppu->misc.ly = 0;
 }
 
 void task_ppu_cycle(GBState *state) {
@@ -545,11 +568,8 @@ void task_ppu_cycle(GBState *state) {
         ppu_do_mode_switch(state);
 
     if (ppu->scanline.counter == PPU_PER_SCANLINE) {
-        ppu_next_scanline(ppu);
         ppu_render_surface(state);
-        /*ppu->scanline.counter = 0;
-        ppu->misc.ly++;
-        reset_oam_scan(&ppu->oam_scan);*/
+        ppu_next_scanline(ppu);
     }
 
     if (ppu->frame.counter == PPU_PER_FRAME) {
