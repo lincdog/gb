@@ -115,7 +115,7 @@ typedef enum {
 typedef enum {OFF=0, ON=1} ToggleEnum;
 typedef enum {DATA_AREA0=0x9000, DATA_AREA1=0x8000} TileDataArea;
 typedef enum {MAP_AREA0=0x9800, MAP_AREA1=0x9C00} TileMapArea;
-typedef enum {OBJ_8x8=0, OBJ_8x16=1} ObjectSize;
+typedef enum {OBJ_8x8=8, OBJ_8x16=16} ObjectSize;
 typedef struct {
     ToggleEnum lcd_enable;
     TileMapArea win_map_area;
@@ -155,25 +155,83 @@ typedef struct {
 } PPUMisc;
 
 typedef struct {
+    PPUFifoState state;
     struct {
-        PPUFifoState state;
-        BYTE data[16];
-    } fifo_bg;
-    struct {
-       PPUFifoState state;
-        BYTE data[16];
-    } fifo_obj;
+        BYTE color;
+        BYTE palette;
+        BYTE sprite_prio;
+        BYTE bg_prio;
+    } data[16];
+    int head;
+    int counter;
+} PPUFifo;
+
+typedef struct __attribute__ ((packed)) {
+    BYTE y;
+    BYTE x;
+    BYTE index;
+    BYTE flags;
+} OAMEntry;
+
+typedef struct __attribute__ ((packed)) {
+    BYTE low;
+    BYTE high;
+} TileRow_t;
+
+typedef union {
+    TileRow_t obj_8x8[8];
+    TileRow_t obj_8x16[16];
+} Tile_t;
+
+typedef struct {
+    OAMEntry oam;
+    TileRow_t *row_data;
+} OAMRow_t;
+
+typedef struct {
+    int counter;
+    int n_sprites_total;
+    int n_sprites_row;
+    OAMRow_t current_row_sprites[10];
+} OAMScan_t;
+
+typedef struct {
+    BYTE fetcher_x;
+    BYTE fetcher_y;
+    PPUFifo fifo_bg;
+    PPUFifo fifo_obj;
+} Drawing_t;
+
+typedef struct {
+    unsigned int counter;
+    BYTE win_y;
+    BYTE *pixelbuf;
+} Frame_t;
+
+typedef struct {
+    unsigned int counter;
+    unsigned int mode_counter;
+    BYTE x_pos;
+    BYTE *pixelbuf;
+    unsigned int pixelbuf_start_offset;
+} Scanline_t;
+
+typedef struct {
     LCDControl lcdc;
     LCDStatus stat;
     PPUMisc misc;
+    Frame_t frame;
+    Scanline_t scanline;
     
-    unsigned int counter;
-    BYTE *bg_pixelbuf;
-    BYTE *win_pixelbuf;
-    BYTE *obj_pixelbuf;
-    BYTE *current_bg_tile;
-    BYTE *current_win_tile;
-    BYTE *current_obj_tile;
+    //BYTE *pixelbuf;
+    //BYTE *win_pixelbuf;
+    //BYTE *obj_pixelbuf;
+    //BYTE *current_bg_tile;
+    //BYTE *current_win_tile;
+    //BYTE *current_obj_tile;
+    
+    Drawing_t draw;
+    OAMScan_t oam_scan;
 
     SDL_Window *gb_window;
     SDL_Renderer *gb_renderer;
@@ -265,9 +323,7 @@ typedef struct {
 #define PPU_PERIOD_S CPU_PERIOD_S
 #define PPU_PERIOD_MS CPU_PERIOD_MS
 #define PPU_PERIOD_US CPU_PERIOD_US
-#define PPU_PER_SCANLINE 456
-#define SCANLINE_PER_FRAME 154
-#define PPU_PER_FRAME (PPU_PER_SCANLINE * SCANLINE_PER_FRAME)
+
 
 #define HSYNC_FREQ 9198
 #define HSYNC_PERIOD_S  (float)(1.0 / (float)HSYNC_FREQ)

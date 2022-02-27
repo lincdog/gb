@@ -1,5 +1,5 @@
 CC := gcc
-CFLAGS := `sdl2-config --libs --cflags` -Wall -Wno-incompatible-function-pointer-types -ferror-limit=2000
+CFLAGS := `sdl2-config --libs --cflags` -Wall -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types -ferror-limit=2000
 
 all: build video test
 
