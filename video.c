@@ -309,7 +309,7 @@ void set_8bit_colors(SDL_Surface *surface, BYTE color_source) {
             blend_mode = SDL_BLENDMODE_NONE;
         } else {
             colors = &obj_colors;
-            blend_mode = SDL_BLENDMODE_ADD;
+            blend_mode = SDL_BLENDMODE_NONE;
         }
 
         SDL_SetSurfaceBlendMode(surface, blend_mode);
@@ -344,184 +344,27 @@ SDL_Surface *new_8bit_surface_from(
     return surface;
 }
 
-/* Fills in pixel buffer pixels (assumed to be 256x256) with values from
-tilemap starting at map_area_base (0x9700==AREA0 or 0x9C00==AREA1) using
-tile data at 0x8000-0x9000 (AREA1) or 0x8800-0x9800 (AREA0)
- */
-void fill_tilemap_pixels(
-    GBState *state, 
-    BYTE *pixels, 
-    TileMapArea map_area_base,
-    TileDataArea data_area_base,
-    BYTE palette) {
-
-    WORD map_addr, tile_addr;
-    BYTE tile_index, tile_x, tile_y, sign_check;
-    int16_t tile_addr_offset;
-    BYTE *tile_mem_pointer;
-    tile_x = tile_y = 0; 
-    sign_check = (data_area_base == DATA_AREA1) ? 0 : 0x80;
-
-    for (int i = 0; i < TILEMAP_SIZE_BYTES; i++) {
-        map_addr = map_area_base + i;
-        tile_index = ppu_read_mem(state, map_addr);
-        /* tile_index ^ sign_check = tile_index if sign_check is 0,
-        or last 7 bits of tile_index if sign_check is 0x80 (0b1000000).
-        tile_index & sign_check = 0 if sign_check is 0, 
-        or 0x80 (0b10000000) if sign_check is 0x80 and tile_index < 0.
-        */
-        tile_addr_offset = TILE_SIZE_BYTES * 
-            ((tile_index ^ sign_check) - (tile_index & sign_check));
-        
-        tile_addr = data_area_base + tile_addr_offset;
-                    
-        tile_mem_pointer = ppu_get_mem_pointer(state, tile_addr);
-        tile_x = 8*(i % 32);
-        tile_y = 8*(i >> 5);
-        unpack_tile(
-            tile_mem_pointer, 
-            pixels,
-            0, palette, OBJ_8x8,
-            tile_x, tile_y, GB_FULL_SIZE
-        );
-    }
-}
-
-SDL_Surface *ppu_make_surface(GBState *state) {
-    /*TODO: Given the current PPU state and an SDL Renderer, 
-    * produce the entire 160x144 video image and render it.
-    * A prelude to breaking this process into cycle-based timing
-    * that respects the various PPU modes, pixel FIFOs, and memory
-    * access restrictions.
-    */
-    PPUState *ppu = state->ppu;
-    LCDStatus stat = ppu->stat;
-    LCDControl lcdc = ppu->lcdc;
-    SDL_Rect bg_r, win_r, obj_r, gb_r;
-    BYTE obj_flags, obj_palette, obj_x, obj_y;
-    SDL_Surface *tile_surface, *bg_surface, *win_surface, *obj_surface;
-    OAMEntry *oam_table_ptr;
-    WORD obj_tile_addr;
-    BYTE *obj_tile_ptr;
-
-    if (lcdc.lcd_enable == OFF)
-        goto cleanup_end;
-    
-    gb_r.x = 0;
-    gb_r.y = 0;
-    gb_r.w = EMU_WIDTH_PX;
-    gb_r.h = EMU_HEIGHT_PX;
-
-    if (lcdc.bg_window_enable == ON) {
-        
-        bg_r.x = ppu->misc.scx;
-        bg_r.y = ppu->misc.scy;
-        bg_r.w = GB_WIDTH_PX;
-        bg_r.h = GB_HEIGHT_PX;
-        
-        fill_tilemap_pixels(
-            state, ppu->bg_pixelbuf,
-            lcdc.bg_map_area, lcdc.bg_win_data_area,
-            ppu->misc.bgp
-        );
-        
-        bg_surface = new_8bit_surface_from(
-            ppu->bg_pixelbuf,
-            GB_FULL_SIZE, GB_FULL_SIZE, 
-            COLORS_BGWIN
-        );
-        
-        SDL_BlitSurface(bg_surface, &bg_r, ppu->gb_surface, &gb_r);
-        SDL_FreeSurface(bg_surface);
-
-        if (lcdc.window_enable == ON) {
-            
-            win_r.x = ppu->misc.wx - 7;
-            win_r.y = ppu->misc.wy;
-            win_r.w = GB_WIDTH_PX;
-            win_r.h = GB_HEIGHT_PX;
-
-            fill_tilemap_pixels(
-                state, ppu->win_pixelbuf,
-                lcdc.win_map_area, lcdc.bg_win_data_area,
-                ppu->misc.bgp
-            );
-            win_surface = new_8bit_surface_from(
-                ppu->win_pixelbuf,
-                GB_FULL_SIZE, GB_FULL_SIZE, 
-                COLORS_BGWIN
-            );
-
-            SDL_BlitSurface(win_surface, &win_r, ppu->gb_surface, NULL);
-            SDL_FreeSurface(win_surface);
-        }
-        
-    }
-    if (lcdc.obj_enable == ON) {
-        /* 
-        - OAM scan: 0xFE00-0xFE9F
-        - Per horizontal scanline, the first 10 objects found during the scan are displayed 
-            on that line (even if they are off screen due to X coord).
-        - y = 16, x = 8 puts top left of sprite at top left of screen. less
-        than either hides part of the sprite (y = 0-8 all hide an 8x8 sprite)
-        y = 152 puts 8x8 sprite's bottom on bottom of screen
-
-        */
-        
-        oam_table_ptr = ppu_get_mem_pointer(state, OAM_BASE);
-        for (int i = 0; i < 40; i++) {
-            obj_y = oam_table_ptr[i].y;
-            obj_x = oam_table_ptr[i].x;
-            obj_flags = oam_table_ptr[i].flags;
-            obj_palette = (bit_4(obj_flags)) ? ppu->misc.obp0 : ppu->misc.obp1;
-            obj_tile_addr = (WORD)TILEDATA_OBJ + TILE_SIZE_BYTES * oam_table_ptr[i].index;
-            obj_tile_ptr = ppu_get_mem_pointer(state, obj_tile_addr);
-            unpack_tile(
-                obj_tile_ptr, 
-                ppu->obj_pixelbuf,
-                obj_flags,
-                obj_palette,
-                lcdc.obj_size,
-                obj_x,
-                obj_y,
-                GB_FULL_SIZE
-            );
-        }
-
-        obj_surface = new_8bit_surface_from(
-            ppu->obj_pixelbuf, 
-            GB_FULL_SIZE,
-            GB_FULL_SIZE,
-            COLORS_OBJ
-        );
-        
-        obj_r.y = 16;
-        obj_r.x = 8;
-        obj_r.w = GB_WIDTH_PX;
-        obj_r.h = GB_HEIGHT_PX;
-        SDL_BlitSurface(obj_surface, &obj_r, ppu->gb_surface, NULL);
-        SDL_FreeSurface(obj_surface);
-    }
-
-    cleanup_end:
-    return ppu->gb_surface;
-
-}
 
 void ppu_render_surface(GBState *state) {
     PPUState *ppu = state->ppu;
-    SDL_Rect r;
     /*ppu->gb_texture = SDL_CreateTextureFromSurface(ppu->gb_renderer, ppu->gb_surface);
     
     SDL_RenderClear(ppu->gb_renderer);
     SDL_RenderCopy(ppu->gb_renderer, ppu->gb_texture, NULL, NULL);
     SDL_RenderPresent(ppu->gb_renderer);*/
-    SDL_RenderGetViewport(ppu->gb_renderer, &r);
-    printf("r.x: %d r.y: %d r.w: %d r.h: %d\n", r.x, r.y, r.w, r.h);
-    SDL_UpdateWindowSurface(ppu->gb_window);
+    //SDL_RenderGetViewport(state->gb_renderer, &r);
+    //printf("r.x: %d r.y: %d r.w: %d r.h: %d\n", r.x, r.y, r.w, r.h);
+    SDL_SetSurfaceBlendMode(state->gb_window_surface, SDL_BLENDMODE_NONE);
+    SDL_SetColorKey(state->gb_window_surface, SDL_TRUE, 0);
+    SDL_FillRect(state->gb_window_surface, NULL, 0);
+
+    SDL_SetSurfaceBlendMode(state->gb_surface, SDL_BLENDMODE_NONE);
+    SDL_FillRect(state->gb_surface, NULL, 0);
+    SDL_BlitSurface(state->gb_surface, NULL, state->gb_window_surface, NULL);
+    SDL_UpdateWindowSurface(state->gb_window);
 }
 
-
+/*
 void ppu_oamscan(GBState *state) {
     PPUState *ppu = state->ppu;
     LCDControl lcdc = ppu->lcdc;
@@ -552,7 +395,7 @@ void ppu_oamscan(GBState *state) {
 
     ppu_oamscan_end:
     oam_scan->counter++;
-}
+}*/
 
 void ppu_do_mode_switch(GBState *state) {
     PPUState *ppu = state->ppu;
@@ -563,8 +406,8 @@ void ppu_do_mode_switch(GBState *state) {
         case OAMSCAN:
             next_mode_counter = 172; // at minimum
             next_mode = DRAW;
-            reset_ppu_fifo(&ppu->fifo_bg);
-            reset_ppu_fifo(&ppu->fifo_obj);
+            reset_ppu_fifo(&ppu->draw.fifo_bg);
+            reset_ppu_fifo(&ppu->draw.fifo_obj);
             break;
         case DRAW:
             next_mode_counter = PPU_PER_SCANLINE - ppu->scanline.counter;
@@ -602,7 +445,8 @@ WORD get_tilemap_addr(WORD base, BYTE scx, BYTE scy, BYTE cur_x, BYTE ly) {
     return compute_tilemap_addr(base, tile_x, tile_y);
 }
 
-void get_current_tile_row(PPUState *ppu) {
+void get_current_tile_row(GBState *state) {
+    PPUState *ppu = state->ppu;
     LCDControl lcdc = ppu->lcdc;
     LCDStatus stat = ppu->stat;
     PPUMisc misc = ppu->misc;
@@ -643,16 +487,17 @@ void get_current_tile_row(PPUState *ppu) {
     scanline->pixelbuf[start_ind+7] = ((lsb & 0x01) >> 0) | ((msb & 0x01) << 1);
 }
 
-void ppu_draw_cycle(PPUState *ppu) {
+void ppu_draw_cycle(GBState *state) {
+    PPUState *ppu = state->ppu;
     get_current_tile_row(state);
     ppu->scanline.x_pos += 8;
 
     if (ppu->scanline.x_pos == GB_WIDTH_PX) {
         ppu->scanline.mode_counter = 1;
-        for (int i = 0; i < GB_WIDTH_PX; i++) {
-            printf("%02x ", ppu->scanline.pixelbuf[i]);
-        }
-        printf("\n");
+        //for (int i = 0; i < GB_WIDTH_PX; i++) {
+        //    printf("%02x ", ppu->scanline.pixelbuf[i]);
+        //}
+        //printf("\n");
     }
 
 }
@@ -687,7 +532,7 @@ void task_ppu_cycle(GBState *state) {
 
             break;
         case DRAW:
-            ppu_draw_cycle(ppu);
+            ppu_draw_cycle(state);
             break;
     }
 
@@ -701,6 +546,7 @@ void task_ppu_cycle(GBState *state) {
 
     if (ppu->scanline.counter == PPU_PER_SCANLINE) {
         ppu_next_scanline(ppu);
+        ppu_render_surface(state);
         /*ppu->scanline.counter = 0;
         ppu->misc.ly++;
         reset_oam_scan(&ppu->oam_scan);*/

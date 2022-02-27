@@ -232,11 +232,6 @@ typedef struct {
     
     Drawing_t draw;
     OAMScan_t oam_scan;
-
-    SDL_Window *gb_window;
-    SDL_Renderer *gb_renderer;
-    SDL_Texture *gb_texture;
-    SDL_Surface *gb_surface;
 } PPUState;
 
 
@@ -250,7 +245,7 @@ typedef struct {
     char name[8];
     WORD base;
     WORD end;
-    WORD len;
+    unsigned int len;
     BYTE flags; // owner / lock status? / priority
     int (*check_access)(void *, WORD, BYTE);
     BYTE (*read)(void *, WORD, BYTE);
@@ -305,6 +300,10 @@ typedef struct {
     MemoryState *mem;
     TimerState *timer;
     SDL_Event event;
+    SDL_Window *gb_window;
+    SDL_Renderer *gb_renderer;
+    SDL_Surface *gb_surface;
+    SDL_Surface *gb_window_surface;
 } GBState;
 
 typedef struct {

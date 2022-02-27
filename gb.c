@@ -7,24 +7,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void initialize_sdl_components(GBState *state) {
-    PPUState *ppu = state->ppu;
+const SDL_Color colors[] = {
+    {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF },
+    {.r = 0x90, .g = 0x90, .b = 0x90, .a = 0xFF },
+    {.r = 0x50, .g = 0x50, .b = 0x50, .a = 0xFF },
+    {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF }
+};
+
+
+void initialize_sdl_core(GBState *state) {
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, 
             "Couldn't initialize SDL: %s", SDL_GetError());
         exit(1);
     }
 
-    ppu->gb_window = SDL_CreateWindow("Test",
+    state->gb_window = SDL_CreateWindow("Test",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
         EMU_WIDTH_PX, EMU_HEIGHT_PX,
         SDL_WINDOW_RESIZABLE
     );
-    ppu->gb_surface = SDL_GetWindowSurface(ppu->gb_window);
-    ppu->gb_renderer = SDL_CreateSoftwareRenderer(ppu->gb_surface);
-    SDL_RenderSetLogicalSize(ppu->gb_renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
-    SDL_RenderSetScale(ppu->gb_renderer, 4, 4);
+    state->gb_window_surface = SDL_GetWindowSurface(state->gb_window);
+    state->gb_surface = new_8bit_surface(GB_WIDTH_PX, GB_HEIGHT_PX, COLORS_BGWIN);
+    
+    //state->gb_renderer = SDL_CreateSoftwareRenderer(state->gb_surface);
+    //SDL_RenderSetLogicalSize(ppu->gb_renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
+    //SDL_RenderSetScale(ppu->gb_renderer, 4, 4);
     /*ppu->gb_surface = new_8bit_surface(
         GB_WIDTH_PX, 
         GB_HEIGHT_PX, 
@@ -32,20 +41,19 @@ void initialize_sdl_components(GBState *state) {
     );
     SDL_SetSurfaceAlphaMod(ppu->gb_surface, 0xFF);
     */
-    ppu->gb_texture = NULL;
 }
 
-void teardown_sdl_components(GBState *state) {
-    PPUState *ppu = state->ppu;
-    SDL_FreeSurface(ppu->gb_surface);
-    SDL_DestroyTexture(ppu->gb_texture);
-    SDL_DestroyRenderer(ppu->gb_renderer);
-    SDL_DestroyWindow(ppu->gb_window);
+void teardown_sdl_core(GBState *state) {
+    //SDL_FreeSurface(state->gb_surface);
+    SDL_DestroyRenderer(state->gb_renderer);
+    SDL_DestroyWindow(state->gb_window);
     SDL_Quit();
 }
 
 GBState *initialize_gb(MemInitFlag flag) {
     GBState *state = malloc(sizeof(GBState));
+    initialize_sdl_core(state);
+
     state->cpu = initialize_cpu();
     state->counter = 0;
 
@@ -53,7 +61,6 @@ GBState *initialize_gb(MemInitFlag flag) {
     state->mem = initialize_memory(flag);
     state->timer = initialize_timer();
 
-    initialize_sdl_components(state);
 
     /*
         * Load the boot ROM and the cartridge header at least
@@ -64,7 +71,7 @@ GBState *initialize_gb(MemInitFlag flag) {
 }
 
 void teardown_gb(GBState *state) {
-    teardown_sdl_components(state);
+    teardown_sdl_core(state);
     teardown_cpu(state->cpu);
     teardown_memory(state->mem);
     teardown_ppu(state->ppu);

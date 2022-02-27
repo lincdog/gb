@@ -146,7 +146,7 @@ VideoTestState *initialize_video_tests(GBState *state) {
     return vtstate;
 }
 
-void run_test(VideoTestState *vtstate) {
+void setup_test(VideoTestState *vtstate) {
     GBState *state = vtstate->state;
     PPUState *ppu = state->ppu;
     /* Set LCDC to known state */
@@ -159,13 +159,15 @@ void run_test(VideoTestState *vtstate) {
     ppu->lcdc.obj_enable = OFF;
     ppu->lcdc.bg_window_enable = ON;
 
-    ppu->misc.scx = 0;
-    ppu->misc.scy = 0;
+    ppu->misc.scx = 18;
+    ppu->misc.scy = 22;
     ppu->misc.wx = 7;
     ppu->misc.wy = 10;
     ppu->misc.bgp = PALETTE_DEFAULT;
     ppu->misc.obp0 = 0b11001100;
     ppu->misc.obp1 = 0b00110011;
+
+    ppu->stat.mode = VBLANK;
 
     BYTE *mem = vtstate->mem;
     /* Set up tile data at area 1 */
@@ -179,7 +181,7 @@ void run_test(VideoTestState *vtstate) {
     memcpy(&mem[0x9800], &test_tilemap, 32*32);
 
     /* Set up a few OAM entries */
-    SpriteAttr *oam_table = &mem[OAM_BASE];
+    OAMEntry *oam_table = &mem[OAM_BASE];
     oam_table[0].x = 8;
     oam_table[0].y = 16;
     oam_table[0].index = 0;
@@ -189,15 +191,11 @@ void run_test(VideoTestState *vtstate) {
     oam_table[1].y = 106;
     oam_table[1].index = 1;
     oam_table[1].flags = 0x00;
+}
 
-    unsigned long long pre_ns, post_ns, rend_ns;
-    pre_ns = clock_gettime_nsec_np(CLOCK_REALTIME);
-    ppu_make_surface(state);
-    post_ns = clock_gettime_nsec_np(CLOCK_REALTIME);
-    ppu_render_surface(state);
-    rend_ns = clock_gettime_nsec_np(CLOCK_REALTIME);
-    printf("Nanosec to generate surface: %llu\n", post_ns-pre_ns);
-    printf("Nanosec to render surface: %llu\n", rend_ns-post_ns);
+void run_test(VideoTestState *vtstate) {
+    for (int i = 0; i < (2*PPU_PER_FRAME); i++)
+        task_ppu_cycle(vtstate->state);
 }
 
 void teardown_video_tests(VideoTestState *vtstate) {
@@ -210,10 +208,6 @@ void teardown_video_tests(VideoTestState *vtstate) {
 }
 
 int main(int argc, char *argv[]) {
-   
-    SDL_Texture *texture, *test_texture;
-    SDL_Surface *gb_surface, *test_tile_surface;
-    SDL_Event event;
 
     print_unpacked(test_tiles_packed[0]);
     print_packed(test_tiles_unpacked[0]);
@@ -243,7 +237,9 @@ int main(int argc, char *argv[]) {
     VideoTestState *vtstate = initialize_video_tests(state);
     clock_gettime(CLOCK_REALTIME, &pretest_ts);
 
+    setup_test(vtstate);
     run_test(vtstate);
+    SDL_Event event;
     clock_gettime(CLOCK_REALTIME, &posttest_ts);    
     while (1) {
         SDL_PollEvent(&event);

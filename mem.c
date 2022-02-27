@@ -1488,10 +1488,11 @@ BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
     source = find_mem_region(state, addr, flags);
     
     if (source != NULL) {
+        rel_addr = addr - source->base;
+
         accessible = (flags & MEM_DEBUG) || (*source->check_access)(state, rel_addr, flags);
 
         if (accessible) {
-            rel_addr = addr - source->base;
             result = (*source->read)(state, rel_addr, flags);
         } else {
             result = UNINIT;
@@ -1510,10 +1511,11 @@ int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
     source = find_mem_region(state, addr, flags);
 
     if (source != NULL) {
+        rel_addr = addr - source->base;
+
         accessible = (flags & MEM_DEBUG) || (*source->check_access)(state, rel_addr, flags);
 
         if (accessible) {
-            rel_addr = addr - source->base; 
             status = (*source->write)(state, rel_addr, data, flags);
         } else {
             status = -1;
@@ -1531,10 +1533,11 @@ BYTE *get_mem_pointer(GBState *state, WORD addr, BYTE flags) {
     source = find_mem_region(state, addr, flags);
 
     if (source != NULL) {
+        rel_addr = addr - source->base;
+
         accessible = (flags & MEM_DEBUG) || (*source->check_access)(state, rel_addr, flags);
 
         if (accessible) {
-            rel_addr = addr - source->base;
             pointer = (*source->get_ptr)(state, rel_addr, flags);
         } else {
             pointer = NULL;
