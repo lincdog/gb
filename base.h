@@ -2,6 +2,7 @@
 #define GB_BASE
 
 #include <stdint.h>
+#include <assert.h>
 #include <SDL.h>
 
 #define WORD uint16_t

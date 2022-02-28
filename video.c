@@ -2,11 +2,11 @@
 #include "mem.h"
 #include "video.h"
 #include <stdlib.h>
+#include <assert.h>
 
 #include <SDL.h>
 //#include <SDL_image.h>
 //#include <SDL_timer.h>
-
 
 
 const SDL_Color obj_colors[] = {
