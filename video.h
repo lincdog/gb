@@ -25,6 +25,8 @@
 #define COLORS_OBJ 1
 #define COLORS_NONE 0xFF
 #define PALETTE_DEFAULT 0xE4
+#define TILE_X_FLIP 0x20
+#define TILE_Y_FLIP 0x40
 
 #define COUNTER_OAMSEARCH_LENGTH 80
 #define COUNTER_DRAW_MIN_LENGTH 172
@@ -47,11 +49,6 @@
 #define sign_check(__darea) (((TileDataArea)__darea == DATA_AREA1) ? 0 : 0x80)
 #define compute_tiledata_addr(__base, __ind) __base + (TILE_SIZE_BYTES * \
     (__ind ^ sign_check(__base)) - (__ind & sign_check(__base)))
-
-// If LCDC.4 == 1:
-#define TILE_INDEX_TO_ADDR_8000(__i) (WORD)(0x8000 + 0x10 * (BYTE)__i)
-// If LCDC.4 == 0:
-#define TILE_INDEX_TO_ADDR_8800(__i) (WORD)(0x9000 + 0x10 * (char)__i)
 
 #define ppu_write_mem(__state, __addr, __data) write_mem(__state, __addr, __data, MEM_SOURCE_PPU)
 #define ppu_read_mem(__state, __addr) read_mem(__state, __addr, MEM_SOURCE_PPU)

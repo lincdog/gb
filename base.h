@@ -210,11 +210,17 @@ typedef struct {
 } Frame_t;
 
 typedef struct {
+    BYTE *buf;
+    unsigned int offset;
+} Pixelbuf_t;
+
+typedef struct {
     unsigned int counter;
     unsigned int mode_counter;
     BYTE x_pos;
-    BYTE *pixelbuf;
-    unsigned int pixelbuf_start_offset;
+    Pixelbuf_t obj;
+    Pixelbuf_t bg;
+    Pixelbuf_t win;
 } Scanline_t;
 
 typedef struct {
