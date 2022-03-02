@@ -81,7 +81,7 @@ PPUState *initialize_ppu(void) {
     ppu->stat.lyc_ly_equal = ON;
     ppu->stat.mode = VBLANK;
 
-    ppu->frame.counter = PPU_PER_FRAME - COUNTER_VBLANK_LENGTH;
+    ppu->frame.counter = COUNTER_VBLANK_LENGTH;
     ppu->frame.win_y = 0;
     ppu->frame.pixelbuf = malloc(GB_FULL_SIZE * GB_FULL_SIZE);
     if (ppu->frame.pixelbuf == NULL) {
@@ -90,7 +90,7 @@ PPUState *initialize_ppu(void) {
     } 
     memset(ppu->frame.pixelbuf, 0, GB_FULL_SIZE * GB_FULL_SIZE);
 
-    ppu->scanline.counter = 0;
+    ppu->scanline.counter = PPU_PER_SCANLINE;
     ppu->mode_counter = COUNTER_VBLANK_LENGTH;
     ppu->scanline.x_pos = 0;
     ppu->scanline.bg.buf = malloc(SCANLINE_PIXELBUF_SIZE);
@@ -321,20 +321,21 @@ void ppu_draw_cleanup(PPUState *ppu) {
 }
 
 void ppu_next_scanline(PPUState *ppu) {
-    ppu->scanline.counter = 0;
+    ppu->scanline.counter = PPU_PER_SCANLINE;
     memset(ppu->scanline.bg.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.bg.offset = ppu->misc.scx & 0x7;
     memset(ppu->scanline.win.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.win.offset = ppu->misc.wx & 0x7;
     memset(ppu->scanline.obj.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.x_pos = 0;
+    
     ppu->misc.ly++;
 
     reset_oamscan(&ppu->oamscan);
 }
 
 void ppu_next_frame(PPUState *ppu) {
-    ppu->frame.counter = 0;
+    ppu->frame.counter = PPU_PER_FRAME;
     ppu->frame.win_y = 0;
     ppu->misc.ly = 0;
 }
@@ -350,14 +351,14 @@ void ppu_do_mode_switch(PPUState *ppu) {
             ppu_oamscan_cleanup(ppu);
             break;
         case DRAW:
-            next_mode_counter = PPU_PER_SCANLINE - ppu->scanline.counter;
+            next_mode_counter = ppu->scanline.counter;
             assert(next_mode_counter >= COUNTER_HBLANK_MIN_LENGTH 
                 && next_mode_counter <= COUNTER_HBLANK_MAX_LENGTH);
             next_mode = HBLANK;
             ppu_draw_cleanup(ppu);
             break;
         case HBLANK:
-            assert(ppu->scanline.counter == PPU_PER_SCANLINE);
+            assert(ppu->scanline.counter == 0);
             if (ppu->misc.ly < (N_DRAW_SCANLINES - 1)) {
                 next_mode = OAMSCAN;
                 next_mode_counter = COUNTER_OAMSCAN_LENGTH;
@@ -365,7 +366,7 @@ void ppu_do_mode_switch(PPUState *ppu) {
                 /* End of HBLANK for scanline 143. We have not yet incremented
                 LY - which happens in ppu_next_scanline() - 
                 */
-                assert(ppu->frame.counter == 65664);
+                assert(ppu->frame.counter == COUNTER_VBLANK_LENGTH);
                 assert(ppu->misc.ly == 143);
                 next_mode = VBLANK;
                 next_mode_counter = COUNTER_VBLANK_LENGTH;
@@ -373,7 +374,7 @@ void ppu_do_mode_switch(PPUState *ppu) {
 
             break;
         case VBLANK:
-            assert(ppu->frame.counter == PPU_PER_FRAME);
+            assert(ppu->frame.counter == 0);
             next_mode_counter = COUNTER_OAMSCAN_LENGTH;
             next_mode = OAMSCAN;
             break;
@@ -409,26 +410,21 @@ void task_ppu_cycle(GBState *state) {
     }
 
     ppu_cycle_end:
-    ppu->scanline.counter++;
-    ppu->frame.counter++;
-
-    if (ppu->frame.counter > 65000)
-        _ppu_dummy();
-
+    ppu->scanline.counter--;
+    ppu->frame.counter--;
     ppu->mode_counter--;
+
     if (ppu->mode_counter == 0)
         ppu_do_mode_switch(ppu);
 
-    if (ppu->scanline.counter == PPU_PER_SCANLINE) {
+    if (ppu->scanline.counter == 0) {
         ppu_render_scanline(state);
         ppu_next_scanline(ppu);
     }
 
-    if (ppu->frame.counter == PPU_PER_FRAME) {
+    if (ppu->frame.counter == 0) {
         SDL_UpdateWindowSurface(state->sdl->window);
         ppu_next_frame(ppu);
-        /*ppu->frame.counter = 0;
-        ppu->misc.ly = 0;*/
     }
 }
 
