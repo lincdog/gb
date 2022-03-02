@@ -26,124 +26,6 @@ const SDL_Color bgwin_colors[] = {
 
 const BYTE color_table[] = { 0xFF, 0x90, 0x50, 0x00 };
 
-
-int pack_tile(const BYTE *data_unpacked, BYTE *data, BYTE flags) {
-    BYTE packed_byte_1 = 0;
-    BYTE packed_byte_2 = 0;
-
-    for (int i = 0, j = 0; i < 64; i += 8, j += 2) {
-
-        packed_byte_1 = ((data_unpacked[i] & 0x1) << 7) |
-                        ((data_unpacked[i+1] & 0x1) << 6) |
-                        ((data_unpacked[i+2] & 0x1) << 5) |
-                        ((data_unpacked[i+3] & 0x1) << 4) |
-                        ((data_unpacked[i+4] & 0x1) << 3) |
-                        ((data_unpacked[i+5] & 0x1) << 2) |
-                        ((data_unpacked[i+6] & 0x1) << 1) |
-                        ((data_unpacked[i+7] & 0x1) << 0);
-        packed_byte_2 = ((data_unpacked[i] & 0x2) << 6) |
-                        ((data_unpacked[i+1] & 0x2) << 5) |
-                        ((data_unpacked[i+2] & 0x2) << 4) |
-                        ((data_unpacked[i+3] & 0x2) << 3) |
-                        ((data_unpacked[i+4] & 0x2) << 2) |
-                        ((data_unpacked[i+5] & 0x2) << 1) |
-                        ((data_unpacked[i+6] & 0x2) << 0) |
-                        ((data_unpacked[i+7] & 0x2) >> 1);
-        data[j] = packed_byte_1;
-        data[j+1] = packed_byte_2;
-    }
-}
-
-/* Unpacks an 8x8 or 8x16 tile starting at addr pointed to by data,
-into target buffer data_unpacked, at the specified x and y offsets given
-x_extent bytes per row in the target. Flags specify X or Y flip (as found
-in OAM memory).
-Tiles are stored in 2-bit-per pixel interleaved format (2 bytes per 8-pixel row,
-16 bytes per 8x8 tile). The earlier byte gives the least significant bit
-of each value in the row, the later byte the most significant bit.
- If the first two bytes are 0xB3 0x1C, the unpacked value will be:
-0xB3 ==  1  |  0  |  1  |  1  |  0  |  0  |  1  |  1
-0x1C ==  0  |  0  |  0  |  1  |  1  |  1  |  0  |  0
-        --------------------------------------------
-         01 | 00  | 01  | 11  | 10  | 10  | 01  | 01
-    = 1 0 1 3 2 2 1 1
-
-The unpacked values are then used to index into palette to convert them
-to their final form. Bits 0-1 specify the color for index 0, 2-3 for index 1,
-4-5 for index 2, and 6-7 for index 3. So palette of 10|11|00|11 would 
-map 0 to 3, 1 to 0, 2 to 3, and 3 to 2.
-*/
-void unpack_tile(
-    const BYTE *data, 
-    BYTE *data_unpacked, 
-    BYTE flags,
-    BYTE palette,
-    ObjectSize size,
-    int x_offset,
-    int y_offset,
-    int x_extent
-) {
-
-    int x_flip = 0, y_flip = 0, p_num = 0;
-    y_flip = bit_6(flags);
-    x_flip = bit_5(flags);
-
-    BYTE colors[4];
-    colors[0] = palette & 0x3;
-    colors[1] = (palette & 0xC) >> 2;
-    colors[2] = (palette & 0x30) >> 4;
-    colors[3] = (palette & 0xC0) >> 6;
-    
-    /* If 8x16, the second packed tile immediately after the first is
-    added below the first (8 columns, 16 rows), so we can just extend
-    our loop to continue through memory. 
-    FIXME does Y flip for 8x16 flip entire 16 rows as one? Or does it
-    flip each 8x8 constituent individually? Current implementation flips
-    entire 16 rows. 
-    */
-    int n_rows = (size == OBJ_8x8) ? 8 : 16;
-
-    BYTE tmp1, tmp2;
-    int x_base, y_base, row_base;
-    char x_add, y_add;
-    if (x_flip) {
-        x_base = x_offset + n_rows - 1;
-        x_add = -1;
-    } else {
-        x_base = x_offset;
-        x_add = 1;
-    }
-
-    if (y_flip) {
-        y_base = y_offset + n_rows - 1;
-        y_add = -1;
-    } else {
-        y_base = y_offset;
-        y_add = 1;
-    }
-
-    for (int i = 0; i < n_rows; i++) {
-        tmp1 = data[2*i];
-        tmp2 = data[2*i+1];
-        row_base = x_extent*(y_base + y_add*i) + x_base;
-
-        // This fills in one row per iteration of the 8x8 sprite
-        // To flip Y, we start at the bottom of the 8x8 buffer
-        // To flip X, we take the bits from right (lsb) to left (msb)
-        // in each packed byte
-
-        data_unpacked[row_base] = colors[(bit_7(tmp1)>>7) | (bit_7(tmp2)>>6)];
-        data_unpacked[row_base + 1*x_add] = colors[(bit_6(tmp1)>>6) | (bit_6(tmp2)>>5)];
-        data_unpacked[row_base + 2*x_add] = colors[(bit_5(tmp1)>>5) | (bit_5(tmp2)>>4)];
-        data_unpacked[row_base + 3*x_add] = colors[(bit_4(tmp1)>>4) | (bit_4(tmp2)>>3)];
-        data_unpacked[row_base + 4*x_add] = colors[(bit_3(tmp1)>>3) | (bit_3(tmp2)>>2)];
-        data_unpacked[row_base + 5*x_add] = colors[(bit_2(tmp1)>>2) | (bit_2(tmp2)>>1)];
-        data_unpacked[row_base + 6*x_add] = colors[(bit_1(tmp1)>>1) | (bit_1(tmp2)>>0)];
-        data_unpacked[row_base + 7*x_add] = colors[(bit_0(tmp1)>>0) | (bit_0(tmp2)<<1)];
-         
-    }
-}
-
 void reset_ppu_fifo(PPUFifo *fifo) {
     fifo->state = FETCH_TILE;
     fifo->counter = 0;
@@ -261,107 +143,9 @@ void teardown_ppu(PPUState *ppu) {
     free(ppu);
 }
 
-
-void print_unpacked(const BYTE *packed) {
-    BYTE *unpacked;
-    unpacked = malloc(64 * sizeof(BYTE));
-    if (unpacked == NULL) {
-        printf("Error on allocating unpacked buffer");
-        exit(1);
-    }
-
-    unpack_tile(packed, unpacked, 0, PALETTE_DEFAULT, OBJ_8x8, 0, 0, 8);
-
-    for (int i = 0; i < 64; i++) {
-        if (i % 8 == 0) {
-            printf("\n");
-        }
-        printf("%x ", unpacked[i]);
-    }
-    printf("\n");
-
-    free(unpacked);
-}
-
-void print_packed(const BYTE *unpacked) {
-    BYTE *packed;
-    packed = malloc(16 * sizeof(BYTE));
-    if (packed == NULL) {
-        printf("Error on allocating packed buffer");
-        exit(1);
-    }
-
-    pack_tile(unpacked, packed, 0);
-
-    for (int i = 0; i < 16; i++) {
-        if (i % 4 == 0)
-            printf("\n");
-        printf("0x%02X, ", packed[i]);
-    }
-
-    free(packed);
-}
-
-void convert_8bit_colors(BYTE *pixels, BYTE palette, int nbytes) {
-    BYTE colors[4];
-    BYTE tmp;
-    colors[0] = palette & 0x3;
-    colors[1] = (palette & 0xC) >> 2;
-    colors[2] = (palette & 0x30) >> 4;
-    colors[3] = (palette & 0xC0) >> 6;
-
-    for (int i = 0; i < nbytes; i++) {
-        tmp = pixels[i];
-        pixels[i] = colors[tmp];
-    }
-}
-
-void set_8bit_colors(SDL_Surface *surface, BYTE color_source) {
-    if (color_source != COLORS_NONE) {
-        SDL_Color *colors;
-        SDL_BlendMode blend_mode;
-        if (color_source == COLORS_BGWIN) {
-            colors = &bgwin_colors;
-            blend_mode = SDL_BLENDMODE_NONE;
-        } else {
-            colors = &obj_colors;
-            blend_mode = SDL_BLENDMODE_NONE;
-        }
-
-        SDL_SetSurfaceBlendMode(surface, blend_mode);
-        SDL_SetPaletteColors(surface->format->palette, colors, 0, 4);
-    }
-}
-
-SDL_Surface *new_8bit_surface(
-    int width, int height, 
-    BYTE color_source) {
-    SDL_Surface *surface = SDL_CreateRGBSurface(
-        0, width, height, 
-        8, 0, 0, 0, 0);
-    
-    set_8bit_colors(surface, color_source);
-    return surface;
-}
-
-SDL_Surface *new_8bit_surface_from(
-    BYTE *pixels, int width, int height, 
-    BYTE color_source) {
-    SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(
-        pixels,
-        width,
-        height,
-        8,
-        width,
-        0, 0, 0, 0
-    );
-
-    set_8bit_colors(surface, color_source);
-    return surface;
-}
-
 void ppu_render_scanline(GBState *state) {
     PPUState *ppu = state->ppu;
+    SDLComponents *sdl = state->sdl;
     SDL_Rect r;
     BYTE color;
     //SDL_RenderGetViewport(state->gb_renderer, &r);
@@ -374,8 +158,8 @@ void ppu_render_scanline(GBState *state) {
 
     for (; r.x < GB_WIDTH_PX; r.x++) {
         color = color_table[ppu->scanline.bg.buf[r.x + start_ind]];
-        SDL_SetRenderDrawColor(state->gb_renderer, color, color, color, 0xFF);
-        SDL_RenderFillRect(state->gb_renderer, &r);
+        SDL_SetRenderDrawColor(sdl->renderer, color, color, color, 0xFF);
+        SDL_RenderFillRect(sdl->renderer, &r);
     }
    
 }
@@ -611,7 +395,7 @@ void task_ppu_cycle(GBState *state) {
     }
 
     if (ppu->frame.counter == PPU_PER_FRAME) {
-        SDL_UpdateWindowSurface(state->gb_window);
+        SDL_UpdateWindowSurface(state->sdl->window);
         ppu_next_frame(ppu);
         /*ppu->frame.counter = 0;
         ppu->misc.ly = 0;*/

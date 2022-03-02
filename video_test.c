@@ -638,6 +638,52 @@ const BYTE test_tiles_unpacked[][64] = {
     
 };
 
+int pack_tile(const BYTE *data_unpacked, BYTE *data, BYTE flags) {
+    BYTE packed_byte_1 = 0;
+    BYTE packed_byte_2 = 0;
+
+    for (int i = 0, j = 0; i < 64; i += 8, j += 2) {
+
+        packed_byte_1 = ((data_unpacked[i] & 0x1) << 7) |
+                        ((data_unpacked[i+1] & 0x1) << 6) |
+                        ((data_unpacked[i+2] & 0x1) << 5) |
+                        ((data_unpacked[i+3] & 0x1) << 4) |
+                        ((data_unpacked[i+4] & 0x1) << 3) |
+                        ((data_unpacked[i+5] & 0x1) << 2) |
+                        ((data_unpacked[i+6] & 0x1) << 1) |
+                        ((data_unpacked[i+7] & 0x1) << 0);
+        packed_byte_2 = ((data_unpacked[i] & 0x2) << 6) |
+                        ((data_unpacked[i+1] & 0x2) << 5) |
+                        ((data_unpacked[i+2] & 0x2) << 4) |
+                        ((data_unpacked[i+3] & 0x2) << 3) |
+                        ((data_unpacked[i+4] & 0x2) << 2) |
+                        ((data_unpacked[i+5] & 0x2) << 1) |
+                        ((data_unpacked[i+6] & 0x2) << 0) |
+                        ((data_unpacked[i+7] & 0x2) >> 1);
+        data[j] = packed_byte_1;
+        data[j+1] = packed_byte_2;
+    }
+}
+
+void print_packed(const BYTE *unpacked) {
+    BYTE *packed;
+    packed = malloc(16 * sizeof(BYTE));
+    if (packed == NULL) {
+        printf("Error on allocating packed buffer");
+        exit(1);
+    }
+
+    pack_tile(unpacked, packed, 0);
+
+    for (int i = 0; i < 16; i++) {
+        if (i % 4 == 0)
+            printf("\n");
+        printf("0x%02X, ", packed[i]);
+    }
+
+    free(packed);
+}
+
 typedef struct {
     GBState *state;
     BYTE *mem;

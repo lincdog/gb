@@ -15,52 +15,50 @@ const SDL_Color colors[] = {
 };
 
 
-void initialize_sdl_core(GBState *state) {
+SDLComponents *initialize_sdl_core(void) {
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, 
             "Couldn't initialize SDL: %s", SDL_GetError());
         exit(1);
     }
+    SDLComponents *sdl = malloc(sizeof(SDLComponents));
+    if (sdl == NULL) {
+        printf("Failed to allocate sdl struct\n");
+        exit(1);
+    }
 
-    state->gb_window = SDL_CreateWindow("Test",
+    sdl->window = SDL_CreateWindow("Test",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
         EMU_WIDTH_PX, EMU_HEIGHT_PX,
         SDL_WINDOW_RESIZABLE
     );
-    state->gb_window_surface = SDL_GetWindowSurface(state->gb_window);
-    state->gb_surface = new_8bit_surface(GB_WIDTH_PX, GB_HEIGHT_PX, COLORS_BGWIN);
+    sdl->surface = SDL_GetWindowSurface(sdl->window);
+    sdl->renderer = SDL_CreateSoftwareRenderer(sdl->surface);
+    SDL_RenderSetLogicalSize(sdl->renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
+    //SDL_SetSurfaceBlendMode(sdl->surface, SDL_BLENDMODE_NONE);
+    //SDL_SetColorKey(sdl->surface, SDL_TRUE, 0);
+    SDL_SetRenderDrawColor(sdl->renderer, 0, 0, 0, 0xFF);
+    SDL_RenderClear(sdl->renderer);
     
-    state->gb_renderer = SDL_CreateSoftwareRenderer(state->gb_window_surface);
-    SDL_RenderSetLogicalSize(state->gb_renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
-    SDL_SetSurfaceBlendMode(state->gb_window_surface, SDL_BLENDMODE_NONE);
-    SDL_SetColorKey(state->gb_window_surface, SDL_TRUE, 0);
-    SDL_SetRenderDrawColor(state->gb_renderer, 0, 0, 0, 0xFF);
-    SDL_RenderClear(state->gb_renderer);
-    //SDL_RenderSetScale(state->gb_renderer, 4, 4);
-    /*ppu->gb_surface = new_8bit_surface(
-        GB_WIDTH_PX, 
-        GB_HEIGHT_PX, 
-        COLORS_BGWIN
-    );
-    SDL_SetSurfaceAlphaMod(ppu->gb_surface, 0xFF);
-    */
+    return sdl;
 }
 
-void teardown_sdl_core(GBState *state) {
+void teardown_sdl_core(SDLComponents *sdl) {
     //SDL_FreeSurface(state->gb_surface);
-    SDL_DestroyRenderer(state->gb_renderer);
-    SDL_DestroyWindow(state->gb_window);
+    SDL_DestroyRenderer(sdl->renderer);
+    SDL_DestroyWindow(sdl->window);
+    free(sdl);
     SDL_Quit();
 }
 
 GBState *initialize_gb(MemInitFlag flag) {
     GBState *state = malloc(sizeof(GBState));
-    initialize_sdl_core(state);
 
     state->cpu = initialize_cpu();
     state->counter = 0;
 
+    state->sdl = initialize_sdl_core();
     state->ppu = initialize_ppu();
     state->mem = initialize_memory(flag);
     state->timer = initialize_timer();
@@ -75,7 +73,7 @@ GBState *initialize_gb(MemInitFlag flag) {
 }
 
 void teardown_gb(GBState *state) {
-    teardown_sdl_core(state);
+    teardown_sdl_core(state->sdl);
     teardown_cpu(state->cpu);
     teardown_memory(state->mem);
     teardown_ppu(state->ppu);
@@ -84,8 +82,9 @@ void teardown_gb(GBState *state) {
 }
 
 void task_event(GBState *state) {
-    SDL_PollEvent(&state->event);
-    switch (state->event.type) {
+    SDL_Event *ev = &state->sdl->event;
+    SDL_PollEvent(ev);
+    switch (ev->type) {
         
     }
 }

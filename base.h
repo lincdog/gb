@@ -301,16 +301,19 @@ typedef struct {
 } TimerState;
 
 typedef struct {
+    SDL_Event event;
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_Surface *surface;
+} SDLComponents;
+
+typedef struct {
     unsigned long counter;
     CPUState *cpu;
     PPUState *ppu;
     MemoryState *mem;
     TimerState *timer;
-    SDL_Event event;
-    SDL_Window *gb_window;
-    SDL_Renderer *gb_renderer;
-    SDL_Surface *gb_surface;
-    SDL_Surface *gb_window_surface;
+    SDLComponents *sdl;
 } GBState;
 
 typedef struct {
