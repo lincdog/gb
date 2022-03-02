@@ -216,7 +216,6 @@ typedef struct {
 
 typedef struct {
     unsigned int counter;
-    unsigned int mode_counter;
     BYTE x_pos;
     Pixelbuf_t obj;
     Pixelbuf_t bg;
@@ -229,7 +228,8 @@ typedef struct {
     PPUMisc misc;
     Frame_t frame;
     Scanline_t scanline;
-    
+    unsigned int mode_counter;
+
     //BYTE *pixelbuf;
     //BYTE *win_pixelbuf;
     //BYTE *obj_pixelbuf;
@@ -238,7 +238,7 @@ typedef struct {
     //BYTE *current_obj_tile;
     
     Drawing_t draw;
-    OAMScan_t oam_scan;
+    OAMScan_t oamscan;
 } PPUState;
 
 

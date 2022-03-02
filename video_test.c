@@ -714,6 +714,7 @@ void setup_test(VideoTestState *vtstate) {
     ppu->lcdc.obj_enable = OFF;
     ppu->lcdc.bg_window_enable = ON;
 
+    /* Set most of misc to known state */
     ppu->misc.scx = 0;
     ppu->misc.scy = 0;
     ppu->misc.wx = 7;
@@ -725,13 +726,13 @@ void setup_test(VideoTestState *vtstate) {
     ppu->stat.mode = VBLANK;
 
     BYTE *mem = vtstate->mem;
+    
     /* Set up tile data at area 1 */
-
-    memset(&mem[0x8000], 0xFF, 0x1000);
+    memset(&mem[TILEDATA_AREA1], 0xFF, 0x1000);
 
     for (int i = 0; i < N_TEST_TILES; i++) {
         memcpy(
-            &mem[0x8000 + TILE_SIZE_BYTES*i],
+            &mem[TILEDATA_AREA1 + TILE_SIZE_BYTES*i],
             &test_tiles_packed[i],
             TILE_SIZE_BYTES
         );
@@ -739,7 +740,7 @@ void setup_test(VideoTestState *vtstate) {
 
 
     /* Set up tile map at area 0 */
-    memcpy(&mem[0x9800], &test_tilemap, 32*32);
+    memcpy(&mem[TILEMAP_AREA0], &test_tilemap, 32*32);
 
     /* Set up a few OAM entries */
     OAMEntry *oam_table = &mem[OAM_BASE];

@@ -37,20 +37,24 @@ void reset_ppu_fifo(PPUFifo *fifo) {
     }
 }
 
-void reset_oam_scan(OAMScan_t *oam_scan) {
-    oam_scan->counter = 0;
-    oam_scan->n_sprites_total = 0;
-    oam_scan->n_sprites_row = 0;
+void reset_oamscan(OAMScan_t *oamscan) {
+    oamscan->counter = 0;
+    oamscan->n_sprites_total = 0;
+    oamscan->n_sprites_row = 0;
 
     OAMEntry *spr;
 
     for (int i = 0; i < 10; i++) {
-        spr = &oam_scan->current_row_sprites[i];
+        spr = &oamscan->current_row_sprites[i];
         spr->x = 0;
         spr->y = 0;
         spr->flags = 0;
         spr->index = 0;
     }
+}
+
+int _ppu_dummy(void) {
+    return 1;
 }
 
 PPUState *initialize_ppu(void) {
@@ -87,7 +91,7 @@ PPUState *initialize_ppu(void) {
     memset(ppu->frame.pixelbuf, 0, GB_FULL_SIZE * GB_FULL_SIZE);
 
     ppu->scanline.counter = 0;
-    ppu->scanline.mode_counter = COUNTER_VBLANK_LENGTH;
+    ppu->mode_counter = COUNTER_VBLANK_LENGTH;
     ppu->scanline.x_pos = 0;
     ppu->scanline.bg.buf = malloc(SCANLINE_PIXELBUF_SIZE);
     if (ppu->scanline.bg.buf == NULL) {
@@ -124,7 +128,7 @@ PPUState *initialize_ppu(void) {
     
     reset_ppu_fifo(&ppu->draw.fifo_bg);
     reset_ppu_fifo(&ppu->draw.fifo_obj);
-    reset_oam_scan(&ppu->oam_scan);
+    reset_oamscan(&ppu->oamscan);
 
     /*ppu->win_pixelbuf = malloc(GB_FULL_SIZE * GB_FULL_SIZE);
     memset(ppu->win_pixelbuf, 0, GB_FULL_SIZE * GB_FULL_SIZE);
@@ -143,108 +147,6 @@ void teardown_ppu(PPUState *ppu) {
     free(ppu);
 }
 
-void ppu_render_scanline(GBState *state) {
-    PPUState *ppu = state->ppu;
-    SDLComponents *sdl = state->sdl;
-    SDL_Rect r;
-    BYTE color;
-    //SDL_RenderGetViewport(state->gb_renderer, &r);
-
-    r.y = ppu->misc.ly;
-    r.x = 0;//ppu->scanline.x_pos;
-    r.w = 1; 
-    r.h = 1;
-    int start_ind = ppu->scanline.bg.offset;
-
-    for (; r.x < GB_WIDTH_PX; r.x++) {
-        color = color_table[ppu->scanline.bg.buf[r.x + start_ind]];
-        SDL_SetRenderDrawColor(sdl->renderer, color, color, color, 0xFF);
-        SDL_RenderFillRect(sdl->renderer, &r);
-    }
-   
-}
-
-
-void ppu_oamscan(GBState *state) {
-    PPUState *ppu = state->ppu;
-    LCDControl lcdc = ppu->lcdc;
-    LCDStatus stat = ppu->stat;
-    PPUMisc misc = ppu->misc;
-    OAMScan_t *oam_scan = &ppu->oam_scan;
-    BYTE ly;
-    int row_overlap;
-    ly = misc.ly;
-    OAMEntry *oam_table_ptr;
-    OAMEntry current_entry;
-
-    if ((oam_scan->counter & 1)
-        ||lcdc.obj_enable == OFF 
-        || oam_scan->n_sprites_row == SPRITES_ROW_MAX
-        || oam_scan->n_sprites_total == SPRITES_TOTAL_MAX
-    ) goto ppu_oamscan_end;
-
-    oam_table_ptr = ppu_get_mem_pointer(state, OAM_BASE);
-    current_entry = oam_table_ptr[oam_scan->counter];
-
-    row_overlap = (int)ly - ((int)current_entry.y - 16);
-
-    if (row_overlap > 0 && row_overlap < (int)lcdc.obj_size) {
-        oam_scan->n_sprites_row++;
-        oam_scan->n_sprites_total++;
-    }
-
-    ppu_oamscan_end:
-    oam_scan->counter++;
-}
-
-void ppu_do_mode_switch(GBState *state) {
-    PPUState *ppu = state->ppu;
-    PPUMode next_mode;
-    unsigned int next_mode_counter;
-
-    switch (ppu->stat.mode) {
-        case OAMSCAN:
-            next_mode_counter = 172; // at minimum
-            next_mode = DRAW;
-            reset_ppu_fifo(&ppu->draw.fifo_bg);
-            reset_ppu_fifo(&ppu->draw.fifo_obj);
-            break;
-        case DRAW:
-            next_mode_counter = PPU_PER_SCANLINE - ppu->scanline.counter;
-            next_mode = HBLANK;
-            
-            break;
-        case HBLANK:
-            if (ppu->misc.ly < 144) {
-                next_mode = OAMSCAN;
-                next_mode_counter = 80;
-            } else {
-                next_mode = VBLANK;
-                next_mode_counter = 4560;
-            }
-
-            break;
-        case VBLANK:
-            next_mode_counter = 80;
-            next_mode = OAMSCAN;
-            break;
-    }
-    ppu->scanline.mode_counter = next_mode_counter;
-    ppu->stat.mode = next_mode;
-}
-
-/* Returns the address (in the tilemap at base) at which the tile index 
- for the current tile can be found. "Current tile" means the tile that needs to be
- rendered given x scroll scx (pixels), y scroll scy (pixels), cur_x X offset in row (pixels,
- 0-160), ly current scanline (pixels, 0-144)
- */
-WORD get_tilemap_addr(WORD base, BYTE scx, BYTE scy, BYTE cur_x, BYTE ly) {
-    BYTE tile_x, tile_y;
-    tile_x = compute_tile_x(scx, cur_x);
-    tile_y = compute_tile_y(scy, ly);
-
-    return compute_tilemap_addr(base, tile_x, tile_y);
-}
 
 void unpack_row(
     const BYTE lsb, 
@@ -281,6 +183,83 @@ void unpack_row(
         dest[6] = (bit_1(lsb) >> 1) | (bit_1(msb) >> 0);
         dest[7] = (bit_0(lsb) >> 0) | (bit_0(msb) << 1);
     }
+}
+
+void ppu_render_scanline(GBState *state) {
+    PPUState *ppu = state->ppu;
+    SDLComponents *sdl = state->sdl;
+    SDL_Rect r;
+    BYTE color;
+    //SDL_RenderGetViewport(state->gb_renderer, &r);
+
+    r.y = ppu->misc.ly;
+    r.x = 0;//ppu->scanline.x_pos;
+    r.w = 1; 
+    r.h = 1;
+    int start_ind = ppu->scanline.bg.offset;
+
+    for (; r.x < GB_WIDTH_PX; r.x++) {
+        color = color_table[ppu->scanline.bg.buf[r.x + start_ind]];
+        SDL_SetRenderDrawColor(sdl->renderer, color, color, color, 0xFF);
+        SDL_RenderFillRect(sdl->renderer, &r);
+    }
+   
+}
+
+WORD get_sprite_row_addr(OAMEntry *oam, BYTE ly, ObjectSize obj_size) {
+
+}
+
+void ppu_oamscan_cycle(GBState *state) {
+    PPUState *ppu = state->ppu;
+    LCDControl lcdc = ppu->lcdc;
+    LCDStatus stat = ppu->stat;
+    PPUMisc misc = ppu->misc;
+    OAMScan_t *oamscan = &ppu->oamscan;
+    BYTE ly;
+    int row_overlap;
+    ly = misc.ly;
+    OAMEntry *oam_table_ptr;
+    OAMEntry current_entry;
+
+    if ((oamscan->counter & 1)
+        ||lcdc.obj_enable == OFF 
+        || oamscan->n_sprites_row == SPRITES_ROW_MAX
+        || oamscan->n_sprites_total == SPRITES_TOTAL_MAX
+    ) goto ppu_oamscan_end;
+
+    oam_table_ptr = ppu_get_mem_pointer(state, OAM_BASE);
+    current_entry = oam_table_ptr[oamscan->counter];
+
+    row_overlap = (int)ly - ((int)current_entry.y - 16);
+
+    if (row_overlap > 0 && row_overlap < (int)lcdc.obj_size) {
+        oamscan->n_sprites_row++;
+        oamscan->n_sprites_total++;
+    }
+
+    ppu_oamscan_end:
+    oamscan->counter++;
+}
+
+void ppu_oamscan_cleanup(PPUState *ppu) {
+    
+    reset_ppu_fifo(&ppu->draw.fifo_bg);
+    reset_ppu_fifo(&ppu->draw.fifo_obj);
+}
+
+
+/* Returns the address (in the tilemap at base) at which the tile index 
+ for the current tile can be found. "Current tile" means the tile that needs to be
+ rendered given x scroll scx (pixels), y scroll scy (pixels), cur_x X offset in row (pixels,
+ 0-160), ly current scanline (pixels, 0-144)
+ */
+WORD get_tilemap_addr(WORD base, BYTE scx, BYTE scy, BYTE cur_x, BYTE ly) {
+    BYTE tile_x, tile_y;
+    tile_x = compute_tile_x(scx, cur_x);
+    tile_y = compute_tile_y(scy, ly);
+
+    return compute_tilemap_addr(base, tile_x, tile_y);
 }
 
 /* Determine, given the whole current state, what row of 8 pixels from the 
@@ -330,16 +309,15 @@ void get_current_tile_row(GBState *state) {
 
 void ppu_draw_cycle(GBState *state) {
     PPUState *ppu = state->ppu;
-    get_current_tile_row(state);
-    ppu->scanline.x_pos += 8;
 
-    if (ppu->scanline.x_pos == GB_WIDTH_PX) {
-        ppu->scanline.mode_counter = 1;
-        //for (int i = 0; i < GB_WIDTH_PX; i++) {
-        //    printf("%02x ", ppu->scanline.pixelbuf[i]);
-        //}
-        //printf("\n");
+    if (ppu->scanline.x_pos < GB_WIDTH_PX) {
+        get_current_tile_row(state);
+        ppu->scanline.x_pos += 8;
     }
+}
+
+void ppu_draw_cleanup(PPUState *ppu) {
+
 }
 
 void ppu_next_scanline(PPUState *ppu) {
@@ -351,12 +329,61 @@ void ppu_next_scanline(PPUState *ppu) {
     memset(ppu->scanline.obj.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.x_pos = 0;
     ppu->misc.ly++;
+
+    reset_oamscan(&ppu->oamscan);
 }
 
 void ppu_next_frame(PPUState *ppu) {
     ppu->frame.counter = 0;
     ppu->frame.win_y = 0;
     ppu->misc.ly = 0;
+}
+
+void ppu_do_mode_switch(PPUState *ppu) {
+    PPUMode next_mode;
+    unsigned int next_mode_counter;
+
+    switch (ppu->stat.mode) {
+        case OAMSCAN:
+            next_mode_counter = COUNTER_DRAW_MIN_LENGTH; // at minimum
+            next_mode = DRAW;
+            ppu_oamscan_cleanup(ppu);
+            break;
+        case DRAW:
+            next_mode_counter = PPU_PER_SCANLINE - ppu->scanline.counter;
+            assert(next_mode_counter >= COUNTER_HBLANK_MIN_LENGTH 
+                && next_mode_counter <= COUNTER_HBLANK_MAX_LENGTH);
+            next_mode = HBLANK;
+            ppu_draw_cleanup(ppu);
+            break;
+        case HBLANK:
+            assert(ppu->scanline.counter == PPU_PER_SCANLINE);
+            if (ppu->misc.ly < (N_DRAW_SCANLINES - 1)) {
+                next_mode = OAMSCAN;
+                next_mode_counter = COUNTER_OAMSCAN_LENGTH;
+            } else {
+                /* End of HBLANK for scanline 143. We have not yet incremented
+                LY - which happens in ppu_next_scanline() - 
+                */
+                assert(ppu->frame.counter == 65664);
+                assert(ppu->misc.ly == 143);
+                next_mode = VBLANK;
+                next_mode_counter = COUNTER_VBLANK_LENGTH;
+            }
+
+            break;
+        case VBLANK:
+            assert(ppu->frame.counter == PPU_PER_FRAME);
+            next_mode_counter = COUNTER_OAMSCAN_LENGTH;
+            next_mode = OAMSCAN;
+            break;
+        default:
+            assert(0);
+            break;
+    }
+    assert(next_mode_counter <= 10*PPU_PER_SCANLINE);
+    ppu->mode_counter = next_mode_counter;
+    ppu->stat.mode = next_mode;
 }
 
 void task_ppu_cycle(GBState *state) {
@@ -374,7 +401,7 @@ void task_ppu_cycle(GBState *state) {
             /* Do nothing */
             break;
         case OAMSCAN:
-
+            ppu_oamscan_cycle(state);
             break;
         case DRAW:
             ppu_draw_cycle(state);
@@ -385,9 +412,12 @@ void task_ppu_cycle(GBState *state) {
     ppu->scanline.counter++;
     ppu->frame.counter++;
 
-    ppu->scanline.mode_counter--;
-    if (ppu->scanline.mode_counter == 0)
-        ppu_do_mode_switch(state);
+    if (ppu->frame.counter > 65000)
+        _ppu_dummy();
+
+    ppu->mode_counter--;
+    if (ppu->mode_counter == 0)
+        ppu_do_mode_switch(ppu);
 
     if (ppu->scanline.counter == PPU_PER_SCANLINE) {
         ppu_render_scanline(state);
