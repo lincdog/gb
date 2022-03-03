@@ -4,7 +4,7 @@ CFLAGS := `sdl2-config --libs --cflags` -Wall -Wno-incompatible-function-pointer
 all: build video test
 
 build: gb.c cpu.c mem.c video.c
-	$(CC) $(CFLAGS) -o gb -DGB_MAIN $^
+	$(CC) $(CFLAGS) -Dassert -o gb -DGB_MAIN $^
 
 debug: gb.c cpu.c mem.c video.c
 	$(CC) $(CFLAGS) -g -o gb -DGB_MAIN $^

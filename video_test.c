@@ -707,7 +707,7 @@ void setup_test(VideoTestState *vtstate) {
     /* Set LCDC to known state */
     ppu->lcdc.lcd_enable = ON;
     ppu->lcdc.win_map_area = MAP_AREA0;
-    ppu->lcdc.window_enable = OFF;
+    ppu->lcdc.window_enable = ON;
     ppu->lcdc.bg_win_data_area = DATA_AREA1;
     ppu->lcdc.bg_map_area = MAP_AREA0;
     ppu->lcdc.obj_size = OBJ_8x8;
@@ -747,26 +747,26 @@ void setup_test(VideoTestState *vtstate) {
     oam_table[0].x = 8;
     oam_table[0].y = 16;
     oam_table[0].index = 0;
-    oam_table[0].flags = 0xF0;
+    oam_table[0].flags = TILE_X_FLIP | TILE_PALETTE_NUM;
 
-    oam_table[1].x = 5;
+    oam_table[1].x = 16;
     oam_table[1].y = 12;
     oam_table[1].index = 1;
     oam_table[1].flags = 0x00;
 
-    oam_table[2].x = 5;
-    oam_table[2].y = 10;
+    oam_table[2].x = 16;
+    oam_table[2].y = 100;
     oam_table[2].index = test_tile_letter('X');
-    oam_table[2].flags = 0;
+    oam_table[2].flags = TILE_Y_FLIP;
 
-    oam_table[3].x = 5;
-    oam_table[3].y = 13;
+    oam_table[3].x = 17;
+    oam_table[3].y = 26;
     oam_table[3].index = test_tile_letter('B');
-    oam_table[3].flags = 0;
+    oam_table[3].flags = TILE_X_FLIP;
 }
 
 void run_test(VideoTestState *vtstate) {
-    for (int i = 0; i < (2*PPU_PER_FRAME); i++)
+    for (int i = 0; i < (10*PPU_PER_FRAME); i++)
         task_ppu_cycle(vtstate->state);
 }
 
@@ -786,6 +786,9 @@ int main(int argc, char *argv[]) {
         print_packed(test_tiles_unpacked[i]);
         printf("\n},\n");
     }
+
+    printf("%lu\n", sizeof(PPUState));
+
     
     struct timespec preinit_ts, postinit_ts, pretest_ts, posttest_ts;
     clock_gettime(CLOCK_REALTIME, &preinit_ts);
@@ -794,12 +797,15 @@ int main(int argc, char *argv[]) {
     clock_gettime(CLOCK_REALTIME, &postinit_ts);
     
     VideoTestState *vtstate = initialize_video_tests(state);
-    clock_gettime(CLOCK_REALTIME, &pretest_ts);
 
     setup_test(vtstate);
+
+    clock_gettime(CLOCK_REALTIME, &pretest_ts);
     run_test(vtstate);
-    SDL_Event event;
     clock_gettime(CLOCK_REALTIME, &posttest_ts);    
+    
+    SDL_Event event;
+
     while (1) {
         SDL_PollEvent(&event);
         if(event.type == SDL_QUIT)
@@ -811,6 +817,5 @@ int main(int argc, char *argv[]) {
     teardown_video_tests(vtstate);
     teardown_gb(state);
         
- 
     return 0;
 }

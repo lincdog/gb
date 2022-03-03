@@ -39,7 +39,6 @@ void reset_ppu_fifo(PPUFifo *fifo) {
 
 void reset_oamscan(OAMScan_t *oamscan) {
     oamscan->counter = 0;
-    oamscan->n_sprites_total = 0;
     oamscan->n_sprites_row = 0;
 
     OAMRow_t *row;
@@ -54,6 +53,12 @@ void reset_oamscan(OAMScan_t *oamscan) {
         row->oam.x = 0;
         row->oam.y = 0;
     }
+}
+
+void reset_pixelbuf(Pixelbuf_t *px) {
+    px->offset = 0;
+    px->x_pos = 0;
+    memset(px->buf, 0, SCANLINE_PIXELBUF_SIZE);
 }
 
 int _ppu_dummy(void) {
@@ -86,37 +91,21 @@ PPUState *initialize_ppu(void) {
 
     ppu->frame.counter = COUNTER_VBLANK_LENGTH;
     ppu->frame.win_y = 0;
-    ppu->frame.pixelbuf = malloc(GB_FULL_SIZE * GB_FULL_SIZE);
-    if (ppu->frame.pixelbuf == NULL) {
-        printf("Failed to allocate frame pixelbuf\n");
-        exit(1);
-    } 
-    memset(ppu->frame.pixelbuf, 0, GB_FULL_SIZE * GB_FULL_SIZE);
+    ppu->frame.in_window = OFF;
 
     ppu->scanline.counter = PPU_PER_SCANLINE;
+    memset(ppu->scanline.priority, PX_PRIO_NULL, GB_WIDTH_PX);
     ppu->mode_counter = COUNTER_VBLANK_LENGTH;
-    ppu->scanline.x_pos = 0;
-    ppu->scanline.bg.buf = malloc(SCANLINE_PIXELBUF_SIZE);
+
+    /*ppu->scanline.bg.buf = malloc(SCANLINE_PIXELBUF_SIZE);
     if (ppu->scanline.bg.buf == NULL) {
         printf("Failed to allocate scanline bg pixelbuf\n");
         exit(1);
-    }
-    memset(ppu->scanline.bg.buf, 0, SCANLINE_PIXELBUF_SIZE);
-    ppu->scanline.bg.offset = 0;
-    ppu->scanline.win.buf = malloc(SCANLINE_PIXELBUF_SIZE);
-    if (ppu->scanline.win.buf == NULL) {
-        printf("Failed to allocate scanline win pixelbuf\n");
-        exit(1);
-    }
-    memset(ppu->scanline.win.buf, 0, SCANLINE_PIXELBUF_SIZE);
-    ppu->scanline.win.offset = 0;
-    ppu->scanline.obj.buf = malloc(SCANLINE_PIXELBUF_SIZE);
-    if (ppu->scanline.obj.buf == NULL) {
-        printf("Failed to allocate scanline obj pixelbuf\n");
-        exit(1);
-    }
-    memset(ppu->scanline.obj.buf, 0, SCANLINE_PIXELBUF_SIZE);
-    ppu->scanline.obj.offset = 0;
+    }*/
+    reset_pixelbuf(&ppu->scanline.bg);
+    reset_pixelbuf(&ppu->scanline.win);
+    reset_pixelbuf(&ppu->scanline.obj);
+    ppu->scanline.obj.offset = 8;
 
     ppu->misc.scy = 0x00;
     ppu->misc.scx = 0x00;
@@ -143,10 +132,9 @@ PPUState *initialize_ppu(void) {
 }
 
 void teardown_ppu(PPUState *ppu) {
-    free(ppu->frame.pixelbuf);
-    free(ppu->scanline.bg.buf);
-    free(ppu->scanline.win.buf);
-    free(ppu->scanline.obj.buf);
+    //free(ppu->scanline.bg.buf);
+    //free(ppu->scanline.win.buf);
+    //free(ppu->scanline.obj.buf);
     free(ppu);
 }
 
@@ -168,45 +156,24 @@ void unpack_row(
     colors[3] = (palette & 0xC0) >> 6;
     
     if (x_flip) {
-        dest[7] = (bit_7(lsb) >> 7) | (bit_7(msb) >> 6);
-        dest[6] = (bit_6(lsb) >> 6) | (bit_6(msb) >> 5);
-        dest[5] = (bit_5(lsb) >> 5) | (bit_5(msb) >> 4);
-        dest[4] = (bit_4(lsb) >> 4) | (bit_4(msb) >> 3);
-        dest[3] = (bit_3(lsb) >> 3) | (bit_3(msb) >> 2);
-        dest[2] = (bit_2(lsb) >> 2) | (bit_2(msb) >> 1);
-        dest[1] = (bit_1(lsb) >> 1) | (bit_1(msb) >> 0);
-        dest[0] = (bit_0(lsb) >> 0) | (bit_0(msb) << 1);
+        dest[7] = colors[(bit_7(lsb) >> 7) | (bit_7(msb) >> 6)];
+        dest[6] = colors[(bit_6(lsb) >> 6) | (bit_6(msb) >> 5)];
+        dest[5] = colors[(bit_5(lsb) >> 5) | (bit_5(msb) >> 4)];
+        dest[4] = colors[(bit_4(lsb) >> 4) | (bit_4(msb) >> 3)];
+        dest[3] = colors[(bit_3(lsb) >> 3) | (bit_3(msb) >> 2)];
+        dest[2] = colors[(bit_2(lsb) >> 2) | (bit_2(msb) >> 1)];
+        dest[1] = colors[(bit_1(lsb) >> 1) | (bit_1(msb) >> 0)];
+        dest[0] = colors[(bit_0(lsb) >> 0) | (bit_0(msb) << 1)];
     } else {
-        dest[0] = (bit_7(lsb) >> 7) | (bit_7(msb) >> 6);
-        dest[1] = (bit_6(lsb) >> 6) | (bit_6(msb) >> 5);
-        dest[2] = (bit_5(lsb) >> 5) | (bit_5(msb) >> 4);
-        dest[3] = (bit_4(lsb) >> 4) | (bit_4(msb) >> 3);
-        dest[4] = (bit_3(lsb) >> 3) | (bit_3(msb) >> 2);
-        dest[5] = (bit_2(lsb) >> 2) | (bit_2(msb) >> 1);
-        dest[6] = (bit_1(lsb) >> 1) | (bit_1(msb) >> 0);
-        dest[7] = (bit_0(lsb) >> 0) | (bit_0(msb) << 1);
+        dest[0] = colors[(bit_7(lsb) >> 7) | (bit_7(msb) >> 6)];
+        dest[1] = colors[(bit_6(lsb) >> 6) | (bit_6(msb) >> 5)];
+        dest[2] = colors[(bit_5(lsb) >> 5) | (bit_5(msb) >> 4)];
+        dest[3] = colors[(bit_4(lsb) >> 4) | (bit_4(msb) >> 3)];
+        dest[4] = colors[(bit_3(lsb) >> 3) | (bit_3(msb) >> 2)];
+        dest[5] = colors[(bit_2(lsb) >> 2) | (bit_2(msb) >> 1)];
+        dest[6] = colors[(bit_1(lsb) >> 1) | (bit_1(msb) >> 0)];
+        dest[7] = colors[(bit_0(lsb) >> 0) | (bit_0(msb) << 1)];
     }
-}
-
-void ppu_render_scanline(GBState *state) {
-    PPUState *ppu = state->ppu;
-    SDLComponents *sdl = state->sdl;
-    SDL_Rect r;
-    BYTE color;
-    //SDL_RenderGetViewport(state->gb_renderer, &r);
-
-    r.y = ppu->misc.ly;
-    r.x = 0;//ppu->scanline.x_pos;
-    r.w = 1; 
-    r.h = 1;
-    int start_ind = ppu->scanline.bg.offset;
-
-    for (; r.x < GB_WIDTH_PX; r.x++) {
-        color = color_table[ppu->scanline.bg.buf[r.x + start_ind]];
-        SDL_SetRenderDrawColor(sdl->renderer, color, color, color, 0xFF);
-        SDL_RenderFillRect(sdl->renderer, &r);
-    }
-   
 }
 
 /* Given an OAM entry pointer, the current scanline ly, and the sprite object 
@@ -214,7 +181,7 @@ size (set in LCDC, 8 or 16 rows), return the address for the 2 byte row of 8
 pixels to be rendered for this sprite, or 0 if it does not overlap this line.
 */
 WORD get_sprite_row_addr(OAMEntry *oam, BYTE ly, ObjectSize obj_size) {
-    WORD sprite_base_addr, sprite_row_addr;
+    WORD sprite_base_addr, sprite_row_addr, base_offset;
     BYTE index;
 
     if (obj_size == OBJ_8x16)
@@ -226,7 +193,12 @@ WORD get_sprite_row_addr(OAMEntry *oam, BYTE ly, ObjectSize obj_size) {
 
     int row_overlap = (int)ly - ((int)oam->y - 16);
     if (row_overlap >= 0 && row_overlap < (int)obj_size) {
-        sprite_row_addr = sprite_base_addr + (TILE_BYTES_PER_ROW * row_overlap);
+        if (oam->flags & TILE_Y_FLIP)
+            base_offset = TILE_BYTES_PER_ROW * (((BYTE)obj_size - 1) - row_overlap);
+        else
+            base_offset = TILE_BYTES_PER_ROW * row_overlap;
+        
+        sprite_row_addr = sprite_base_addr + base_offset;
     } else {
         sprite_row_addr = 0;
     }
@@ -256,7 +228,7 @@ void ppu_oamscan_cycle(GBState *state) {
     if ((oamscan->counter & 1)
         ||lcdc.obj_enable == OFF 
         || oamscan->n_sprites_row == SPRITES_ROW_MAX
-        || oamscan->n_sprites_total == SPRITES_TOTAL_MAX
+        || ppu->frame.n_sprites_total == SPRITES_TOTAL_MAX
     ) goto ppu_oamscan_end;
 
     current_entry_addr = get_current_entry_addr(oamscan);
@@ -279,7 +251,7 @@ void ppu_oamscan_cycle(GBState *state) {
         oamscan->current_row_sprites[oamscan->n_sprites_row].msb = msb;
 
         oamscan->n_sprites_row++;
-        oamscan->n_sprites_total++;
+        ppu->frame.n_sprites_total++;
     }
 
     ppu_oamscan_end:
@@ -311,16 +283,56 @@ void ppu_oamscan_cleanup(PPUState *ppu) {
     reset_ppu_fifo(&ppu->draw.fifo_obj);
 }
 
+void fetch_current_obj_row(GBState *state) {
+    PPUState *ppu = state->ppu;
+    LCDControl lcdc = ppu->lcdc;
+    LCDStatus stat = ppu->stat;
+    PPUMisc misc = ppu->misc;
+    Pixelbuf_t *obj = &ppu->scanline.obj;
+    OAMScan_t *oamscan = &ppu->oamscan;
+    OAMRow_t *entry;
+
+    assert(stat.mode == DRAW);
+    assert(lcdc.obj_enable == ON);
+
+    if (obj->x_pos >= oamscan->n_sprites_row) 
+        goto obj_fetch_end;
+
+    int x_start, prio_start, prio_stop;
+    /* XXX we are using "x_pos" as the index of the current sprite to be rendered, not
+    anything to do with actual x position */
+    entry = &oamscan->current_row_sprites[obj->x_pos];
+    x_start = entry->oam.x;
+
+    if (x_start >= GB_WIDTH_PX+8)
+        goto obj_fetch_end;
+    
+    BYTE palette = (entry->oam.flags & TILE_PALETTE_NUM) ? misc.obp1 : misc.obp0;
+    unpack_row(entry->lsb, entry->msb,
+        &obj->buf[x_start], entry->oam.flags, palette);
+    
+    prio_start = (x_start < 8) ? 0 : x_start - 8;
+    prio_stop = 8 - (8 - x_start);
+
+    if (! (entry->oam.flags & TILE_BG_OVER_OBJ)) {
+        for (int i = prio_start; i < prio_stop; i++)
+            ppu->scanline.priority[i] = PX_PRIO_OBJ;
+    }
+
+    obj_fetch_end:
+    obj->x_pos++;
+}
+
 
 /* Returns the address (in the tilemap at base) at which the tile index 
  for the current tile can be found. "Current tile" means the tile that needs to be
  rendered given x scroll scx (pixels), y scroll scy (pixels), cur_x X offset in row (pixels,
  0-160), ly current scanline (pixels, 0-144)
  */
-WORD get_tilemap_addr(WORD base, BYTE scx, BYTE scy, BYTE cur_x, BYTE ly) {
+WORD get_bg_tilemap_addr(WORD base, BYTE scx, BYTE scy, BYTE cur_x, BYTE ly) {
     BYTE tile_x, tile_y;
-    tile_x = compute_tile_x(scx, cur_x);
-    tile_y = compute_tile_y(scy, ly);
+    tile_x = compute_bg_tile_x(scx, cur_x);
+    tile_y = compute_bg_tile_y(scy, ly);
 
     return compute_tilemap_addr(base, tile_x, tile_y);
 }
@@ -342,8 +354,14 @@ void fetch_current_bg_row(GBState *state) {
     LCDControl lcdc = ppu->lcdc;
     LCDStatus stat = ppu->stat;
     PPUMisc misc = ppu->misc;
-    Drawing_t draw = ppu->draw;
-    Scanline_t *scanline = &ppu->scanline;
+    //Drawing_t draw = ppu->draw;
+    Pixelbuf_t *bg = &ppu->scanline.bg;
+
+    assert(stat.mode == DRAW);
+    assert(lcdc.bg_window_enable == ON);
+
+    if (bg->x_pos >= SCANLINE_PIXELBUF_SIZE)
+        goto bg_fetch_end;
 
     WORD map_area, data_area, map_addr, tile_addr;
     BYTE tile_index, x_pixel_offset, y_pixel_offset;
@@ -353,7 +371,7 @@ void fetch_current_bg_row(GBState *state) {
     map_area = (WORD)lcdc.bg_map_area;
     data_area = (WORD)lcdc.bg_win_data_area;
 
-    map_addr = get_tilemap_addr(map_area, misc.scx, misc.scy, scanline->x_pos, misc.ly);
+    map_addr = get_bg_tilemap_addr(map_area, misc.scx, misc.scy, bg->x_pos, misc.ly);
 
     tile_index = ppu_read_mem(state, map_addr);
     y_pixel_offset = compute_y_pixel_offset(misc.scy, misc.ly);
@@ -367,32 +385,192 @@ void fetch_current_bg_row(GBState *state) {
     lsb = ppu_read_mem(state, tile_addr);
     msb = ppu_read_mem(state, tile_addr+1);
 
-    unpack_row(lsb, msb, &scanline->bg.buf[scanline->x_pos], 0, PALETTE_DEFAULT);
+    assert(bg->x_pos < SCANLINE_PIXELBUF_SIZE);
+    unpack_row(lsb, msb, &bg->buf[bg->x_pos], 0, misc.bgp);
+
+    bg_fetch_end:
+    bg->x_pos += 8;
+}
+
+/* Returns 1 if the current X position and Y position (scanline) are inside 
+the window, whose top left corner in screen coords is given by wx-7, wy.
+If wx <= 7, we are always inside the window in X.
+*/
+int in_window_p(BYTE wx, BYTE wy, BYTE cur_x, BYTE ly) {
+    int result = 1;
+
+    if (ly < wy)
+        result = 0;
+
+    if (cur_x < less_7_or_0(wx))
+        result = 0;
+    
+    return result;
+}
+
+/* Returns the address of the current window tile given the current X position,
+current Y position (scanline), and window's top left corner specified by wx and wy.
+Assumes (asserts) that we are indeed inside the window.
+*/
+WORD get_win_tilemap_addr(WORD base, BYTE wx, BYTE wy, BYTE cur_x, BYTE ly) {
+    BYTE tile_x, tile_y;
+
+    assert(in_window_p(wx, wy, cur_x, ly));
+
+    tile_y = (ly - wy) >> 3;
+
+    tile_x = (cur_x - less_7_or_0(wx)) >> 3;
+
+    return compute_tilemap_addr(base, tile_x, tile_y);
+}
+
+void fetch_current_win_row(GBState *state) {
+    PPUState *ppu = state->ppu;
+    LCDControl lcdc = ppu->lcdc;
+    LCDStatus stat = ppu->stat;
+    PPUMisc misc = ppu->misc;
+    //Drawing_t draw = ppu->draw;
+    Pixelbuf_t *win = &ppu->scanline.win;
+    Frame_t *frame = &ppu->frame;
+
+    assert(stat.mode == DRAW);
+    assert(lcdc.bg_window_enable == ON && lcdc.window_enable == ON);
+    
+    WORD map_area, data_area, map_addr, tile_addr;
+    BYTE tile_index, x_pixel_offset, y_pixel_offset;
+    BYTE lsb, msb;
+    lsb = msb = 0;
+
+    map_area = (WORD)lcdc.win_map_area;
+    data_area = (WORD)lcdc.bg_win_data_area;
+
+    if ( ! in_window_p(misc.wx, misc.wy, win->x_pos, misc.ly)
+        || win->x_pos >= GB_WIDTH_PX
+    ) goto win_fetch_end;
+
+    map_addr = get_win_tilemap_addr(map_area, misc.wx, misc.wy, win->x_pos, misc.ly);
+
+    tile_index = ppu_read_mem(state, map_addr);
+    y_pixel_offset = (misc.ly - misc.wy) & 0x7;
+    x_pixel_offset = (win->x_pos - less_7_or_0(misc.wx)) & 0x7;
+        
+    // Gets us to the top left corner of the tile we want
+    tile_addr = compute_tiledata_addr(data_area, tile_index);
+    
+    // Add 2 for each row down in the tile we are (2 bytes per row)
+    tile_addr += (TILE_BYTES_PER_ROW * y_pixel_offset);
+
+    lsb = ppu_read_mem(state, tile_addr);
+    msb = ppu_read_mem(state, tile_addr+1);
+
+    win->offset = win_x_offset(misc.wx);
+
+    assert(win->x_pos < SCANLINE_PIXELBUF_SIZE);
+    unpack_row(lsb, msb, &win->buf[win->x_pos], 0, misc.bgp);
+    int prio_start, prio_stop;
+    prio_start = win->x_pos;
+    prio_stop = (win->x_pos + 8) - win->offset;
+    for (int i = prio_start; i < prio_stop; i++)
+        ppu->scanline.priority[i] = PX_PRIO_WIN;
+
+    win_fetch_end:
+    win->x_pos += 8;
 }
 
 void ppu_draw_cycle(GBState *state) {
     PPUState *ppu = state->ppu;
 
-    if (ppu->scanline.x_pos < GB_WIDTH_PX) {
+    if (ppu->lcdc.bg_window_enable == ON) {
         fetch_current_bg_row(state);
-        
-        ppu->scanline.x_pos += 8;
+
+        if (ppu->lcdc.window_enable == ON)
+            fetch_current_win_row(state);
     }
+
+    if (ppu->lcdc.obj_enable == ON)
+        fetch_current_obj_row(state);
 }
 
 void ppu_draw_cleanup(PPUState *ppu) {
 
 }
 
+
+void ppu_render_scanline(GBState *state) {
+    PPUState *ppu = state->ppu;
+    PPUMisc misc = ppu->misc;
+    LCDControl lcdc = ppu->lcdc;
+    Scanline_t *scanline = &ppu->scanline;
+    Pixelbuf_t *current_px;
+    SDLComponents *sdl = state->sdl;
+    SDL_Rect r;
+    BYTE color;
+    //SDL_RenderGetViewport(state->gb_renderer, &r);
+
+    r.y = ppu->misc.ly;
+    r.x = 0;//ppu->scanline.x_pos;
+    r.w = 1; 
+    r.h = 1;
+
+    BYTE prio, alpha;
+
+    for (; r.x < GB_WIDTH_PX; r.x++) {
+        /*if (lcdc.window_enable == ON
+            && in_window_p(misc.wx, misc.wy, (BYTE)r.x, misc.ly)
+        ) current_px = &scanline->win;*/
+        prio = scanline->priority[r.x];
+        
+        switch (prio) {
+            case PX_PRIO_NULL:
+                current_px = NULL;
+                alpha = 0xFF;
+                break;
+            case PX_PRIO_BG:
+                current_px = &scanline->bg;
+                alpha = 0xFF;
+                break;
+            case PX_PRIO_WIN:
+                current_px = &scanline->win;
+                alpha = 0xFF;
+                break;
+            case PX_PRIO_OBJ:
+                current_px = &scanline->obj;
+                alpha = 0xFF;
+                break;
+            default:
+                assert(0);
+                break;
+        }
+
+        if (current_px != NULL) {
+            assert(r.x + current_px->offset < SCANLINE_PIXELBUF_SIZE);
+            color = color_table[current_px->buf[r.x + current_px->offset]];
+            SDL_SetRenderDrawColor(sdl->renderer, color, color, color, alpha);
+            SDL_RenderFillRect(sdl->renderer, &r);
+        }
+    }
+   
+}
+
 void ppu_next_scanline(PPUState *ppu) {
     ppu->scanline.counter = PPU_PER_SCANLINE;
     memset(ppu->scanline.bg.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.bg.offset = ppu->misc.scx & 0x7;
+    ppu->scanline.bg.x_pos = 0;
+
     memset(ppu->scanline.win.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.win.offset = ppu->misc.wx & 0x7;
+    ppu->scanline.win.x_pos = less_7_or_0(ppu->misc.wx);
+
     memset(ppu->scanline.obj.buf, 0, SCANLINE_PIXELBUF_SIZE);
-    ppu->scanline.x_pos = 0;
+    ppu->scanline.obj.x_pos = 0;
+    ppu->scanline.obj.offset = 8;
     
+    if (ppu->lcdc.bg_window_enable == ON)
+        memset(ppu->scanline.priority, PX_PRIO_BG, GB_WIDTH_PX);
+    else
+        memset(ppu->scanline.priority, PX_PRIO_NULL, GB_WIDTH_PX);
+
     ppu->misc.ly++;
 
     reset_oamscan(&ppu->oamscan);
@@ -401,6 +579,9 @@ void ppu_next_scanline(PPUState *ppu) {
 void ppu_next_frame(PPUState *ppu) {
     ppu->frame.counter = PPU_PER_FRAME;
     ppu->frame.win_y = 0;
+    ppu->frame.in_window = OFF;
+    ppu->frame.n_sprites_total = 0;
+    
     ppu->misc.ly = 0;
 }
 

@@ -183,7 +183,6 @@ typedef struct {
 
 typedef struct {
     int counter;
-    int n_sprites_total;
     int n_sprites_row;
     OAMRow_t current_row_sprites[10];
 } OAMScan_t;
@@ -197,18 +196,33 @@ typedef struct {
 
 typedef struct {
     unsigned int counter;
+    ToggleEnum in_window;
+    int n_sprites_total;
     BYTE win_y;
-    BYTE *pixelbuf;
 } Frame_t;
 
+/* Location for unpacking rows of pixels to be rendered. 
+
+ - x_pos: the X coordinate in *screen* pixels that is currently being 
+   fetched into the buffer. x_pos can go between 0 and 160. 
+   For the BG, it always covers 0-160 fully. For the window, it starts at 
+   max(misc.wx - 7, 0). For objects, it jumps around according to X coordinates
+   in the OAM entries in the sorted list for this scanline.
+ - offset: the start index in the buffer to use for rendering. This is used because
+   the BG or window can be scrolled by individual pixels, but tiles are 8 pixels wide.
+   The offset means that we can still copy the full first tile to the buffer, but only
+   render its last few pixels, according to SCX or WX. 
+
+*/
 typedef struct {
-    BYTE *buf;
+    BYTE buf[176];
+    BYTE x_pos;
     unsigned int offset;
 } Pixelbuf_t;
 
 typedef struct {
     unsigned int counter;
-    BYTE x_pos;
+    BYTE priority[160];
     Pixelbuf_t obj;
     Pixelbuf_t bg;
     Pixelbuf_t win;

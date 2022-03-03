@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 const SDL_Color colors[] = {
     {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF },
@@ -107,11 +108,11 @@ GBTask gb_tasks[] = {
     },
     {.period=4,
     .run_task=&task_dma_cycle
-    },
+    },*/
     {.period=1,
     .run_task=&task_ppu_cycle
     },
-    */
+    
     {.period=4,
     .run_task=&task_cpu_m_cycle
     },
@@ -128,8 +129,11 @@ runs the task if counter is divisible by the task's period. Then increments the 
 void main_loop(GBState *state, int n_cycles) {
     GBTask task;
     int t = 0;
-
+    uint64_t accum = 0;
+    clock_t pre, post;
+    
     while ((n_cycles < 0) || (state->counter < n_cycles)) {
+        pre = clock();
         t = 0;
         task = gb_tasks[0];
         while (task.period != 0) {
@@ -142,7 +146,12 @@ void main_loop(GBState *state, int n_cycles) {
         }
 
         state->counter++;
+
+        post = clock();
+        accum += post - pre;
     }
+
+    printf("Total clocks over %d cycles: %llu, average %llu\n", state->counter, accum, accum/state->counter);
 }
 
 /* Reads the cartridge header from a given open file descriptor.
@@ -226,7 +235,7 @@ int main(int argc, char *argv[]) {
 
     print_state_info(state, 1);
 
-    main_loop(state, -1);
+    main_loop(state, 1<<20);
     
     teardown_gb(state);
     return 0;
