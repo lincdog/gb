@@ -65,6 +65,9 @@ S: MEM_SOURCE_* - the owner of this region, or the source of this memory access
 #define MEM_DEBUG 0x80
 #define MEM_UNMAPPED 0x40
 
+/* Pretty much the same as MemoryRegion_t from base.h; the sys_*_ioreg
+functions locate the IOReg_t entry for the given address and call its 
+access functions. */
 typedef struct {
     char name[6];
     WORD addr;
@@ -73,6 +76,11 @@ typedef struct {
     BYTE (*write)(GBState *, WORD, BYTE, BYTE);
 } IOReg_t;
 
+/* A packed structure representing the 128 IO registers by name.
+They are contiguous from 0 to 0x7F, with blank spaces inserted where needed,
+but 0xFFFF (interrupt enable) is placed at 0x80 to avoid having 126 blanks 
+where high RAM would be (0xFF80-0xFFFE). The sys_*_ioreg functions are
+aware of this and map 0xFFFF to the relative address 0x80. */
 #define BLANK(n) BYTE __space_ ## n
 typedef struct __attribute__ ((packed)) {
     BYTE p1; //    00
@@ -267,6 +275,8 @@ typedef struct {
     BYTE mem[0x10000];
 }   DebugMemState;
 
+/* This is the memory structure for components present on the Game Boy system
+itself. bootrom_mapped is a flag. */
 typedef struct {
     int bootrom_mapped;
     // 0x00-0x100
@@ -282,11 +292,6 @@ typedef struct {
     // 0xFF80-0xFFFE
     BYTE *hram;
 } SysMemState;
-
-READ_FUNC(_read_unimplemented);
-WRITE_FUNC(_write_unimplemented);
-READ_FUNC(_read_p1);
-WRITE_FUNC(_write_p1);
 
 IORegs *initialize_ioregs(void);
 MemoryState *initialize_memory(MemInitFlag);

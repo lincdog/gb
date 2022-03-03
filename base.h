@@ -174,19 +174,11 @@ typedef struct __attribute__ ((packed)) {
     BYTE flags;
 } OAMEntry;
 
-typedef struct __attribute__ ((packed)) {
-    BYTE low;
-    BYTE high;
-} TileRow_t;
-
-typedef union {
-    TileRow_t obj_8x8[8];
-    TileRow_t obj_8x16[16];
-} Tile_t;
-
 typedef struct {
+    WORD entry_addr;
     OAMEntry oam;
-    TileRow_t *row_data;
+    BYTE lsb;
+    BYTE msb;
 } OAMRow_t;
 
 typedef struct {
@@ -247,6 +239,29 @@ Does not actually contain the data of this region; rather, the
 read and write functions are responsible for interacting with 
 MBC/system memory state to map to the correct data.
 Flags contains priority information as well as ownership/locks.
+
+Function pointers:
+    Note: All function pointers take as args 1 and 2 a GBState pointer (here void *
+    because GBState is not defined yet) and a WORD relative address 
+    (= abs_addr - region.base), and a BYTE flags argument as the last argument. 
+    write takes a BYTE data as its 3rd argument.
+    
+    These functions handle the internal details of accessing different memory regions
+    on the game boy, which may represent different physical chips on the cartridge or system,
+    and may have different access restrictions for the CPU and PPU, e.g. video RAM, or other
+    connections to hardware like most of the IO registers at 0xFF00-0xFF7F and 0xFFFF.
+    Some regions may interpret writes as special behaviors (e.g. memory bank switch) or ignore writes.
+
+ - check_access: returns 1 if the caller can access the given memory address based on 
+    the supplied BYTE flags argument, which contains a MEM_SOURCE_* constant.
+    Of course, the caller must be honest about their source for this to work.
+    Returns 0 if the caller cannot access the memory.
+ - read: Reads the given (relative) memory address and returns the value.
+ - write: Writes the given BYTE data to the given (relative) memory address. Returns
+    status.
+- get_ptr: Returns a *raw* pointer to the specified memory address, if possible. Some regions 
+    may not be implemented as an actual BYTE array under the hood (mainly IO regs), and they
+    can return NULL here, so beware if dereferencing. 
 */
 typedef struct {
     char name[8];
@@ -261,7 +276,9 @@ typedef struct {
 } MemoryRegion;
 
 /* Represents a generic memory mapping system on the GB.
-regions is a pointer to an array of MemoryRegion's.
+regions is a pointer to an array of MemoryRegion's. The GB's total memory
+consists of one Memmap_t for the system and one Memmap_t for the cartridge's
+onboard memory, which may be of different types.
 */
 typedef struct {
     //char name[6];
@@ -279,6 +296,9 @@ typedef enum {
     DEBUG
 } MemInitFlag;
 
+/* The total memory system of the Game Boy consists of a system memory
+map and a cartridge memory map. The configuration of these is specified 
+by a MemInitFlag mode. This is determined from the cartridge header. */
 typedef struct {
     MemInitFlag mode;
     Memmap_t *system;
@@ -307,6 +327,8 @@ typedef struct {
     SDL_Surface *surface;
 } SDLComponents;
 
+/* The top-level Game Boy state structure. This is passed around to all the 
+important functions. Contains pointers to the various subsystems. */
 typedef struct {
     unsigned long counter;
     CPUState *cpu;
@@ -316,6 +338,8 @@ typedef struct {
     SDLComponents *sdl;
 } GBState;
 
+/* The main loop executes calls for the various subsystems using these 
+entries to determine their timing. */
 typedef struct {
     unsigned int period;
     void (*run_task)(GBState *);

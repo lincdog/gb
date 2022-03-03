@@ -120,6 +120,11 @@ GBTask gb_tasks[] = {
     }
 };
 
+/* The main loop for Game Boy operation. The iterations of this loop are 
+what synchronizes everything, through the gb_tasks array. Will run forever if 
+n_cycles < 0. Checks each entry in gb_tasks against the counter and 
+runs the task if counter is divisible by the task's period. Then increments the counter. 
+*/
 void main_loop(GBState *state, int n_cycles) {
     GBTask task;
     int t = 0;
@@ -140,6 +145,11 @@ void main_loop(GBState *state, int n_cycles) {
     }
 }
 
+/* Reads the cartridge header from a given open file descriptor.
+Seeks the file back to the start afterward. Returns the raw data
+casted into CartridgeHeader struct, which must later be freed by
+caller.
+ */
 CartridgeHeader *read_cart_header(FILE *fp) {
     BYTE *_header = malloc(sizeof(CartridgeHeader));
     if (_header == NULL) {

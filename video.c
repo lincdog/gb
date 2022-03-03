@@ -42,14 +42,17 @@ void reset_oamscan(OAMScan_t *oamscan) {
     oamscan->n_sprites_total = 0;
     oamscan->n_sprites_row = 0;
 
-    OAMEntry *spr;
+    OAMRow_t *row;
 
     for (int i = 0; i < 10; i++) {
-        spr = &oamscan->current_row_sprites[i];
-        spr->x = 0;
-        spr->y = 0;
-        spr->flags = 0;
-        spr->index = 0;
+        row = &oamscan->current_row_sprites[i];
+        row->entry_addr = 0;
+        row->lsb = UNINIT;
+        row->msb = UNINIT;
+        row->oam.flags = 0;
+        row->oam.index = 0;
+        row->oam.x = 0;
+        row->oam.y = 0;
     }
 }
 
@@ -206,8 +209,33 @@ void ppu_render_scanline(GBState *state) {
    
 }
 
+/* Given an OAM entry pointer, the current scanline ly, and the sprite object 
+size (set in LCDC, 8 or 16 rows), return the address for the 2 byte row of 8 
+pixels to be rendered for this sprite, or 0 if it does not overlap this line.
+*/
 WORD get_sprite_row_addr(OAMEntry *oam, BYTE ly, ObjectSize obj_size) {
+    WORD sprite_base_addr, sprite_row_addr;
+    BYTE index;
 
+    if (obj_size == OBJ_8x16)
+        index = oam->index & 0xFE;
+    else
+        index = oam->index;
+
+    sprite_base_addr = TILEDATA_OBJ + TILE_SIZE_BYTES * index;
+
+    int row_overlap = (int)ly - ((int)oam->y - 16);
+    if (row_overlap >= 0 && row_overlap < (int)obj_size) {
+        sprite_row_addr = sprite_base_addr + (TILE_BYTES_PER_ROW * row_overlap);
+    } else {
+        sprite_row_addr = 0;
+    }
+
+    return sprite_row_addr;
+}
+
+WORD get_current_entry_addr(OAMScan_t *oamscan) {
+    return OAM_BASE + sizeof(OAMEntry) * (oamscan->counter >> 1);
 }
 
 void ppu_oamscan_cycle(GBState *state) {
@@ -216,11 +244,14 @@ void ppu_oamscan_cycle(GBState *state) {
     LCDStatus stat = ppu->stat;
     PPUMisc misc = ppu->misc;
     OAMScan_t *oamscan = &ppu->oamscan;
-    BYTE ly;
-    int row_overlap;
-    ly = misc.ly;
-    OAMEntry *oam_table_ptr;
-    OAMEntry current_entry;
+    OAMEntry *oam_table_ptr, *current_entry;
+
+    WORD current_entry_addr, tile_row_addr;
+    BYTE lsb, msb;
+
+    assert(stat.mode == OAMSCAN);
+    assert(misc.ly < 144);
+    assert(oamscan->counter < 80);
 
     if ((oamscan->counter & 1)
         ||lcdc.obj_enable == OFF 
@@ -228,12 +259,25 @@ void ppu_oamscan_cycle(GBState *state) {
         || oamscan->n_sprites_total == SPRITES_TOTAL_MAX
     ) goto ppu_oamscan_end;
 
-    oam_table_ptr = ppu_get_mem_pointer(state, OAM_BASE);
-    current_entry = oam_table_ptr[oamscan->counter];
+    current_entry_addr = get_current_entry_addr(oamscan);
+    current_entry = ppu_get_mem_pointer(state, current_entry_addr);
 
-    row_overlap = (int)ly - ((int)current_entry.y - 16);
+    tile_row_addr = get_sprite_row_addr(current_entry, misc.ly, lcdc.obj_size);
 
-    if (row_overlap > 0 && row_overlap < (int)lcdc.obj_size) {
+    if (tile_row_addr != 0) {
+        printf("ly = %03d: OAM entry #%d, sprite index 0x%02x: row addr 0x%04x\n", 
+            misc.ly,
+            oamscan->counter >> 1,
+            current_entry->index,
+            tile_row_addr
+        );
+        lsb = ppu_read_mem(state, tile_row_addr);
+        msb = ppu_read_mem(state, tile_row_addr+1);
+        oamscan->current_row_sprites[oamscan->n_sprites_row].entry_addr = current_entry_addr;
+        oamscan->current_row_sprites[oamscan->n_sprites_row].oam = *current_entry;
+        oamscan->current_row_sprites[oamscan->n_sprites_row].lsb = lsb;
+        oamscan->current_row_sprites[oamscan->n_sprites_row].msb = msb;
+
         oamscan->n_sprites_row++;
         oamscan->n_sprites_total++;
     }
@@ -242,8 +286,27 @@ void ppu_oamscan_cycle(GBState *state) {
     oamscan->counter++;
 }
 
+/* Sorts the current row sprites array in *descending* order by OAM X coord,
+or OAM memory order if same X. We use descending order because we want to 
+draw the higher priority sprite pixels last so that they overwrite the 
+lower priority ones.
+*/
+int _oamscan_sort_key(const void *a, const void *b) {
+    int diff = ((OAMRow_t*)b)->oam.x - ((OAMRow_t*)a)->oam.x;
+
+    if (diff != 0)
+        return diff;
+    else
+        return ((OAMRow_t*)b)->entry_addr - ((OAMRow_t*)a)->entry_addr;
+}
 void ppu_oamscan_cleanup(PPUState *ppu) {
-    
+    qsort(
+        &ppu->oamscan.current_row_sprites,
+        ppu->oamscan.n_sprites_row,
+        sizeof(OAMRow_t),
+        _oamscan_sort_key
+    );
+
     reset_ppu_fifo(&ppu->draw.fifo_bg);
     reset_ppu_fifo(&ppu->draw.fifo_obj);
 }
@@ -274,7 +337,7 @@ describe what the next step to do is, and store the incremental information like
 current tile index to read, then the tile data address. The data needs to be pushed to a
 FIFO then to be maximally accurate.
 */
-void get_current_tile_row(GBState *state) {
+void fetch_current_bg_row(GBState *state) {
     PPUState *ppu = state->ppu;
     LCDControl lcdc = ppu->lcdc;
     LCDStatus stat = ppu->stat;
@@ -311,7 +374,8 @@ void ppu_draw_cycle(GBState *state) {
     PPUState *ppu = state->ppu;
 
     if (ppu->scanline.x_pos < GB_WIDTH_PX) {
-        get_current_tile_row(state);
+        fetch_current_bg_row(state);
+        
         ppu->scanline.x_pos += 8;
     }
 }
@@ -343,6 +407,7 @@ void ppu_next_frame(PPUState *ppu) {
 void ppu_do_mode_switch(PPUState *ppu) {
     PPUMode next_mode;
     unsigned int next_mode_counter;
+    assert(ppu->mode_counter == 0);
 
     switch (ppu->stat.mode) {
         case OAMSCAN:

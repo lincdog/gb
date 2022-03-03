@@ -711,7 +711,7 @@ void setup_test(VideoTestState *vtstate) {
     ppu->lcdc.bg_win_data_area = DATA_AREA1;
     ppu->lcdc.bg_map_area = MAP_AREA0;
     ppu->lcdc.obj_size = OBJ_8x8;
-    ppu->lcdc.obj_enable = OFF;
+    ppu->lcdc.obj_enable = ON;
     ppu->lcdc.bg_window_enable = ON;
 
     /* Set most of misc to known state */
@@ -749,10 +749,20 @@ void setup_test(VideoTestState *vtstate) {
     oam_table[0].index = 0;
     oam_table[0].flags = 0xF0;
 
-    oam_table[1].x = 16;
-    oam_table[1].y = 106;
+    oam_table[1].x = 5;
+    oam_table[1].y = 12;
     oam_table[1].index = 1;
     oam_table[1].flags = 0x00;
+
+    oam_table[2].x = 5;
+    oam_table[2].y = 10;
+    oam_table[2].index = test_tile_letter('X');
+    oam_table[2].flags = 0;
+
+    oam_table[3].x = 5;
+    oam_table[3].y = 13;
+    oam_table[3].index = test_tile_letter('B');
+    oam_table[3].flags = 0;
 }
 
 void run_test(VideoTestState *vtstate) {

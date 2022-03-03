@@ -385,14 +385,14 @@ WRITE_FUNC(_write_lcdc) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     LCDControl *lcdc = &state->ppu->lcdc;
     // FIXME: all bits of lcdc control aspects of the PPU
-    lcdc->lcd_enable = (data & 0x80) ? ON : OFF;
-    lcdc->win_map_area = (data & 0x40) ? MAP_AREA1 : MAP_AREA0;
-    lcdc->window_enable = (data & 0x20) ? ON : OFF;
-    lcdc->bg_win_data_area = (data & 0x10) ? DATA_AREA1 : DATA_AREA0;
-    lcdc->bg_map_area = (data & 0x8) ? MAP_AREA1 : MAP_AREA0;
-    lcdc->obj_size = (data & 0x4) ? OBJ_8x16 : OBJ_8x8;
-    lcdc->obj_enable = (data & 0x2) ? ON : OFF;
-    lcdc->bg_window_enable = (data & 0x1) ? ON : OFF;
+    lcdc->lcd_enable = bit_7(data) ? ON : OFF;
+    lcdc->win_map_area = bit_6(data) ? MAP_AREA1 : MAP_AREA0;
+    lcdc->window_enable = bit_5(data) ? ON : OFF;
+    lcdc->bg_win_data_area = bit_4(data) ? DATA_AREA1 : DATA_AREA0;
+    lcdc->bg_map_area = bit_3(data) ? MAP_AREA1 : MAP_AREA0;
+    lcdc->obj_size = bit_2(data) ? OBJ_8x16 : OBJ_8x8;
+    lcdc->obj_enable = bit_1(data) ? ON : OFF;
+    lcdc->bg_window_enable = bit_0(data) ? ON : OFF;
 
 
     sys_mem->ioregs->lcdc = data;
@@ -416,11 +416,11 @@ WRITE_FUNC(_write_stat) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
     // Only bits 3-6 are writable
-    data &= 0x74;
-    ppu->stat.lyc_ly_interrupt = (data & 0x40) ? ON : OFF;
-    ppu->stat.mode_2_interrupt = (data & 0x20) ? ON : OFF;
-    ppu->stat.mode_1_interrupt = (data & 0x10) ? ON : OFF;
-    ppu->stat.mode_0_interrupt = (data & 0x08) ? ON : OFF;
+    data &= 0x78;
+    ppu->stat.lyc_ly_interrupt = bit_6(data) ? ON : OFF;
+    ppu->stat.mode_2_interrupt = bit_5(data) ? ON : OFF;
+    ppu->stat.mode_1_interrupt = bit_4(data) ? ON : OFF;
+    ppu->stat.mode_0_interrupt = bit_3(data) ? ON : OFF;
     sys_mem->ioregs->stat &= (data | 0x7);
     return 1;    
 }
