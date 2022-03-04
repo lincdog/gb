@@ -95,8 +95,6 @@ void task_event(GBState *state) {
     }
 }
 
-int _dummy(void) { return 1; }
-
 GBTask gb_tasks[] = {
     {.period=1<<12,
     .mask=0x0FFF,

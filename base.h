@@ -3,8 +3,14 @@
 
 #include <stdint.h>
 #include <assert.h>
+
+int _debug_dummy(void);
+
 #ifdef NDEBUG
 #   define assert(...)
+#   define DEBUGHOOK(__cond)
+#else
+#   define DEBUGHOOK(__cond) if (__cond) {  }
 #endif
 
 #include <SDL.h>

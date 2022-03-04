@@ -8,10 +8,23 @@
 #include <sys/time.h>
 
 
-#define TEST_TILE_A 4
-#define N_TEST_TILES 4 + 26
+#define TEST_TILE_A 7
+#define N_TEST_TILES TEST_TILE_A + 26
 #define TEST_TILE_SPACE 3
+#define TEST_TILE_LOGO_1 4
+#define TEST_TILE_LOGO_2 5
+#define TEST_TILE_LOGO_3 6
 #define test_tile_letter(__c) (TEST_TILE_A + (__c - 'A'))
+
+
+const BYTE _LOGO[] = {
+    0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 
+    0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
+    0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 
+    0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
+    0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 
+    0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
+};
 
 const BYTE test_tiles_packed[][16] = {
     {
@@ -38,6 +51,27 @@ const BYTE test_tiles_packed[][16] = {
         0, 0, 0, 0, 
         0, 0, 0, 0,
         0, 0, 0, 0
+    },
+    // Nintendo 1
+    {
+        0xCE, 0xED, 0x66, 0x66, 
+        0xCC, 0x0D, 0x00, 0x0B, 
+        0x03, 0x73, 0x00, 0x83, 
+        0x00, 0x0C, 0x00, 0x0D
+    },
+    // Nintendo 2
+    {
+        0x00, 0x08, 0x11, 0x1F, 
+        0x88, 0x89, 0x00, 0x0E, 
+        0xDC, 0xCC, 0x6E, 0xE6, 
+        0xDD, 0xDD, 0xD9, 0x99
+    },
+    // Nintendo 3
+    {
+        0xBB, 0xBB, 0x67, 0x63, 
+        0x6E, 0x0E, 0xEC, 0xCC, 
+        0xDD, 0xDC, 0x99, 0x9F, 
+        0xBB, 0xB9, 0x33, 0x3E
     },
     // Begin alphabet
 
@@ -253,7 +287,7 @@ const BYTE test_tiles_packed[][16] = {
 
 const BYTE test_tilemap[TILEMAP_SIZE_BYTES] = {
     test_tile_letter('H'), test_tile_letter('E'), test_tile_letter('L'), test_tile_letter('L'), test_tile_letter('O'), TEST_TILE_SPACE, test_tile_letter('W'), test_tile_letter('O'), test_tile_letter('R'), test_tile_letter('L'), test_tile_letter('D'), 2, 0, 1, 2, 0,
-    1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    TEST_TILE_LOGO_1, TEST_TILE_LOGO_2, TEST_TILE_LOGO_3, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
     2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
     0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
     1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
@@ -349,6 +383,7 @@ const BYTE test_tiles_unpacked[][64] = {
         3, 3, 3, 3, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0
     },
+    
     // A
     {
         0, 0, 0, 3, 3, 0, 0, 0,
@@ -638,6 +673,69 @@ const BYTE test_tiles_unpacked[][64] = {
     
 };
 
+void decompress_logo(const BYTE *logo, BYTE *data) {
+    static const int logo_n_tiles = 24;
+    static const int logo_compressed_bytes = 2 * logo_n_tiles;
+    static const int logo_decompressed_bytes = TILE_SIZE_BYTES * logo_n_tiles;
+
+    static const BYTE nib_lookup[] = {
+        0,      //0000 - 00000000
+        3,      //0001 - 00000011
+        0x0C,   //0010 - 00001100
+        0x0F,   //0011 - 00001111
+        0x30,   //0100 - 00110000
+        0x33,   //0101 - 00110011
+        0x3C,   //0110 - 00111100
+        0x3F,   //0111 - 00111111
+        0xC0,   //1000 - 11000000,
+        0xC3,   //1001 - 11000011,
+        0xCC,   //1010 - 11001100,
+        0xCF,   //1011 - 11001111,
+        0xF0,   //1100 - 11110000
+        0xF3,   //1101 - 11110011
+        0xFC,   //1110 - 11111100
+        0xFF    //1111 - 11111111
+    };
+    int data_i;
+    BYTE b1, b2, lsb, msb, nib1, nib2, nib3, nib4;
+
+    
+
+    for (int i = 0; i < logo_n_tiles; i++) {
+        data_i = TILE_SIZE_BYTES * i;
+        b1 = logo[2*i];
+        b2 = logo[2*i + 1];
+        nib1 = ms_nib(b1);
+        nib2 = ls_nib(b1);
+        nib3 = ms_nib(b2);
+        nib4 = ls_nib(b2);
+        /*
+        Ex: 0xCE 0xED
+        =   C 1100
+            E 1110
+            E 1110
+            D 1101
+        ->
+            11110000 11110000
+            11110000 11110000
+            11111100 11111100
+            11111100 11111100
+            11111100 11111100
+            11111100 11111100
+            11110011 11110011
+            11110011 11110011
+        */
+        data[data_i] = nib_lookup[nib1]; data[data_i+1] = nib_lookup[nib1];
+        data[data_i+2] = nib_lookup[nib1]; data[data_i+3] = nib_lookup[nib1];
+        data[data_i+4] = nib_lookup[nib2]; data[data_i+5] = nib_lookup[nib2];
+        data[data_i+6] = nib_lookup[nib2]; data[data_i+7] = nib_lookup[nib2];
+        data[data_i+8] = nib_lookup[nib3]; data[data_i+9] = nib_lookup[nib3];
+        data[data_i+10] = nib_lookup[nib3]; data[data_i+11] = nib_lookup[nib3];
+        data[data_i+12] = nib_lookup[nib4]; data[data_i+13] = nib_lookup[nib4];
+        data[data_i+14] = nib_lookup[nib4]; data[data_i+15] = nib_lookup[nib4];
+    }
+}
+
 int pack_tile(const BYTE *data_unpacked, BYTE *data, BYTE flags) {
     BYTE packed_byte_1 = 0;
     BYTE packed_byte_2 = 0;
@@ -708,14 +806,14 @@ void setup_test(VideoTestState *vtstate) {
     ppu->lcdc.lcd_enable = ON;
     ppu->lcdc.win_map_area = MAP_AREA0;
     ppu->lcdc.window_enable = OFF;
-    ppu->lcdc.bg_win_data_area = DATA_AREA1;
+    ppu->lcdc.bg_win_data_area = DATA_AREA0;
     ppu->lcdc.bg_map_area = MAP_AREA0;
     ppu->lcdc.obj_size = OBJ_8x8;
     ppu->lcdc.obj_enable = OFF;
     ppu->lcdc.bg_window_enable = ON;
 
     /* Set most of misc to known state */
-    ppu->misc.scx = 4;
+    ppu->misc.scx = 0;
     ppu->misc.scy = 0;
     ppu->misc.wx = 7;
     ppu->misc.wy = 10;
@@ -737,10 +835,18 @@ void setup_test(VideoTestState *vtstate) {
             TILE_SIZE_BYTES
         );
     }
-
-
     /* Set up tile map at area 0 */
     memcpy(&mem[TILEMAP_AREA0], &test_tilemap, 32*32);
+
+    /* Get Nintendo logo to data area 0 */
+    decompress_logo(_LOGO, &mem[TILEDATA_AREA0]);
+    /* Set up tilemap at area 1 for nintendo logo */
+    for (int i = 0; i < 12; i++) {
+        mem[TILEMAP_AREA0+i] = i;
+        mem[TILEMAP_AREA0+32+i] = 12+i;
+    }
+
+
 
     /* Set up a few OAM entries */
     OAMEntry *oam_table = &mem[OAM_BASE];

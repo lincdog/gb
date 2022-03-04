@@ -337,6 +337,13 @@ WORD get_bg_tilemap_addr(WORD base, BYTE scx, BYTE scy, BYTE cur_x, BYTE ly) {
     return compute_tilemap_addr(base, tile_x, tile_y);
 }
 
+WORD compute_tiledata_addr(WORD base, BYTE ind) {
+    BYTE mask = (base == TILEDATA_AREA0) ? 0x7F : 0xFF;
+    WORD offset = TILE_SIZE_BYTES * (ind & mask) - TILE_SIZE_BYTES * (ind & (mask+1));
+
+    return base + offset;
+}
+
 /* Determine, given the whole current state, what row of 8 pixels from the 
 background tilemap to render (based on current scanline and scy), fetch these 
 two bytes and unpack them into the scanline pixelbuf, shifted by the scx value.

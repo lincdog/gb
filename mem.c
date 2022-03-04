@@ -1712,13 +1712,16 @@ MemoryState *initialize_memory(MemInitFlag flag) {
         mem->system->teardown = &teardown_sys_memory;
         mem->system->state = initialize_sys_memory();
     } else if (flag == DEBUG) {
-        free(mem->cartridge);
-
+        mem->cartridge->n_regions = 0;
+        
         mem->system->n_regions = 1;
         mem->system->regions = debug_mem_map;
         mem->system->initialize = &initialize_debug_memory;
         mem->system->teardown = &teardown_debug_memory;
         mem->system->state = initialize_debug_memory();
+    } else {
+        printf("Unsupported MemInitFlag %d\n", flag);
+        exit(1);
     }
 
     return mem;
@@ -1726,7 +1729,7 @@ MemoryState *initialize_memory(MemInitFlag flag) {
 
 void teardown_memory(MemoryState *mem) {
 
-    if (mem->mode == BASIC) {
+    if (mem->cartridge->n_regions > 0) {
         mem->cartridge->teardown(mem->cartridge->state);
         free(mem->cartridge);
     }
