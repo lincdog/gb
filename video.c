@@ -237,12 +237,12 @@ void ppu_oamscan_cycle(GBState *state) {
     tile_row_addr = get_sprite_row_addr(current_entry, misc.ly, lcdc.obj_size);
 
     if (tile_row_addr != 0) {
-        printf("ly = %03d: OAM entry #%d, sprite index 0x%02x: row addr 0x%04x\n", 
+        /*printf("ly = %03d: OAM entry #%d, sprite index 0x%02x: row addr 0x%04x\n", 
             misc.ly,
             oamscan->counter >> 1,
             current_entry->index,
             tile_row_addr
-        );
+        );*/
         lsb = ppu_read_mem(state, tile_row_addr);
         msb = ppu_read_mem(state, tile_row_addr+1);
         oamscan->current_row_sprites[oamscan->n_sprites_row].entry_addr = current_entry_addr;
@@ -515,9 +515,7 @@ void ppu_render_scanline(GBState *state) {
     BYTE prio, alpha;
 
     for (; r.x < GB_WIDTH_PX; r.x++) {
-        /*if (lcdc.window_enable == ON
-            && in_window_p(misc.wx, misc.wy, (BYTE)r.x, misc.ly)
-        ) current_px = &scanline->win;*/
+        
         prio = scanline->priority[r.x];
         
         switch (prio) {

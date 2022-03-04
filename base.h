@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 #include <assert.h>
+#ifdef NDEBUG
+#   define assert(...)
+#endif
+
 #include <SDL.h>
 
 #define WORD uint16_t
@@ -350,12 +354,14 @@ typedef struct {
     MemoryState *mem;
     TimerState *timer;
     SDLComponents *sdl;
+    ToggleEnum should_quit;
 } GBState;
 
 /* The main loop executes calls for the various subsystems using these 
 entries to determine their timing. */
 typedef struct {
     unsigned int period;
+    int mask;
     void (*run_task)(GBState *);
 } GBTask;
 

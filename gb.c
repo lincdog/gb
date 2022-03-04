@@ -6,7 +6,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
+#include <math.h>
+#include <time.h>
 
 const SDL_Color colors[] = {
     {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF },
@@ -63,7 +64,7 @@ GBState *initialize_gb(MemInitFlag flag) {
     state->ppu = initialize_ppu();
     state->mem = initialize_memory(flag);
     state->timer = initialize_timer();
-
+    state->should_quit = OFF;
 
     /*
         * Load the boot ROM and the cartridge header at least
@@ -86,20 +87,27 @@ void task_event(GBState *state) {
     SDL_Event *ev = &state->sdl->event;
     SDL_PollEvent(ev);
     switch (ev->type) {
-        
+         case SDL_QUIT:
+            state->should_quit = ON;
+            break;
+        default:
+            break;
     }
 }
 
 int _dummy(void) { return 1; }
 
 GBTask gb_tasks[] = {
-    {.period=1,
+    {.period=1<<12,
+    .mask=0x0FFF,
     .run_task=&task_event
     },
     {.period=256,
+    .mask=0xFF,
     .run_task=&task_div_timer
     },
     {.period=16,
+    .mask=0xF,
     .run_task=&task_tima_timer
     },
     /*
@@ -110,48 +118,49 @@ GBTask gb_tasks[] = {
     .run_task=&task_dma_cycle
     },*/
     {.period=1,
+    .mask=0,
     .run_task=&task_ppu_cycle
     },
     
     {.period=4,
+    .mask=0x3,
     .run_task=&task_cpu_m_cycle
     },
     {.period=0,
+    .mask=-1,
     .run_task=NULL
     }
 };
 
 /* The main loop for Game Boy operation. The iterations of this loop are 
-what synchronizes everything, through the gb_tasks array. Will run forever if 
-n_cycles < 0. Checks each entry in gb_tasks against the counter and 
+what synchronizes everything, through the gb_tasks array. Checks each entry in gb_tasks against the counter and 
 runs the task if counter is divisible by the task's period. Then increments the counter. 
 */
-void main_loop(GBState *state, int n_cycles) {
+void main_loop(GBState *state) {
     GBTask task;
     int t = 0;
-    uint64_t accum = 0;
+    float elapsed = 0.0;
     clock_t pre, post;
-    
-    while ((n_cycles < 0) || (state->counter < n_cycles)) {
-        pre = clock();
+
+    pre = clock();
+    while (state->should_quit == OFF) {
         t = 0;
         task = gb_tasks[0];
-        while (task.period != 0) {
-
-            if ((state->counter % task.period) == 0) {
+        while (task.mask != -1) {
+            if (!(state->counter & task.mask)) {
                 (*task.run_task)(state);
             }
             t++;
             task = gb_tasks[t];
         }
 
-        state->counter++;
-
-        post = clock();
-        accum += post - pre;
+        state->counter++; 
     }
+    post = clock();
+    elapsed = (float)(post - pre)/CLOCKS_PER_SEC;
 
-    printf("Total clocks over %d cycles: %llu, average %llu\n", state->counter, accum, accum/state->counter);
+    printf("Cycles: %d\nSeconds: %f (%f MHz)\n", 
+    state->counter, elapsed, (state->counter/elapsed)/exp2(20));
 }
 
 /* Reads the cartridge header from a given open file descriptor.
@@ -235,7 +244,7 @@ int main(int argc, char *argv[]) {
 
     print_state_info(state, 1);
 
-    main_loop(state, 1<<20);
+    main_loop(state);
     
     teardown_gb(state);
     return 0;
