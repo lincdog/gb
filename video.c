@@ -115,8 +115,8 @@ PPUState *initialize_ppu(void) {
     ppu->misc.wx = 0x00;
     // 11 11 11 00 
     ppu->misc.bgp = 0xFC;
-    ppu->misc.obp0 = UNINIT;
-    ppu->misc.obp1 = UNINIT;
+    ppu->misc.obp0 = PALETTE_DEFAULT;
+    ppu->misc.obp1 = PALETTE_DEFAULT;
     
     reset_ppu_fifo(&ppu->draw.fifo_bg);
     reset_ppu_fifo(&ppu->draw.fifo_obj);
@@ -330,7 +330,7 @@ void fetch_current_obj_row(GBState *state) {
  0-160), ly current scanline (pixels, 0-144)
  */
 WORD get_bg_tilemap_addr(WORD base, BYTE scx, BYTE scy, BYTE cur_x, BYTE ly) {
-    BYTE tile_x, tile_y;
+    WORD tile_x, tile_y;
     tile_x = compute_bg_tile_x(scx, cur_x);
     tile_y = compute_bg_tile_y(scy, ly);
 
@@ -374,11 +374,18 @@ void fetch_current_bg_row(GBState *state) {
     map_addr = get_bg_tilemap_addr(map_area, misc.scx, misc.scy, bg->x_pos, misc.ly);
 
     tile_index = ppu_read_mem(state, map_addr);
+
     y_pixel_offset = compute_y_pixel_offset(misc.scy, misc.ly);
-        
+    
     // Gets us to the top left corner of the tile we want
     tile_addr = compute_tiledata_addr(data_area, tile_index);
     
+    if (misc.ly < 8 && bg->x_pos < 8) {
+        printf("ly: %d tile index: 0x%02x\n", misc.ly, tile_index);
+        printf("\ty offset: %d initial data addr: 0x%04x\n", y_pixel_offset, tile_addr);
+        printf("\tfinal tile addr: 0x%04x\n", tile_addr + (TILE_BYTES_PER_ROW*y_pixel_offset));
+    }
+
     // Add 2 for each row down in the tile we are (2 bytes per row)
     tile_addr += (TILE_BYTES_PER_ROW * y_pixel_offset);
 
@@ -451,6 +458,7 @@ void fetch_current_win_row(GBState *state) {
     map_addr = get_win_tilemap_addr(map_area, misc.wx, misc.wy, win->x_pos, misc.ly);
 
     tile_index = ppu_read_mem(state, map_addr);
+
     y_pixel_offset = (misc.ly - misc.wy) & 0x7;
     x_pixel_offset = (win->x_pos - less_7_or_0(misc.wx)) & 0x7;
         
@@ -638,7 +646,7 @@ void task_ppu_cycle(GBState *state) {
     PPUMisc misc = ppu->misc;
 
     if (lcdc.lcd_enable == OFF)
-        goto ppu_cycle_end;
+        goto ppu_lcd_off;
     
     switch (stat.mode) {
         case HBLANK:
@@ -670,5 +678,8 @@ void task_ppu_cycle(GBState *state) {
         SDL_UpdateWindowSurface(state->sdl->window);
         ppu_next_frame(ppu);
     }
+
+    ppu_lcd_off:
+    1;
 }
 

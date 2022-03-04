@@ -50,14 +50,14 @@
 #define PX_PRIO_WIN 2
 #define PX_PRIO_OBJ 3
 
-#define compute_bg_tile_x(__scx, __cur_x) (((__scx >> 3) + (__cur_x >> 3)) & 0x1F)
-#define compute_bg_tile_y(__scy, __ly) (((__scy >> 3) + (__ly >> 3)) & 0x1F)
+#define compute_bg_tile_x(__scx, __cur_x) ((((__scx + __cur_x) >> 3)) & 0x1F)
+#define compute_bg_tile_y(__scy, __ly) ((((__scy + __ly) >> 3)) & 0x1F)
 #define compute_x_pixel_offset(__scx, __cur_x) ((__scx) & 0x7)
 #define compute_y_pixel_offset(__scy, __ly) ((__scy + __ly) & 0x7)
 #define compute_tilemap_addr(__base, __tx, __ty) (__base + (TILEMAP_BYTES_PER_ROW * __ty) + __tx)
 #define sign_check(__darea) (((TileDataArea)__darea == DATA_AREA1) ? 0 : 0x80)
-#define compute_tiledata_addr(__base, __ind) __base + (TILE_SIZE_BYTES * \
-    (__ind ^ sign_check(__base)) - (__ind & sign_check(__base)))
+#define compute_tiledata_addr(__base, __ind) (__base + TILE_SIZE_BYTES * \
+    (__ind ^ sign_check(__base))) - (TILE_SIZE_BYTES * (__ind & sign_check(__base)))
 #define less_7_or_0(__wx) ((__wx < 7) ? 0 : __wx - 7)
 #define win_x_offset(__wx) ((__wx < 7) ? (7 - __wx) : 0)
 

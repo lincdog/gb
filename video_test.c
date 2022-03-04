@@ -707,15 +707,15 @@ void setup_test(VideoTestState *vtstate) {
     /* Set LCDC to known state */
     ppu->lcdc.lcd_enable = ON;
     ppu->lcdc.win_map_area = MAP_AREA0;
-    ppu->lcdc.window_enable = ON;
+    ppu->lcdc.window_enable = OFF;
     ppu->lcdc.bg_win_data_area = DATA_AREA1;
     ppu->lcdc.bg_map_area = MAP_AREA0;
     ppu->lcdc.obj_size = OBJ_8x8;
-    ppu->lcdc.obj_enable = ON;
+    ppu->lcdc.obj_enable = OFF;
     ppu->lcdc.bg_window_enable = ON;
 
     /* Set most of misc to known state */
-    ppu->misc.scx = 0;
+    ppu->misc.scx = 4;
     ppu->misc.scy = 0;
     ppu->misc.wx = 7;
     ppu->misc.wy = 10;
@@ -766,7 +766,7 @@ void setup_test(VideoTestState *vtstate) {
 }
 
 void run_test(VideoTestState *vtstate) {
-    for (int i = 0; i < (10*PPU_PER_FRAME); i++)
+    for (int i = 0; i < (2*PPU_PER_FRAME); i++)
         task_ppu_cycle(vtstate->state);
 }
 

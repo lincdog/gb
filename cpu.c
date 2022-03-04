@@ -637,12 +637,13 @@ void task_cpu_m_cycle(GBState *state) {
     if (reg_pc(cpu) > 0xFF)
         _dummy();
 
-    if (cpu->state != PREINIT) {
+    if (cpu->state == READY
+        || cpu->state == PREFIX) {
         // Execute the next cycle step of the current queue
         (*cpu->pipeline[cpu->counter])(state);
         // Increment the cycle counter
         cpu->counter++;
-    } else {
+    } else if (cpu->state == PREINIT) {
         cpu->state = READY;
     }
 
