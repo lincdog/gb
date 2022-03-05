@@ -72,7 +72,7 @@ PPUState *initialize_ppu(void) {
         return NULL;
     }
     // 0x91: 1001 0001
-    ppu->lcdc.lcd_enable = ON;
+    ppu->lcdc.lcd_enable = OFF;
     ppu->lcdc.win_map_area = MAP_AREA0;
     ppu->lcdc.window_enable = OFF;
     ppu->lcdc.bg_win_data_area = DATA_AREA1;
@@ -89,13 +89,13 @@ PPUState *initialize_ppu(void) {
     ppu->stat.lyc_ly_equal = ON;
     ppu->stat.mode = VBLANK;
 
-    ppu->frame.counter = COUNTER_VBLANK_LENGTH;
+    ppu->frame.counter = PPU_PER_FRAME + COUNTER_VBLANK_LENGTH;
     ppu->frame.win_y = 0;
     ppu->frame.in_window = OFF;
 
     ppu->scanline.counter = PPU_PER_SCANLINE;
     memset(ppu->scanline.priority, PX_PRIO_NULL, GB_WIDTH_PX);
-    ppu->mode_counter = COUNTER_VBLANK_LENGTH;
+    ppu->mode_counter = PPU_PER_FRAME + COUNTER_VBLANK_LENGTH;
 
     /*ppu->scanline.bg.buf = malloc(SCANLINE_PIXELBUF_SIZE);
     if (ppu->scanline.bg.buf == NULL) {
@@ -339,7 +339,7 @@ WORD get_bg_tilemap_addr(WORD base, BYTE scx, BYTE scy, BYTE cur_x, BYTE ly) {
 
 WORD compute_tiledata_addr(WORD base, BYTE ind) {
     BYTE mask = (base == TILEDATA_AREA0) ? 0x7F : 0xFF;
-    WORD offset = TILE_SIZE_BYTES * (ind & mask) - TILE_SIZE_BYTES * (ind & (mask+1));
+    WORD offset = TILE_SIZE_BYTES * (ind & mask) - TILE_SIZE_BYTES * (ind & ~mask);
 
     return base + offset;
 }
@@ -387,11 +387,12 @@ void fetch_current_bg_row(GBState *state) {
     // Gets us to the top left corner of the tile we want
     tile_addr = compute_tiledata_addr(data_area, tile_index);
     
+    /*
     if (misc.ly < 8 && bg->x_pos < 8) {
         printf("ly: %d tile index: 0x%02x\n", misc.ly, tile_index);
         printf("\ty offset: %d initial data addr: 0x%04x\n", y_pixel_offset, tile_addr);
         printf("\tfinal tile addr: 0x%04x\n", tile_addr + (TILE_BYTES_PER_ROW*y_pixel_offset));
-    }
+    }*/
 
     // Add 2 for each row down in the tile we are (2 bytes per row)
     tile_addr += (TILE_BYTES_PER_ROW * y_pixel_offset);

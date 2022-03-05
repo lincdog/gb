@@ -52,6 +52,7 @@ void reset_registers(CPUState *cpu) {
 
 void reset_pipeline(CPUState *cpu) {
     //cpu->state = READY;
+    cpu->changes_flags = 0;
     cpu->check_flags = (CPUFlags){
         .z=NOCHANGE, 
         .n=NOCHANGE, 
@@ -624,6 +625,7 @@ CYCLE_FUNC(_check_flags) {
 
 }
 
+static int _cpu_dummy(void) { return 1; }
 /* Execute a single m-cycle (4 clock ticks) of CPU operation. 
 Executes the current pipelined action first, unless in PREINIT,
 increments the pipeline counter, and fetches the next instruction if there
@@ -631,8 +633,6 @@ are no further pipelined actions after this.
 */
 void task_cpu_m_cycle(GBState *state) {
     CPUState *cpu = state->cpu;
-
-    DEBUGHOOK(reg_pc(cpu) > 0xFF);
 
     if (cpu->state == READY
         || cpu->state == PREFIX) {
@@ -669,6 +669,7 @@ void task_cpu_m_cycle(GBState *state) {
             cpu_setup_prefix_pipeline(state, cpu->opcode);
             cpu->state = READY;
         }
+        _cpu_dummy();
     } 
 }
 
