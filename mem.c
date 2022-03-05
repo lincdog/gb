@@ -131,14 +131,72 @@ CHECK_ACCESS_FUNC(_check_always_yes) {
 CHECK_ACCESS_FUNC(_check_always_no) {
     return 0;
 }
+CHECK_ACCESS_FUNC(_check_dma) {
+    BYTE source = get_mem_source(flags);
+    int result;
+    if (source == MEM_SOURCE_DMA)
+        result = 1;
+    else {
+        if (state->dma->dma_active == ON)
+            result = 0;
+        else
+            result = 1;
+    }
 
-READ_FUNC(_sys_read_boot_rom) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    return result;
+}
+CHECK_ACCESS_FUNC(_sys_check_vram) {
+    BYTE source = get_mem_source(flags);
+    int result;
+    LCDStatus stat = state->ppu->stat;
 
-    return sys_mem->bootrom[rel_addr];
+    switch (source) {
+        case MEM_SOURCE_DMA:
+            result = 1;
+            break;
+        case MEM_SOURCE_PPU:
+            if (state->dma->dma_active == ON)
+                result = 0;
+            else
+                result = 1;
+            break;
+        default:
+            if (state->dma->dma_active == ON)
+                result = 0;
+            else 
+                result = (stat.mode != DRAW);
+            break;
+    }
+
+    return result;
 }
 
-CHECK_ACCESS_FUNC(_sys_check_vram) {
+CHECK_ACCESS_FUNC(_sys_check_oam_table) {
+    BYTE source = get_mem_source(flags);
+    int result;
+    LCDStatus stat = state->ppu->stat;
+    
+    switch (source) {
+        case MEM_SOURCE_DMA:
+            result = 1;
+            break;
+        case MEM_SOURCE_PPU:
+            if (state->dma->dma_active == ON)
+                result = 0;
+            else
+                result = 1;
+            break;
+        default:
+            if (state->dma->dma_active == ON)
+                result = 0;
+            else 
+                result = (stat.mode != DRAW) && (stat.mode != OAMSCAN);
+            break;
+    }
+
+    return result; 
+}
+CHECK_ACCESS_FUNC(_check_obp) {
     BYTE source = get_mem_source(flags);
     int result;
 
@@ -153,6 +211,12 @@ CHECK_ACCESS_FUNC(_sys_check_vram) {
     }
 
     return result;
+}
+
+READ_FUNC(_sys_read_boot_rom) {
+    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+
+    return sys_mem->bootrom[rel_addr];
 }
 
 READ_FUNC(_sys_read_vram) {
@@ -181,24 +245,6 @@ WRITE_FUNC(_sys_write_wram) {
     sys_mem->wram[rel_addr] = data;
 
     return 1;
-}
-
-CHECK_ACCESS_FUNC(_sys_check_oam_table) {
-    BYTE source = get_mem_source(flags);
-    int result;
-    LCDStatus stat = state->ppu->stat;
-
-    if (source == MEM_SOURCE_PPU) {
-        result = 1;
-    } else {
-        if (stat.mode == DRAW || stat.mode == OAMSCAN) {
-            result = 0;
-        } else {
-            result = 1;
-        }
-    }
-
-    return result; 
 }
 
 READ_FUNC(_sys_read_oam_table) {
@@ -369,10 +415,8 @@ READ_FUNC(_read_dma) {
 }
 WRITE_FUNC(_write_dma) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME: queues DMA for source_start-source_end to FE00-FE9F
-    // The CPU can apparently only read in HRAM (FF80-FFFE) during this time
-    WORD source_start = ((WORD)data) << 8;
-    WORD source_end = source_start | 0x9F;
+    state->dma->addr = ((WORD)data) << 8;
+    state->dma->dma_active = ON;
     sys_mem->ioregs->dma = data;
     return 1;    
 }
@@ -514,22 +558,6 @@ WRITE_FUNC(_write_bgp) {
     ppu->misc.bgp = data;
     sys_mem->ioregs->bgp = data;
     return 1;
-}
-CHECK_ACCESS_FUNC(_check_obp) {
-    BYTE source = get_mem_source(flags);
-    int result;
-
-    if (source == MEM_SOURCE_PPU) {
-        result = 1;
-    } else {
-        if (state->ppu->stat.mode == DRAW) {
-            result = 0;
-        } else {
-            result = 1;
-        }
-    }
-
-    return result;
 }
 READ_FUNC(_read_obp0) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
@@ -1333,7 +1361,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFF,
         .len=0x100,
         .flags=0,
-        .check_access=&_check_always_yes,
+        .check_access=&_check_dma,
         .read=&_sys_read_boot_rom,
         .write=&_write_unimplemented,
         .get_ptr=&_sys_ptr_boot_rom
@@ -1353,7 +1381,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xDFFF,
         .len=0x2000,
         .flags=0,
-        .check_access=&_check_always_yes,
+        .check_access=&_check_dma,
         .read=&_sys_read_wram,
         .write=&_sys_write_wram,
         .get_ptr=&_sys_ptr_wram
@@ -1393,7 +1421,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFF7F,
         .len=0x80,
         .flags=0,
-        .check_access=&_check_always_yes,
+        .check_access=&_check_dma,
         .read=&_sys_read_ioreg,
         .write=&_sys_write_ioreg,
         .get_ptr=&_ptr_unimplemented
@@ -1413,7 +1441,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFFFF,
         .len=0x1,
         .flags=0,
-        .check_access=&_check_always_yes,
+        .check_access=&_check_dma,
         .read=&_sys_read_ioreg,
         .write=&_sys_write_ioreg,
         .get_ptr=&_ptr_unimplemented
@@ -1426,7 +1454,7 @@ MemoryRegion basic_mem_map[] = {
         .end=0x7FFF,
         .len=0x8000,
         .flags=0,
-        .check_access=&_check_always_yes,
+        .check_access=&_check_dma,
         .read=&_basic_read_rom,
         .write=&_basic_write_rom,
         .get_ptr=&_basic_ptr
@@ -1775,4 +1803,36 @@ void task_tima_timer(GBState *state) {
             }
         }
     }
+}
+
+DMAState *initialize_dma(void) {
+    DMAState *dma = malloc(sizeof(DMAState));
+    dma->addr = 0;
+    dma->dma_active = OFF;
+
+    return dma;
+}
+
+void teardown_dma(DMAState *dma) {
+    free(dma);
+}
+
+void task_dma_cycle(GBState *state) {
+    DMAState *dma = state->dma;
+    if (dma->dma_active == OFF)
+        goto dma_cycle_end;
+
+    BYTE data;
+    WORD source_addr = dma->addr;
+    WORD dest_addr = 0xFE00 | (source_addr & 0xFF);
+    
+    data = read_mem(state, source_addr, MEM_SOURCE_DMA);
+    write_mem(state, dest_addr, data, MEM_SOURCE_DMA);
+    
+    dma->addr++;
+    if ((dma->addr | 0xFF) == 0xA0)
+        dma->dma_active = OFF;
+
+    dma_cycle_end:
+    1;
 }

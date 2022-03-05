@@ -500,7 +500,6 @@ void ppu_render_scanline(GBState *state) {
     SDLComponents *sdl = state->sdl;
     SDL_Rect r;
     BYTE color;
-    //SDL_RenderGetViewport(state->gb_renderer, &r);
 
     r.y = ppu->misc.ly;
     r.x = 0;//ppu->scanline.x_pos;

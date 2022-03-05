@@ -298,9 +298,12 @@ MemoryState *initialize_memory(MemInitFlag);
 void teardown_memory(MemoryState *);
 TimerState *initialize_timer(void);
 void teardown_timer(TimerState *);
+DMAState *initialize_dma(void);
+void teardown_dma(DMAState *);
 
 void task_div_timer(GBState *);
 void task_tima_timer(GBState *);
+void task_dma_cycle(GBState *);
 
 #define unused_ioreg(__addr) \
     (IOReg_t){.name="none\0", .addr=__addr, .check_access=&_check_always_yes, .read=&_read_unimplemented, .write=&_write_unimplemented}

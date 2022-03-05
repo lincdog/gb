@@ -56,6 +56,7 @@ GBState *initialize_gb(MemInitFlag flag) {
     state->ppu = initialize_ppu();
     state->mem = initialize_memory(flag);
     state->timer = initialize_timer();
+    state->dma = initialize_dma();
     state->should_quit = OFF;
 
     /*
@@ -72,6 +73,7 @@ void teardown_gb(GBState *state) {
     teardown_memory(state->mem);
     teardown_ppu(state->ppu);
     teardown_timer(state->timer);
+    teardown_dma(state->dma);
     free(state);
 }
 
@@ -81,6 +83,18 @@ void task_event(GBState *state) {
     switch (ev->type) {
          case SDL_QUIT:
             state->should_quit = ON;
+            break;
+        case SDL_KEYDOWN:
+            printf("Key %s pressed (%s)\n", 
+                SDL_GetScancodeName(ev->key.keysym.scancode),
+                SDL_GetKeyName(ev->key.keysym.sym)
+            );
+            break;
+        case SDL_KEYUP:
+            printf("Key %s released (%s)\n", 
+                SDL_GetScancodeName(ev->key.keysym.scancode),
+                SDL_GetKeyName(ev->key.keysym.sym)
+            );
             break;
         default:
             break;
@@ -103,15 +117,14 @@ GBTask gb_tasks[] = {
     /*
     {.period=4,
     .run_task=&task_interrupt_cycle
-    },
+    },*/
     {.period=4,
     .run_task=&task_dma_cycle
-    },*/
+    },
     {.period=1,
     .mask=0,
     .run_task=&task_ppu_cycle
-    },
-    
+    }, 
     {.period=4,
     .mask=0x3,
     .run_task=&task_cpu_m_cycle

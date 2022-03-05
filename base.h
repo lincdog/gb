@@ -296,6 +296,11 @@ typedef enum {
     DEBUG
 } MemInitFlag;
 
+typedef struct {
+    ToggleEnum dma_active;
+    WORD addr;
+} DMAState;
+
 /* The total memory system of the Game Boy consists of a system memory
 map and a cartridge memory map. The configuration of these is specified 
 by a MemInitFlag mode. This is determined from the cartridge header. */
@@ -334,6 +339,7 @@ typedef struct {
     CPUState *cpu;
     PPUState *ppu;
     MemoryState *mem;
+    DMAState *dma;
     TimerState *timer;
     SDLComponents *sdl;
     ToggleEnum should_quit;
