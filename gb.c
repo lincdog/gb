@@ -9,14 +9,6 @@
 #include <math.h>
 #include <time.h>
 
-const SDL_Color colors[] = {
-    {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF },
-    {.r = 0x90, .g = 0x90, .b = 0x90, .a = 0xFF },
-    {.r = 0x50, .g = 0x50, .b = 0x50, .a = 0xFF },
-    {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF }
-};
-
-
 SDLComponents *initialize_sdl_core(void) {
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, 
@@ -29,7 +21,7 @@ SDLComponents *initialize_sdl_core(void) {
         exit(1);
     }
 
-    sdl->window = SDL_CreateWindow("Test",
+    sdl->window = SDL_CreateWindow("DMG emulator",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
         EMU_WIDTH_PX, EMU_HEIGHT_PX,

@@ -97,11 +97,6 @@ PPUState *initialize_ppu(void) {
     memset(ppu->scanline.priority, PX_PRIO_NULL, GB_WIDTH_PX);
     ppu->mode_counter = PPU_PER_FRAME + COUNTER_VBLANK_LENGTH;
 
-    /*ppu->scanline.bg.buf = malloc(SCANLINE_PIXELBUF_SIZE);
-    if (ppu->scanline.bg.buf == NULL) {
-        printf("Failed to allocate scanline bg pixelbuf\n");
-        exit(1);
-    }*/
     reset_pixelbuf(&ppu->scanline.bg);
     reset_pixelbuf(&ppu->scanline.win);
     reset_pixelbuf(&ppu->scanline.obj);
@@ -122,19 +117,10 @@ PPUState *initialize_ppu(void) {
     reset_ppu_fifo(&ppu->draw.fifo_obj);
     reset_oamscan(&ppu->oamscan);
 
-    /*ppu->win_pixelbuf = malloc(GB_FULL_SIZE * GB_FULL_SIZE);
-    memset(ppu->win_pixelbuf, 0, GB_FULL_SIZE * GB_FULL_SIZE);
-    ppu->obj_pixelbuf = malloc(GB_FULL_SIZE * GB_FULL_SIZE);
-    memset(ppu->obj_pixelbuf, 0, GB_FULL_SIZE * GB_FULL_SIZE);
-    */
-
     return ppu;
 }
 
 void teardown_ppu(PPUState *ppu) {
-    //free(ppu->scanline.bg.buf);
-    //free(ppu->scanline.win.buf);
-    //free(ppu->scanline.obj.buf);
     free(ppu);
 }
 
@@ -386,13 +372,6 @@ void fetch_current_bg_row(GBState *state) {
     
     // Gets us to the top left corner of the tile we want
     tile_addr = compute_tiledata_addr(data_area, tile_index);
-    
-    /*
-    if (misc.ly < 8 && bg->x_pos < 8) {
-        printf("ly: %d tile index: 0x%02x\n", misc.ly, tile_index);
-        printf("\ty offset: %d initial data addr: 0x%04x\n", y_pixel_offset, tile_addr);
-        printf("\tfinal tile addr: 0x%04x\n", tile_addr + (TILE_BYTES_PER_ROW*y_pixel_offset));
-    }*/
 
     // Add 2 for each row down in the tile we are (2 bytes per row)
     tile_addr += (TILE_BYTES_PER_ROW * y_pixel_offset);

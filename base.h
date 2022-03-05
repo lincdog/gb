@@ -97,17 +97,6 @@ typedef struct __attribute__ ((packed)) {
     void (*pipeline[8]) (void *); // List of function pointers
 } CPUState;
 
-typedef struct {
-    void *next;
-    int timer;
-    void (*execute)(void *);
-} CPUStep;
-
-typedef struct {
-    int timer;
-    void (*execute)(void *);
-} GBEvent;
-
 typedef enum {
     INIT=-1,
     HBLANK=0, 
@@ -154,12 +143,6 @@ typedef struct {
     BYTE lyc;
     BYTE wy;
     BYTE wx;
-    /* FIXME: SDL_Color types for each index?
-     * 0: white (bg) or transparent (obj)
-     * 1: light gray
-     * 2: dark gray
-     * 3: black
-     */
     BYTE bgp;
     BYTE obp0;
     BYTE obp1;
@@ -239,22 +222,15 @@ typedef struct {
 } Scanline_t;
 
 typedef struct {
-    LCDControl lcdc;
-    LCDStatus stat;
-    PPUMisc misc;
-    Frame_t frame;
-    Scanline_t scanline;
-    unsigned int mode_counter;
+    LCDControl lcdc; // 0xFF40: LCD Control
+    LCDStatus stat; // 0xFF41: LCD Status
+    PPUMisc misc; // 0xFF42-0xFF4B: Scrolling, palettes, LY,  LY compare
+    Frame_t frame; // Per-frame data structure
+    Scanline_t scanline; // Per-scanline data structure
+    OAMScan_t oamscan; // Per-scanline OAM scan data structure
+    unsigned int mode_counter; // Counts down to the next mode switch
 
-    //BYTE *pixelbuf;
-    //BYTE *win_pixelbuf;
-    //BYTE *obj_pixelbuf;
-    //BYTE *current_bg_tile;
-    //BYTE *current_win_tile;
-    //BYTE *current_obj_tile;
-    
     Drawing_t draw;
-    OAMScan_t oamscan;
 } PPUState;
 
 
