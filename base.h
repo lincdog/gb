@@ -34,6 +34,17 @@ int _debug_dummy(void);
 
 #define get_le_word(ptr) (WORD)(ptr[1] | (ptr[2]<<8))
 
+#define MEM_SOURCE_INTERRUPT 4
+#define INT_FLAG_ADDR 0xFF0F
+#define INT_VBLANK 0x1
+#define INT_STAT 0x2
+#define INT_TIMER 0x4
+#define INT_SERIAL 0x8
+#define INT_JOYPAD 0x10
+
+#define REQUEST_INTERRUPT(__state, __bit) \
+    (__state->cpu->int_flag |= __bit);
+
 enum CPU_STATE {
     PREINIT,
     READY,
@@ -78,8 +89,8 @@ typedef struct __attribute__ ((packed)) {
 #define w_v(__x) (*w(__x))
 
 typedef struct __attribute__ ((packed)) {
-    CPURegs r;
-    CPUFlags flags;
+    CPURegs r; // registers
+    CPUFlags flags; // flags
 
     enum CPU_STATE state;
     BYTE changes_flags; // Flag to indicate check_flags should be examined
@@ -95,6 +106,8 @@ typedef struct __attribute__ ((packed)) {
     WORD addr; // 16 bit address to read/write from/to
     BYTE counter; // Pipeline stage counter
     void (*pipeline[8]) (void *); // List of function pointers
+    BYTE int_enable;
+    BYTE int_flag;
 } CPUState;
 
 typedef enum {
@@ -112,7 +125,7 @@ typedef enum {
     PUSH
 } PPUFifoState;
 
-typedef enum {OFF=0, ON=1} ToggleEnum;
+typedef enum {STABLE=-1, OFF=0, ON=1} ToggleEnum;
 typedef enum {DATA_AREA0=0x9000, DATA_AREA1=0x8000} TileDataArea;
 typedef enum {MAP_AREA0=0x9800, MAP_AREA1=0x9C00} TileMapArea;
 typedef enum {OBJ_8x8=8, OBJ_8x16=16} ObjectSize;
@@ -229,7 +242,7 @@ typedef struct {
     Scanline_t scanline; // Per-scanline data structure
     OAMScan_t oamscan; // Per-scanline OAM scan data structure
     unsigned int mode_counter; // Counts down to the next mode switch
-
+    ToggleEnum stat_interrupt;
     Drawing_t draw;
 } PPUState;
 
@@ -348,7 +361,6 @@ typedef struct {
 /* The main loop executes calls for the various subsystems using these 
 entries to determine their timing. */
 typedef struct {
-    unsigned int period;
     int mask;
     void (*run_task)(GBState *);
 } GBTask;

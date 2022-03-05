@@ -8,8 +8,10 @@ void teardown_cpu(CPUState *);
 void reset_registers(CPUState *);
 void reset_pipeline(CPUState *);
 void task_cpu_m_cycle(GBState *);
-void cpu_setup_pipeline(GBState *, BYTE);
-void cpu_setup_prefix_pipeline(GBState *, BYTE);
+void cpu_next_inst_or_interrupt(GBState *);
+void cpu_setup_interrupt_pipeline(CPUState *, WORD);
+void cpu_setup_pipeline(CPUState *, BYTE);
+void cpu_setup_prefix_pipeline(CPUState *, BYTE);
 void print_state_info(GBState *, char);
 
 #define CYCLE_FUNC(__name) static inline void __name(GBState *state)

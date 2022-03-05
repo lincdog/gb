@@ -117,6 +117,8 @@ PPUState *initialize_ppu(void) {
     reset_ppu_fifo(&ppu->draw.fifo_obj);
     reset_oamscan(&ppu->oamscan);
 
+    ppu->stat_interrupt = OFF;
+
     return ppu;
 }
 
@@ -625,12 +627,35 @@ void ppu_do_mode_switch(PPUState *ppu) {
     ppu->stat.mode = next_mode;
 }
 
+ToggleEnum ppu_check_stat_interrupts(PPUState *ppu) {
+    ToggleEnum new_level, old_level;
+    old_level = ppu->stat_interrupt;
+
+    LCDStatus stat = ppu->stat;
+    new_level = (stat.lyc_ly_equal & stat.lyc_ly_interrupt)
+        | (stat.mode_0_interrupt & (stat.mode == HBLANK))
+        | (stat.mode_1_interrupt & (stat.mode == VBLANK))
+        | (stat.mode_2_interrupt & (stat.mode == OAMSCAN));
+    
+    if (new_level == old_level)
+        return STABLE;
+    else
+        return new_level;
+}
+
 void task_ppu_cycle(GBState *state) {
     PPUState *ppu = state->ppu;
     LCDControl lcdc = ppu->lcdc;
     LCDStatus stat = ppu->stat;
     PPUMisc misc = ppu->misc;
+    ToggleEnum stat_interrupt;
 
+    if (misc.ly == misc.lyc) {
+        ppu->stat.lyc_ly_equal = ON;
+    } else {
+        ppu->stat.lyc_ly_equal = OFF;
+    }
+        
     if (lcdc.lcd_enable == OFF)
         goto ppu_lcd_off;
     
@@ -652,8 +677,23 @@ void task_ppu_cycle(GBState *state) {
     ppu->frame.counter--;
     ppu->mode_counter--;
 
-    if (ppu->mode_counter == 0)
+    if (ppu->mode_counter == 0) {
         ppu_do_mode_switch(ppu);
+        stat_interrupt = ppu_check_stat_interrupts(ppu);
+        switch (stat_interrupt) {
+            case ON:
+                REQUEST_INTERRUPT(state, INT_STAT);
+                /* Fall through */
+            case OFF:
+                ppu->stat_interrupt = stat_interrupt;
+                break;
+            case STABLE:
+            default:
+                break;
+        }
+        if (ppu->stat.mode == VBLANK)
+            REQUEST_INTERRUPT(state, INT_VBLANK);
+    }
 
     if (ppu->scanline.counter == 0) {
         ppu_render_scanline(state);

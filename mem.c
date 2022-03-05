@@ -390,21 +390,24 @@ WRITE_FUNC(_write_tac) {
 }
 READ_FUNC(_read_if) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    //FIXME: bits are set when corresponding interrupts are triggered,
-    // and cleared upon successful interrupt servicing
+    // Upper 3 bits always read as 1
+    sys_mem->ioregs->if_ = 0xE0 | state->cpu->int_flag;
     return sys_mem->ioregs->if_;
 }
 WRITE_FUNC(_write_if) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    state->cpu->int_flag = data & 0x1F;
     sys_mem->ioregs->if_ = data;
     return 1;    
 }
 READ_FUNC(_read_ie) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    sys_mem->ioregs->ie_ = state->cpu->int_enable;
     return sys_mem->ioregs->ie_;
 }
 WRITE_FUNC(_write_ie) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    state->cpu->int_enable = data;
     sys_mem->ioregs->ie_ = data;
     return 1;    
 }
@@ -1588,7 +1591,7 @@ IORegs *initialize_ioregs(void) {
     ioregs->tima = 0x00;
     ioregs->tma = 0x00;
     ioregs->tac = 0xF8;
-    ioregs->if_ = 0xE1;
+    ioregs->if_ = 0x00;
     ioregs->nr10 = 0x80;
     ioregs->nr11 = 0xBF;
     ioregs->nr12 = 0xF3;
@@ -1799,7 +1802,7 @@ void task_tima_timer(GBState *state) {
 
             if (timer->reg_tima == 0) {
                 timer->reg_tima = timer->reg_tma;
-                // FIXME initiate timer interrupt
+                REQUEST_INTERRUPT(state, INT_TIMER);
             }
         }
     }

@@ -83,6 +83,8 @@ CPUState *initialize_cpu(void) {
     CPUState *cpu = malloc(sizeof(CPUState));
     reset_registers(cpu);
     reset_pipeline(cpu);
+    cpu->int_enable = 0;
+    cpu->int_flag = 0;
     cpu->state = PREINIT;
         
     return cpu;
@@ -566,7 +568,7 @@ CYCLE_FUNC(_read_imm_h) {
     reg_pc(state->cpu)++;
 }
 
-CYCLE_FUNC(_fetch_inst) {
+CYCLE_FUNC(cpu_fetch_inst) {
     state->cpu->opcode = cpu_read_mem(state, reg_pc(state->cpu));
     reg_pc(state->cpu)++;
 }
@@ -625,6 +627,33 @@ CYCLE_FUNC(_check_flags) {
 
 }
 
+BYTE cpu_check_interrupts(CPUState *cpu) {
+    static const WORD int_vecs[] = {0x40, 0x48, 0x50, 0x58, 0x60};
+    
+    if (cpu->flags.ime == CLEAR)
+        return 0;
+    
+    BYTE ie_and_if;
+    ie_and_if = (cpu->int_enable & cpu->int_flag) & 0x1F;
+    if (ie_and_if == 0)
+        return 0;
+    
+    WORD vec;
+    int index = 0, mask = 1;
+    while (!(ie_and_if & mask) && index < 6) {
+        index++;
+        mask <<= 1;
+    }
+
+    if (index < 5) {
+        cpu->int_flag ^= mask;
+        vec = int_vecs[index];
+    } else
+        vec = 0;
+    
+    return vec;
+}
+
 static int _cpu_dummy(void) { return 1; }
 /* Execute a single m-cycle (4 clock ticks) of CPU operation. 
 Executes the current pipelined action first, unless in PREINIT,
@@ -654,33 +683,60 @@ void task_cpu_m_cycle(GBState *state) {
     // counter is index into pipeline; if NULL,
     // no further actions are queued and we fetch an opcode.
     if (cpu->pipeline[cpu->counter] == NULL) {
-        // We are at the end of an instruction's execution
-        
-        // Clear the counter, set all func ptrs to NULL, 
-        // clear result, 16 bit flag, clears check_flags
-        reset_pipeline(cpu);
-        // Read next instruction from memory at current PC location
-        // load it into cpu->opcode and *increment PC*
-        _fetch_inst(state);
-        if (cpu->state == READY) {
-            // Set up cycle queue based on this opcode
-            cpu_setup_pipeline(state, cpu->opcode);
-        } else if (cpu->state == PREFIX) {
-            cpu_setup_prefix_pipeline(state, cpu->opcode);
-            cpu->state = READY;
-        }
+        cpu_next_inst_or_interrupt(state);
         _cpu_dummy();
     } 
 }
 
-void cpu_setup_pipeline(GBState *state, BYTE opcode) {
+void cpu_next_inst_or_interrupt(GBState *state) {
+    CPUState *cpu = state->cpu;
+    // We are at the end of an instruction's execution
+    // Clear the counter, set all func ptrs to NULL, 
+    // clear result, 16 bit flag, clears check_flags
+    reset_pipeline(cpu);
+    
+    WORD int_vec;
+    int_vec = cpu_check_interrupts(cpu);
+
+    if (int_vec != 0) {
+        cpu_setup_interrupt_pipeline(cpu, int_vec);
+    } else {
+        // Read next instruction from memory at current PC location
+        // load it into cpu->opcode and *increment PC*
+        cpu_fetch_inst(state);
+        if (cpu->state == READY) {
+            // Set up cycle queue based on this opcode
+            cpu_setup_pipeline(cpu, cpu->opcode);
+        } else if (cpu->state == PREFIX) {
+            cpu_setup_prefix_pipeline(cpu, cpu->opcode);
+            cpu->state = READY;
+        }
+    } 
+}
+
+void cpu_setup_interrupt_pipeline(CPUState *cpu, WORD vec) {
+    printf("Interrupt pipeline\n");
+    cpu->flags.ime = CLEAR;
+    cpu->reg_src = &reg_pc(cpu);
+    cpu->reg_dest = &reg_pc(cpu);
+    cpu->is_16_bit = 1;
+    cpu->data1 = vec;
+    cpu->data2 = 0;
+
+    cpu->pipeline[0] = &_nop;
+    cpu->pipeline[1] = &_nop;
+    cpu->pipeline[2] = &_dec_sp_2;
+    cpu->pipeline[3] = &_write_reg16_to_stack;
+    cpu->pipeline[4] = &_write_reg_data;
+}
+
+void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
     /* Fill the CPU cycle queue with function pointers and set 
     emulator-level flags needed to execute the opcode argument.
     Note that this is done right after fetching the instruction,
     in the same "cpu M cycle", but the first pipeline function is 
     executed in the next cpu M cycle.
     */
-    CPUState *cpu = state->cpu;
 
     switch (opcode) {
         case 0x00:
@@ -1870,8 +1926,8 @@ void *_get_prefix_exec_ptr(BYTE opcode) {
     }
 }
 
-void cpu_setup_prefix_pipeline(GBState *state, BYTE opcode) {
-    CPUState *cpu = state->cpu;
+void cpu_setup_prefix_pipeline(CPUState *cpu, BYTE opcode) {
+    
     int act_on_hl_addr = 0;
     BYTE op_ls = ls_nib(opcode);
     BYTE op_ms = ms_nib(opcode);

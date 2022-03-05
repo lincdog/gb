@@ -77,59 +77,105 @@ void teardown_gb(GBState *state) {
     free(state);
 }
 
+GBState *initialize_state_from_header(CartridgeHeader *header) {
+    GBState *state;
+
+    if (header->cartridge_type == 0x00 &&
+        header->rom_size == 0 &&
+        header->rom_size == 0) {
+            state = initialize_gb(BASIC);
+            
+    } else {
+        printf("Currently unsupported cart type %02x, rom type %02x, ram type %02x\n",
+            header->cartridge_type, header->rom_size, header->ram_size);
+        
+        state = NULL;
+    }
+
+    return state;
+}
+
+int read_basic_rom_into_mem(GBState *state, FILE *fp) {
+    int status = 0;
+    int n_read;
+    n_read = fread(((BasicCartState *)state->mem->cartridge->state)->rom, 1, 0x8000, fp);
+    if (n_read != 0x8000) {
+        printf("Error: read %04x rather than 0x8000\n", n_read);
+        status = 1;
+    }
+
+    return status;
+}
+
+int read_rom_into_mem(GBState *state, FILE *fp) {
+    int status = 0;
+    switch (state->mem->mode) {
+        case BASIC:
+            status = read_basic_rom_into_mem(state, fp);
+            break;
+        case DEBUG:
+        case MBC1:
+        case MBC3:
+        default:
+            printf("Unsupported cartridge type at this time\n");
+            status = 1;
+    }
+
+    return status;
+}
+
 void task_event(GBState *state) {
     SDL_Event *ev = &state->sdl->event;
-    SDL_PollEvent(ev);
-    switch (ev->type) {
-         case SDL_QUIT:
-            state->should_quit = ON;
-            break;
-        case SDL_KEYDOWN:
-            printf("Key %s pressed (%s)\n", 
-                SDL_GetScancodeName(ev->key.keysym.scancode),
-                SDL_GetKeyName(ev->key.keysym.sym)
-            );
-            break;
-        case SDL_KEYUP:
-            printf("Key %s released (%s)\n", 
-                SDL_GetScancodeName(ev->key.keysym.scancode),
-                SDL_GetKeyName(ev->key.keysym.sym)
-            );
-            break;
-        default:
-            break;
+    while(SDL_PollEvent(ev)) {
+        switch (ev->type) {
+            case SDL_QUIT:
+                state->should_quit = ON;
+                break;
+            case SDL_KEYDOWN:
+                if (! ev->key.repeat)
+                    printf("Key %s pressed (%s)\n", 
+                        SDL_GetScancodeName(ev->key.keysym.scancode),
+                        SDL_GetKeyName(ev->key.keysym.sym)
+                    );
+                break;
+            case SDL_KEYUP:
+                printf("Key %s released (%s)\n", 
+                    SDL_GetScancodeName(ev->key.keysym.scancode),
+                    SDL_GetKeyName(ev->key.keysym.sym)
+                );
+                break;
+            default:
+                break;
+        }
     }
 }
 
 GBTask gb_tasks[] = {
-    {.period=1<<12,
-    .mask=0x0FFF,
+    {
+    .mask=0xFFFF,
     .run_task=&task_event
     },
-    {.period=256,
+    {
     .mask=0xFF,
     .run_task=&task_div_timer
     },
-    {.period=16,
+    {
     .mask=0xF,
     .run_task=&task_tima_timer
     },
-    /*
-    {.period=4,
-    .run_task=&task_interrupt_cycle
-    },*/
-    {.period=4,
+    {
+    .mask=0x3,
     .run_task=&task_dma_cycle
     },
-    {.period=1,
+    {
     .mask=0,
     .run_task=&task_ppu_cycle
     }, 
-    {.period=4,
+    {
     .mask=0x3,
     .run_task=&task_cpu_m_cycle
     },
-    {.period=0,
+    {
     .mask=-1,
     .run_task=NULL
     }
@@ -201,7 +247,7 @@ CartridgeHeader *read_cart_header(FILE *fp) {
     
 }
 
-#ifdef GB_MAIN
+//#ifdef GB_MAIN
 
 int main(int argc, char *argv[]) {
 
@@ -221,36 +267,26 @@ int main(int argc, char *argv[]) {
     }
 
     CartridgeHeader *header = read_cart_header(fp);
-
-    if (header->cartridge_type == 0x00 &&
-        header->rom_size == 0 &&
-        header->rom_size == 0) {
-            state = initialize_gb(BASIC);
-            n_read = fread(
-                ((BasicCartState *)state->mem->cartridge->state)->rom, 
-                1, 
-                0x8000, 
-                fp
-            );
-            if (n_read != 0x8000) {
-                printf("Error: ready %04x rather than 0x8000\n", n_read);
-            }
-    } else {
-        printf("Currently unsupported cart type %02x, rom type %02x, ram type %02x\n",
-            header->cartridge_type, header->rom_size, header->ram_size);
-        
+    state = initialize_state_from_header(header);
+    if (state == NULL) {
+        printf("Error in initializing emulator state\n");
+        fclose(fp);
+        exit(1);
+    }
+    
+    if (read_rom_into_mem(state, fp) != 0) {
+        printf("Error reading ROM into memory\n");
         fclose(fp);
         exit(1);
     }
     
     fclose(fp);
 
-    print_state_info(state, 1);
-
     main_loop(state);
     
     teardown_gb(state);
+
     return 0;
 }
 
-#endif
+//#endif
