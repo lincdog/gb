@@ -137,7 +137,7 @@ CHECK_ACCESS_FUNC(_check_dma) {
     if (source == MEM_SOURCE_DMA)
         result = 1;
     else {
-        if (state->dma->dma_active == ON)
+        if (state->dma->status == DMA_ON)
             result = 0;
         else
             result = 1;
@@ -155,13 +155,13 @@ CHECK_ACCESS_FUNC(_sys_check_vram) {
             result = 1;
             break;
         case MEM_SOURCE_PPU:
-            if (state->dma->dma_active == ON)
+            if (state->dma->status == DMA_ON)
                 result = 0;
             else
                 result = 1;
             break;
         default:
-            if (state->dma->dma_active == ON)
+            if (state->dma->status == DMA_ON)
                 result = 0;
             else 
                 result = (stat.mode != DRAW);
@@ -181,13 +181,13 @@ CHECK_ACCESS_FUNC(_sys_check_oam_table) {
             result = 1;
             break;
         case MEM_SOURCE_PPU:
-            if (state->dma->dma_active == ON)
+            if (state->dma->status == DMA_ON)
                 result = 0;
             else
                 result = 1;
             break;
         default:
-            if (state->dma->dma_active == ON)
+            if (state->dma->status == DMA_ON)
                 result = 0;
             else 
                 result = (stat.mode != DRAW) && (stat.mode != OAMSCAN);
@@ -422,7 +422,7 @@ READ_FUNC(_read_dma) {
 WRITE_FUNC(_write_dma) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     state->dma->addr = ((WORD)data) << 8;
-    state->dma->dma_active = ON;
+    state->dma->status = DMA_ON;
     sys_mem->ioregs->dma = data;
     return 1;    
 }
@@ -1810,7 +1810,7 @@ void task_tima_timer(GBState *state) {
 DMAState *initialize_dma(void) {
     DMAState *dma = malloc(sizeof(DMAState));
     dma->addr = 0;
-    dma->dma_active = OFF;
+    dma->status = DMA_OFF;
 
     return dma;
 }
@@ -1821,8 +1821,12 @@ void teardown_dma(DMAState *dma) {
 
 void task_dma_cycle(GBState *state) {
     DMAState *dma = state->dma;
-    if (dma->dma_active == OFF)
+    if (dma->status == DMA_OFF)
         goto dma_cycle_end;
+    else if (dma->status == DMA_INIT) {
+        dma->status = DMA_ON;
+        goto dma_cycle_end;
+    }
     
     printf("In DMA, addr = %04x\n", dma->addr);
 
@@ -1835,7 +1839,7 @@ void task_dma_cycle(GBState *state) {
     
     dma->addr++;
     if ((dma->addr & 0xFF) == 0xA0)
-        dma->dma_active = OFF;
+        dma->status = DMA_OFF;
 
     dma_cycle_end:
     1;

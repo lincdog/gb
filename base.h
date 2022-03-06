@@ -331,7 +331,7 @@ typedef enum {
 } MemInitFlag;
 
 typedef struct {
-    ToggleEnum dma_active;
+    enum {DMA_OFF, DMA_INIT, DMA_ON} status;
     WORD addr;
 } DMAState;
 
