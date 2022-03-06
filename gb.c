@@ -30,11 +30,13 @@ SDLComponents *initialize_sdl_core(void) {
     sdl->surface = SDL_GetWindowSurface(sdl->window);
     sdl->renderer = SDL_CreateSoftwareRenderer(sdl->surface);
     SDL_RenderSetLogicalSize(sdl->renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
-    //SDL_SetSurfaceBlendMode(sdl->surface, SDL_BLENDMODE_NONE);
-    //SDL_SetColorKey(sdl->surface, SDL_TRUE, 0);
     SDL_SetRenderDrawColor(sdl->renderer, 0, 0, 0, 0xFF);
     SDL_RenderClear(sdl->renderer);
     
+    sdl->button_select = 0xFF;
+    sdl->action_buttons = 0xFF;
+    sdl->direction_buttons = 0xFF;
+
     return sdl;
 }
 
@@ -125,7 +127,10 @@ int read_rom_into_mem(GBState *state, FILE *fp) {
 }
 
 void task_event(GBState *state) {
-    SDL_Event *ev = &state->sdl->event;
+    SDLComponents *sdl = state->sdl;
+    SDL_Event *ev = &sdl->event;
+    int button_pressed = 0;
+
     while(SDL_PollEvent(ev)) {
         switch (ev->type) {
             case SDL_QUIT:
@@ -137,12 +142,79 @@ void task_event(GBState *state) {
                         SDL_GetScancodeName(ev->key.keysym.scancode),
                         SDL_GetKeyName(ev->key.keysym.sym)
                     );
+
+                switch (ev->key.keysym.scancode) {
+                    case KEY_MAP_DOWN:
+                        button_pressed = 1;
+                        sdl->direction_buttons &= JOYPAD_DOWN;
+                        break;
+                    case KEY_MAP_UP:
+                        button_pressed = 1;
+                        sdl->direction_buttons &= JOYPAD_UP;
+                        break;
+                    case KEY_MAP_LEFT:
+                        button_pressed = 1;
+                        sdl->direction_buttons &= JOYPAD_LEFT;
+                        break;
+                    case KEY_MAP_RIGHT:
+                        button_pressed = 1;
+                        sdl->direction_buttons &= JOYPAD_RIGHT;
+                        break;
+                    case KEY_MAP_A:
+                        button_pressed = 1;
+                        sdl->action_buttons &= JOYPAD_A;
+                        break;
+                    case KEY_MAP_B:
+                        button_pressed = 1;
+                        sdl->action_buttons &= JOYPAD_B;
+                        break;
+                    case KEY_MAP_SELECT:
+                        button_pressed = 1;
+                        sdl->action_buttons &= JOYPAD_SELECT;
+                        break;
+                    case KEY_MAP_START:
+                        button_pressed = 1;
+                        sdl->action_buttons &= JOYPAD_START;
+                        break;
+                    default:
+                        break;
+                }
+                if (button_pressed)
+                    REQUEST_INTERRUPT(state, INT_JOYPAD);
                 break;
             case SDL_KEYUP:
                 printf("Key %s released (%s)\n", 
                     SDL_GetScancodeName(ev->key.keysym.scancode),
                     SDL_GetKeyName(ev->key.keysym.sym)
                 );
+                switch (ev->key.keysym.scancode) {
+                    case KEY_MAP_DOWN:
+                        sdl->direction_buttons |= ~JOYPAD_DOWN;
+                        break;
+                    case KEY_MAP_UP:
+                        sdl->direction_buttons |= ~JOYPAD_UP;
+                        break;
+                    case KEY_MAP_LEFT:
+                        sdl->direction_buttons |= ~JOYPAD_LEFT;
+                        break;
+                    case KEY_MAP_RIGHT:
+                        sdl->direction_buttons |= ~JOYPAD_RIGHT;
+                        break;
+                    case KEY_MAP_A:
+                        sdl->action_buttons |= ~JOYPAD_A;
+                        break;
+                    case KEY_MAP_B:
+                        sdl->action_buttons |= ~JOYPAD_B;
+                        break;
+                    case KEY_MAP_SELECT:
+                        sdl->action_buttons |= ~JOYPAD_SELECT;
+                        break;
+                    case KEY_MAP_START:
+                        sdl->action_buttons |= ~JOYPAD_START;
+                        break;
+                    default:
+                        break;
+                }
                 break;
             default:
                 break;

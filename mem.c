@@ -301,25 +301,28 @@ WRITE_FUNC(_debug_write_mem) {
 /* BEGIN ioreg read/write functions */
 READ_FUNC(_read_p1) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    BYTE cur_value = sys_mem->ioregs->p1;
-    if (cur_value ^ 0xDF) {
-        // bit 5 is 0, action buttons selected
-        // FIXME add state representing keyboard events that
-        // map to buttons
-        return 0xD2;
-    } else if (cur_value ^ 0xEF) {
-        // bit 4 is 0, direction buttons selected
-        // FIXME add state that map to buttons
-        return 0xE4;
-    } else {
-        return 0xFF;
-    }
+    BYTE action_buttons = state->sdl->action_buttons;
+    BYTE direction_buttons = state->sdl->direction_buttons;
+    BYTE button_select = state->sdl->button_select;
+
+    BYTE result = 0xFF;
+
+    if (~(button_select | JOYPAD_ACTION_SEL))
+        result &= action_buttons;
+    
+    if (~(button_select | JOYPAD_DIR_SEL))
+        result &= direction_buttons;
+
+    sys_mem->ioregs->p1 = result;
+
+    return result;
 }
 WRITE_FUNC(_write_p1) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     // Only writable bits are 4 and 5
-    data &= 0x30;
-    sys_mem->ioregs->p1 &= (0xC0 | data | 0xF);
+    data = (data & 0x30) | 0xCF;
+    state->sdl->button_select = data;
+    sys_mem->ioregs->p1 &= data;
     return 1;
 }
 READ_FUNC(_read_div) {

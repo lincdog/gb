@@ -42,6 +42,27 @@ int _debug_dummy(void);
 #define INT_SERIAL 0x8
 #define INT_JOYPAD 0x10
 
+#define KEY_MAP_DOWN SDL_SCANCODE_S
+#define KEY_MAP_UP SDL_SCANCODE_W
+#define KEY_MAP_LEFT SDL_SCANCODE_A
+#define KEY_MAP_RIGHT SDL_SCANCODE_D
+#define KEY_MAP_A SDL_SCANCODE_PERIOD
+#define KEY_MAP_B SDL_SCANCODE_SLASH
+#define KEY_MAP_SELECT SDL_SCANCODE_Z
+#define KEY_MAP_START SDL_SCANCODE_SPACE
+
+#define JOYPAD_ACTION_SEL 0xDF //   1101 1111
+#define JOYPAD_DIR_SEL 0xEF //      1110 1111
+#define JOYPAD_DOWN 0xF7 // 1111 0111
+#define JOYPAD_START 0xF7
+#define JOYPAD_UP 0xFB // 1111 1011
+#define JOYPAD_SELECT 0xFB
+#define JOYPAD_LEFT 0xFD // 1111 1101
+#define JOYPAD_B 0xFD
+#define JOYPAD_RIGHT 0xFE // 1111 1110
+#define JOYPAD_A 0xFE
+
+
 #define REQUEST_INTERRUPT(__state, __bit) \
     __state->cpu->int_flag |= __bit;
 
@@ -338,7 +359,22 @@ typedef struct {
 
 } TimerState;
 
+/*
 typedef struct {
+    ToggleEnum a;
+    ToggleEnum b;
+    ToggleEnum select;
+    ToggleEnum start;
+    ToggleEnum up;
+    ToggleEnum down;
+    ToggleEnum left;
+    ToggleEnum right;
+} Buttons_t;*/
+
+typedef struct {
+    BYTE button_select;
+    BYTE action_buttons;
+    BYTE direction_buttons;
     SDL_Event event;
     SDL_Window *window;
     SDL_Renderer *renderer;
