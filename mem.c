@@ -1823,6 +1823,8 @@ void task_dma_cycle(GBState *state) {
     DMAState *dma = state->dma;
     if (dma->dma_active == OFF)
         goto dma_cycle_end;
+    
+    printf("In DMA, addr = %04x\n", dma->addr);
 
     BYTE data;
     WORD source_addr = dma->addr;
@@ -1832,7 +1834,7 @@ void task_dma_cycle(GBState *state) {
     write_mem(state, dest_addr, data, MEM_SOURCE_DMA);
     
     dma->addr++;
-    if ((dma->addr | 0xFF) == 0xA0)
+    if ((dma->addr & 0xFF) == 0xA0)
         dma->dma_active = OFF;
 
     dma_cycle_end:

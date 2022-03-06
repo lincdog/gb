@@ -61,11 +61,6 @@ GBState *initialize_gb(MemInitFlag flag) {
     state->dma = initialize_dma();
     state->should_quit = OFF;
 
-    /*
-        * Load the boot ROM and the cartridge header at least
-        * Need info from the header to set up memory (0x147 - cartridge type,
-          0x148 - ROM size, 0x149 - RAM size)
-    */
     return state;
 }
 
