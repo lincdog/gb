@@ -43,7 +43,7 @@ int _debug_dummy(void);
 #define INT_JOYPAD 0x10
 
 #define REQUEST_INTERRUPT(__state, __bit) \
-    (__state->cpu->int_flag |= __bit);
+    __state->cpu->int_flag |= __bit;
 
 enum CPU_STATE {
     PREINIT,

@@ -1201,9 +1201,7 @@ READ_FUNC(_sys_read_ioreg) {
     BYTE result;
     int accessible;
     
-    if (rel_addr == 0xFF)
-        rel_addr = 0x80;
-    else if (rel_addr > 0x7F)
+    if (rel_addr > 0x7F)
         return UNINIT;
 
     accessible = ioreg_table[rel_addr].check_access(__CHECK_ACCESS_ARGS);
@@ -1218,9 +1216,7 @@ READ_FUNC(_sys_read_ioreg) {
 WRITE_FUNC(_sys_write_ioreg) {
     int result, accessible;
     
-    if (rel_addr == 0xFF) 
-        rel_addr = 0x80;
-    else if (rel_addr > 0x7F)
+    if (rel_addr > 0x7F)
         return -1;
     
     accessible = ioreg_table[rel_addr].check_access(__CHECK_ACCESS_ARGS);
@@ -1444,9 +1440,9 @@ MemoryRegion system_mem_map[] = {
         .end=0xFFFF,
         .len=0x1,
         .flags=0,
-        .check_access=&_check_dma,
-        .read=&_sys_read_ioreg,
-        .write=&_sys_write_ioreg,
+        .check_access=&_check_always_yes,
+        .read=&_read_ie,
+        .write=&_write_ie,
         .get_ptr=&_ptr_unimplemented
     }
 };
