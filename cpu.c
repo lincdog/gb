@@ -550,6 +550,7 @@ CYCLE_FUNC(_enable_interrupts) {
 }
 CYCLE_FUNC(_do_halt) {
     state->cpu->state = HALT;
+    state->cpu->r.pc++;
 }
 CYCLE_FUNC(_do_stop) {
     state->cpu->state = STOP;
@@ -679,7 +680,8 @@ void task_cpu_m_cycle(GBState *state) {
         cpu->flags.ime = SET;
         cpu->flags.wants_ime = 0;
     }
-    
+    /* XXXX need to stop fetching instructions during HALT/STOP, but 
+    allow interrupts to take CPU out of HALT*/
     // counter is index into pipeline; if NULL,
     // no further actions are queued and we fetch an opcode.
     if (cpu->pipeline[cpu->counter] == NULL) {
@@ -699,11 +701,14 @@ void cpu_next_inst_or_interrupt(GBState *state) {
     int_vec = cpu_check_interrupts(cpu);
 
     if (int_vec != 0) {
+        cpu->state = READY;
         cpu_setup_interrupt_pipeline(cpu, int_vec);
     } else {
         // Read next instruction from memory at current PC location
         // load it into cpu->opcode and *increment PC*
-        cpu_fetch_inst(state);
+        if (cpu->state != HALT)
+            cpu_fetch_inst(state);
+
         if (cpu->state == READY) {
             // Set up cycle queue based on this opcode
             cpu_setup_pipeline(cpu, cpu->opcode);

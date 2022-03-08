@@ -806,10 +806,10 @@ void setup_test(VideoTestState *vtstate) {
     ppu->lcdc.lcd_enable = ON;
     ppu->lcdc.win_map_area = MAP_AREA0;
     ppu->lcdc.window_enable = OFF;
-    ppu->lcdc.bg_win_data_area = DATA_AREA0;
+    ppu->lcdc.bg_win_data_area = DATA_AREA1;
     ppu->lcdc.bg_map_area = MAP_AREA0;
     ppu->lcdc.obj_size = OBJ_8x8;
-    ppu->lcdc.obj_enable = OFF;
+    ppu->lcdc.obj_enable = ON;
     ppu->lcdc.bg_window_enable = ON;
 
     /* Set most of misc to known state */
@@ -818,8 +818,8 @@ void setup_test(VideoTestState *vtstate) {
     ppu->misc.wx = 7;
     ppu->misc.wy = 10;
     ppu->misc.bgp = PALETTE_DEFAULT;
-    ppu->misc.obp0 = 0b11001100;
-    ppu->misc.obp1 = 0b00110011;
+    ppu->misc.obp0 = PALETTE_DEFAULT;
+    ppu->misc.obp1 = PALETTE_DEFAULT;
 
     ppu->stat.mode = VBLANK;
 
@@ -835,18 +835,16 @@ void setup_test(VideoTestState *vtstate) {
             TILE_SIZE_BYTES
         );
     }
-    /* Set up tile map at area 0 */
-    memcpy(&mem[TILEMAP_AREA0], &test_tilemap, 32*32);
+    /* Set up tile map at area 1 */
+    memcpy(&mem[TILEMAP_AREA1], &test_tilemap, 32*32);
 
     /* Get Nintendo logo to data area 0 */
     decompress_logo(_LOGO, &mem[TILEDATA_AREA0]);
-    /* Set up tilemap at area 1 for nintendo logo */
+    /* Set up tilemap at area 0 for nintendo logo */
     for (int i = 0; i < 12; i++) {
-        mem[TILEMAP_AREA0+i] = i;
+        mem[TILEMAP_AREA0+i] = i+TEST_TILE_A;
         mem[TILEMAP_AREA0+32+i] = 12+i;
     }
-
-
 
     /* Set up a few OAM entries */
     OAMEntry *oam_table = &mem[OAM_BASE];
@@ -872,16 +870,12 @@ void setup_test(VideoTestState *vtstate) {
 }
 
 void run_test(VideoTestState *vtstate) {
-    for (int i = 0; i < (2*PPU_PER_FRAME); i++)
+    for (int i = 0; i < (5*PPU_PER_FRAME); i++)
         task_ppu_cycle(vtstate->state);
 }
 
 void teardown_video_tests(VideoTestState *vtstate) {
     free(vtstate->final_pixels);
-    /*SDL_DestroyTexture(vtstate->gb_texture);
-    SDL_FreeSurface(vtstate->gb_surface);
-    SDL_DestroyRenderer(vtstate->renderer);
-    SDL_DestroyWindow(vtstate->window);*/
     free(vtstate);
 }
 
@@ -895,20 +889,13 @@ int main(int argc, char *argv[]) {
 
     printf("%lu\n", sizeof(PPUState));
 
-    
-    struct timespec preinit_ts, postinit_ts, pretest_ts, posttest_ts;
-    clock_gettime(CLOCK_REALTIME, &preinit_ts);
-    
     GBState *state = initialize_gb(DEBUG);
-    clock_gettime(CLOCK_REALTIME, &postinit_ts);
     
     VideoTestState *vtstate = initialize_video_tests(state);
 
     setup_test(vtstate);
 
-    clock_gettime(CLOCK_REALTIME, &pretest_ts);
     run_test(vtstate);
-    clock_gettime(CLOCK_REALTIME, &posttest_ts);    
     
     SDL_Event event;
 
@@ -917,8 +904,6 @@ int main(int argc, char *argv[]) {
         if(event.type == SDL_QUIT)
             break;
     }
-    
-    printf("%lu\n", posttest_ts.tv_nsec - pretest_ts.tv_nsec);
     
     teardown_video_tests(vtstate);
     teardown_gb(state);

@@ -6,25 +6,8 @@
 #include <sys/time.h>
 
 #include <SDL.h>
-//#include <SDL_image.h>
-//#include <SDL_timer.h>
 
-
-const SDL_Color obj_colors[] = {
-    {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0x00 },
-    {.r = 0x90, .g = 0x90, .b = 0x90, .a = 0xFF },
-    {.r = 0x50, .g = 0x50, .b = 0x50, .a = 0xFF },
-    {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF }
-};
-
-const SDL_Color bgwin_colors[] = {
-    {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF },
-    {.r = 0x90, .g = 0x90, .b = 0x90, .a = 0xFF },
-    {.r = 0x50, .g = 0x50, .b = 0x50, .a = 0xFF },
-    {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF }
-};
-
-const BYTE color_table[] = { 0xFF, 0x90, 0x50, 0x00 };
+const BYTE color_table[] = { 0xFF, 0xAA, 0x55, 0x00 };
 
 void reset_ppu_fifo(PPUFifo *fifo) {
     fifo->state = FETCH_TILE;
@@ -43,7 +26,7 @@ void reset_oamscan(OAMScan_t *oamscan) {
 
     OAMRow_t *row;
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < SPRITES_ROW_MAX; i++) {
         row = &oamscan->current_row_sprites[i];
         row->entry_addr = 0;
         row->lsb = UNINIT;
@@ -110,8 +93,8 @@ PPUState *initialize_ppu(void) {
     ppu->misc.wx = 0x00;
     // 11 11 11 00 
     ppu->misc.bgp = 0xFC;
-    ppu->misc.obp0 = PALETTE_DEFAULT;
-    ppu->misc.obp1 = PALETTE_DEFAULT;
+    ppu->misc.obp0 = 0xFF;
+    ppu->misc.obp1 = 0xFF;
     
     reset_ppu_fifo(&ppu->draw.fifo_bg);
     reset_ppu_fifo(&ppu->draw.fifo_obj);
@@ -214,7 +197,7 @@ void ppu_oamscan_cycle(GBState *state) {
     assert(oamscan->counter < 80);
 
     if ((oamscan->counter & 1)
-        ||lcdc.obj_enable == OFF 
+        || lcdc.obj_enable == OFF 
         || oamscan->n_sprites_row == SPRITES_ROW_MAX
         || ppu->frame.n_sprites_total == SPRITES_TOTAL_MAX
     ) goto ppu_oamscan_end;
@@ -349,7 +332,6 @@ void fetch_current_bg_row(GBState *state) {
     LCDControl lcdc = ppu->lcdc;
     LCDStatus stat = ppu->stat;
     PPUMisc misc = ppu->misc;
-    //Drawing_t draw = ppu->draw;
     Pixelbuf_t *bg = &ppu->scanline.bg;
 
     assert(stat.mode == DRAW);
@@ -536,12 +518,15 @@ void ppu_render_scanline(GBState *state) {
                 break;
         }
 
+
         if (current_px != NULL) {
             assert(r.x + current_px->offset < SCANLINE_PIXELBUF_SIZE);
             color = color_table[current_px->buf[r.x + current_px->offset]];
-            SDL_SetRenderDrawColor(sdl->renderer, color, color, color, alpha);
-            SDL_RenderFillRect(sdl->renderer, &r);
-        }
+        } else
+            color = 0;
+        
+        SDL_SetRenderDrawColor(sdl->renderer, color, color, color, alpha);
+        SDL_RenderFillRect(sdl->renderer, &r);
     }
    
 }
@@ -650,11 +635,11 @@ void task_ppu_cycle(GBState *state) {
     PPUMisc misc = ppu->misc;
     ToggleEnum stat_interrupt;
 
-    if (misc.ly == misc.lyc) {
+    if (misc.ly == misc.lyc)
         ppu->stat.lyc_ly_equal = ON;
-    } else {
+    else
         ppu->stat.lyc_ly_equal = OFF;
-    }
+    
         
     if (lcdc.lcd_enable == OFF)
         goto ppu_lcd_off;
@@ -679,18 +664,6 @@ void task_ppu_cycle(GBState *state) {
 
     if (ppu->mode_counter == 0) {
         ppu_do_mode_switch(ppu);
-        stat_interrupt = ppu_check_stat_interrupts(ppu);
-        switch (stat_interrupt) {
-            case ON:
-                REQUEST_INTERRUPT(state, INT_STAT);
-                /* Fall through */
-            case OFF:
-                ppu->stat_interrupt = stat_interrupt;
-                break;
-            case STABLE:
-            default:
-                break;
-        }
         if (ppu->stat.mode == VBLANK)
             REQUEST_INTERRUPT(state, INT_VBLANK);
     }
@@ -703,6 +676,19 @@ void task_ppu_cycle(GBState *state) {
     if (ppu->frame.counter == 0) {
         SDL_UpdateWindowSurface(state->sdl->window);
         ppu_next_frame(ppu);
+    }
+
+    stat_interrupt = ppu_check_stat_interrupts(ppu);
+    switch (stat_interrupt) {
+        case ON:
+            REQUEST_INTERRUPT(state, INT_STAT);
+            /* Fall through */
+        case OFF:
+            ppu->stat_interrupt = stat_interrupt;
+            break;
+        case STABLE:
+        default:
+            break;
     }
 
     ppu_lcd_off:

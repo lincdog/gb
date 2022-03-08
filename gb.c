@@ -314,7 +314,7 @@ CartridgeHeader *read_cart_header(FILE *fp) {
     
 }
 
-//#ifdef GB_MAIN
+#ifdef GB_MAIN
 
 int main(int argc, char *argv[]) {
 
@@ -356,4 +356,4 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-//#endif
+#endif

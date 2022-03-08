@@ -510,8 +510,7 @@ READ_FUNC(_read_ly) {
 READ_FUNC(_read_lyc) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: triggers LYC=LY interrupt if it is set in STAT,
-    // when this equals LY
+    
     sys_mem->ioregs->lyc = ppu->misc.lyc;
     return sys_mem->ioregs->lyc;
 }
@@ -1590,7 +1589,7 @@ IORegs *initialize_ioregs(void) {
     ioregs->tima = 0x00;
     ioregs->tma = 0x00;
     ioregs->tac = 0xF8;
-    ioregs->if_ = 0x00;
+    ioregs->if_ = 0xE1;
     ioregs->nr10 = 0x80;
     ioregs->nr11 = 0xBF;
     ioregs->nr12 = 0xF3;
@@ -1796,7 +1795,7 @@ void task_div_timer(GBState *state) {
 void task_tima_timer(GBState *state) {
     TimerState *timer = state->timer;
     if (timer->timer_enabled) {
-        if (state->counter % timer->tima_period_cycles == 0) {
+        if ((state->counter % timer->tima_period_cycles) == 0) {
             timer->reg_tima++;
 
             if (timer->reg_tima == 0) {
