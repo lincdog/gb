@@ -156,7 +156,7 @@ WORD get_sprite_row_addr(OAMEntry *oam, BYTE ly, ObjectSize obj_size) {
     BYTE index;
 
     if (obj_size == OBJ_8x16)
-        index = oam->index & 0xFE;
+        index = (oam->index & 0xFE);
     else
         index = oam->index;
 
@@ -197,9 +197,8 @@ void ppu_oamscan_cycle(GBState *state) {
     assert(oamscan->counter < 80);
 
     if ((oamscan->counter & 1)
-        || lcdc.obj_enable == OFF 
         || oamscan->n_sprites_row == SPRITES_ROW_MAX
-        || ppu->frame.n_sprites_total == SPRITES_TOTAL_MAX
+        //|| ppu->frame.n_sprites_total == SPRITES_TOTAL_MAX
     ) goto ppu_oamscan_end;
 
     current_entry_addr = get_current_entry_addr(oamscan);
@@ -208,12 +207,7 @@ void ppu_oamscan_cycle(GBState *state) {
     tile_row_addr = get_sprite_row_addr(current_entry, misc.ly, lcdc.obj_size);
 
     if (tile_row_addr != 0) {
-        /*printf("ly = %03d: OAM entry #%d, sprite index 0x%02x: row addr 0x%04x\n", 
-            misc.ly,
-            oamscan->counter >> 1,
-            current_entry->index,
-            tile_row_addr
-        );*/
+        
         lsb = ppu_read_mem(state, tile_row_addr);
         msb = ppu_read_mem(state, tile_row_addr+1);
         oamscan->current_row_sprites[oamscan->n_sprites_row].entry_addr = current_entry_addr;
@@ -407,7 +401,6 @@ void fetch_current_win_row(GBState *state) {
     LCDControl lcdc = ppu->lcdc;
     LCDStatus stat = ppu->stat;
     PPUMisc misc = ppu->misc;
-    //Drawing_t draw = ppu->draw;
     Pixelbuf_t *win = &ppu->scanline.win;
     Frame_t *frame = &ppu->frame;
 
@@ -548,7 +541,7 @@ void ppu_next_scanline(PPUState *ppu) {
     if (ppu->lcdc.bg_window_enable == ON)
         memset(ppu->scanline.priority, PX_PRIO_BG, GB_WIDTH_PX);
     else
-        memset(ppu->scanline.priority, PX_PRIO_NULL, GB_WIDTH_PX);
+        memset(ppu->scanline.priority, PX_PRIO_BG, GB_WIDTH_PX);
 
     ppu->misc.ly++;
 

@@ -8,12 +8,9 @@
 #include <sys/time.h>
 
 
-#define TEST_TILE_A 7
+#define TEST_TILE_A 4
 #define N_TEST_TILES TEST_TILE_A + 26
 #define TEST_TILE_SPACE 3
-#define TEST_TILE_LOGO_1 4
-#define TEST_TILE_LOGO_2 5
-#define TEST_TILE_LOGO_3 6
 #define test_tile_letter(__c) (TEST_TILE_A + (__c - 'A'))
 
 
@@ -52,27 +49,7 @@ const BYTE test_tiles_packed[][16] = {
         0, 0, 0, 0,
         0, 0, 0, 0
     },
-    // Nintendo 1
-    {
-        0xCE, 0xED, 0x66, 0x66, 
-        0xCC, 0x0D, 0x00, 0x0B, 
-        0x03, 0x73, 0x00, 0x83, 
-        0x00, 0x0C, 0x00, 0x0D
-    },
-    // Nintendo 2
-    {
-        0x00, 0x08, 0x11, 0x1F, 
-        0x88, 0x89, 0x00, 0x0E, 
-        0xDC, 0xCC, 0x6E, 0xE6, 
-        0xDD, 0xDD, 0xD9, 0x99
-    },
-    // Nintendo 3
-    {
-        0xBB, 0xBB, 0x67, 0x63, 
-        0x6E, 0x0E, 0xEC, 0xCC, 
-        0xDD, 0xDC, 0x99, 0x9F, 
-        0xBB, 0xB9, 0x33, 0x3E
-    },
+    
     // Begin alphabet
 
     //A
@@ -287,7 +264,7 @@ const BYTE test_tiles_packed[][16] = {
 
 const BYTE test_tilemap[TILEMAP_SIZE_BYTES] = {
     test_tile_letter('H'), test_tile_letter('E'), test_tile_letter('L'), test_tile_letter('L'), test_tile_letter('O'), TEST_TILE_SPACE, test_tile_letter('W'), test_tile_letter('O'), test_tile_letter('R'), test_tile_letter('L'), test_tile_letter('D'), 2, 0, 1, 2, 0,
-    TEST_TILE_LOGO_1, TEST_TILE_LOGO_2, TEST_TILE_LOGO_3, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    0, 0, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
     2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
     0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
     1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
@@ -808,9 +785,9 @@ void setup_test(VideoTestState *vtstate) {
     ppu->lcdc.window_enable = OFF;
     ppu->lcdc.bg_win_data_area = DATA_AREA1;
     ppu->lcdc.bg_map_area = MAP_AREA0;
-    ppu->lcdc.obj_size = OBJ_8x8;
+    ppu->lcdc.obj_size = OBJ_8x16;
     ppu->lcdc.obj_enable = ON;
-    ppu->lcdc.bg_window_enable = ON;
+    ppu->lcdc.bg_window_enable = OFF;
 
     /* Set most of misc to known state */
     ppu->misc.scx = 0;
@@ -854,19 +831,19 @@ void setup_test(VideoTestState *vtstate) {
     oam_table[0].flags = TILE_X_FLIP | TILE_PALETTE_NUM;
 
     oam_table[1].x = 16;
-    oam_table[1].y = 12;
+    oam_table[1].y = 16;
     oam_table[1].index = 1;
     oam_table[1].flags = 0x00;
 
-    oam_table[2].x = 16;
-    oam_table[2].y = 100;
-    oam_table[2].index = test_tile_letter('X');
-    oam_table[2].flags = TILE_Y_FLIP;
+    oam_table[2].x = 24;
+    oam_table[2].y = 16;
+    oam_table[2].index = test_tile_letter('E');
+    oam_table[2].flags = 0;
 
-    oam_table[3].x = 17;
-    oam_table[3].y = 26;
-    oam_table[3].index = test_tile_letter('B');
-    oam_table[3].flags = TILE_X_FLIP;
+    oam_table[3].x = 32;
+    oam_table[3].y = 16;
+    oam_table[3].index = test_tile_letter('A');
+    oam_table[3].flags = 0;
 }
 
 void run_test(VideoTestState *vtstate) {

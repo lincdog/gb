@@ -134,6 +134,11 @@ CHECK_ACCESS_FUNC(_check_always_no) {
 CHECK_ACCESS_FUNC(_check_dma) {
     BYTE source = get_mem_source(flags);
     int result;
+    LCDControl lcdc = state->ppu->lcdc;
+
+    if (lcdc.lcd_enable == OFF)
+        return 1;
+        
     if (source == MEM_SOURCE_DMA)
         result = 1;
     else {
@@ -149,6 +154,10 @@ CHECK_ACCESS_FUNC(_sys_check_vram) {
     BYTE source = get_mem_source(flags);
     int result;
     LCDStatus stat = state->ppu->stat;
+    LCDControl lcdc = state->ppu->lcdc;
+
+    if (lcdc.lcd_enable == OFF)
+        return 1;
 
     switch (source) {
         case MEM_SOURCE_DMA:
@@ -175,6 +184,10 @@ CHECK_ACCESS_FUNC(_sys_check_oam_table) {
     BYTE source = get_mem_source(flags);
     int result;
     LCDStatus stat = state->ppu->stat;
+    LCDControl lcdc = state->ppu->lcdc;
+
+    if (lcdc.lcd_enable == OFF)
+        return 1;
     
     switch (source) {
         case MEM_SOURCE_DMA:
@@ -307,10 +320,10 @@ READ_FUNC(_read_p1) {
 
     BYTE result = 0xFF;
 
-    if (~(button_select | JOYPAD_ACTION_SEL))
+    if (joypad_action_selected(button_select))
         result &= action_buttons;
     
-    if (~(button_select | JOYPAD_DIR_SEL))
+    if (joypad_direction_selected(button_select))
         result &= direction_buttons;
 
     sys_mem->ioregs->p1 = result;

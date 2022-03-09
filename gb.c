@@ -141,35 +141,35 @@ void task_event(GBState *state) {
                 switch (ev->key.keysym.scancode) {
                     case KEY_MAP_DOWN:
                         button_pressed = 1;
-                        sdl->direction_buttons &= JOYPAD_DOWN;
+                        joypad_down_press(sdl->direction_buttons);
                         break;
                     case KEY_MAP_UP:
                         button_pressed = 1;
-                        sdl->direction_buttons &= JOYPAD_UP;
+                        joypad_up_press(sdl->direction_buttons);
                         break;
                     case KEY_MAP_LEFT:
                         button_pressed = 1;
-                        sdl->direction_buttons &= JOYPAD_LEFT;
+                        joypad_left_press(sdl->direction_buttons);
                         break;
                     case KEY_MAP_RIGHT:
                         button_pressed = 1;
-                        sdl->direction_buttons &= JOYPAD_RIGHT;
+                        joypad_right_press(sdl->direction_buttons);
                         break;
                     case KEY_MAP_A:
                         button_pressed = 1;
-                        sdl->action_buttons &= JOYPAD_A;
+                        joypad_a_press(sdl->action_buttons);
                         break;
                     case KEY_MAP_B:
                         button_pressed = 1;
-                        sdl->action_buttons &= JOYPAD_B;
+                        joypad_b_press(sdl->action_buttons);
                         break;
                     case KEY_MAP_SELECT:
                         button_pressed = 1;
-                        sdl->action_buttons &= JOYPAD_SELECT;
+                        joypad_select_press(sdl->action_buttons);
                         break;
                     case KEY_MAP_START:
                         button_pressed = 1;
-                        sdl->action_buttons &= JOYPAD_START;
+                        joypad_start_press(sdl->action_buttons);
                         break;
                     default:
                         break;
@@ -184,28 +184,28 @@ void task_event(GBState *state) {
                 );
                 switch (ev->key.keysym.scancode) {
                     case KEY_MAP_DOWN:
-                        sdl->direction_buttons |= ~JOYPAD_DOWN;
+                        joypad_down_release(sdl->direction_buttons);
                         break;
                     case KEY_MAP_UP:
-                        sdl->direction_buttons |= ~JOYPAD_UP;
+                        joypad_up_release(sdl->direction_buttons);
                         break;
                     case KEY_MAP_LEFT:
-                        sdl->direction_buttons |= ~JOYPAD_LEFT;
+                        joypad_left_release(sdl->direction_buttons);
                         break;
                     case KEY_MAP_RIGHT:
-                        sdl->direction_buttons |= ~JOYPAD_RIGHT;
+                        joypad_right_release(sdl->direction_buttons);
                         break;
                     case KEY_MAP_A:
-                        sdl->action_buttons |= ~JOYPAD_A;
+                        joypad_a_release(sdl->action_buttons);
                         break;
                     case KEY_MAP_B:
-                        sdl->action_buttons |= ~JOYPAD_B;
+                        joypad_b_release(sdl->action_buttons);
                         break;
                     case KEY_MAP_SELECT:
-                        sdl->action_buttons |= ~JOYPAD_SELECT;
+                        joypad_select_release(sdl->action_buttons);
                         break;
                     case KEY_MAP_START:
-                        sdl->action_buttons |= ~JOYPAD_START;
+                        joypad_start_release(sdl->action_buttons);
                         break;
                     default:
                         break;

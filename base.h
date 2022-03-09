@@ -23,6 +23,23 @@ int _debug_dummy(void);
 #define ms_nib(x) (((x) & 0xF0)>>4)
 #define ls_nib(x) (((x) & 0x0F))
 
+#define set_bit_7(x) ((x) |= 0x80)
+#define set_bit_6(x) ((x) |= 0x40)
+#define set_bit_5(x) ((x) |= 0x20)
+#define set_bit_4(x) ((x) |= 0x10)
+#define set_bit_3(x) ((x) |= 0x08)
+#define set_bit_2(x) ((x) |= 0x04)
+#define set_bit_1(x) ((x) |= 0x02)
+#define set_bit_0(x) ((x) |= 0x01)
+#define res_bit_7(x) ((x) &= 0x7F)
+#define res_bit_6(x) ((x) &= 0xBF)
+#define res_bit_5(x) ((x) &= 0xDF)
+#define res_bit_4(x) ((x) &= 0xEF)
+#define res_bit_3(x) ((x) &= 0xF7)
+#define res_bit_2(x) ((x) &= 0xFB)
+#define res_bit_1(x) ((x) &= 0xFD)
+#define res_bit_0(x) ((x) &= 0xFE)
+
 #define bit_7(x) ((x) & 0x80)
 #define bit_6(x) ((x) & 0x40)
 #define bit_5(x) ((x) & 0x20)
@@ -51,16 +68,25 @@ int _debug_dummy(void);
 #define KEY_MAP_SELECT SDL_SCANCODE_Z
 #define KEY_MAP_START SDL_SCANCODE_SPACE
 
-#define JOYPAD_ACTION_SEL 0xDF //   1101 1111
-#define JOYPAD_DIR_SEL 0xEF //      1110 1111
-#define JOYPAD_DOWN 0xF7 // 1111 0111
-#define JOYPAD_START 0xF7
-#define JOYPAD_UP 0xFB // 1111 1011
-#define JOYPAD_SELECT 0xFB
-#define JOYPAD_LEFT 0xFD // 1111 1101
-#define JOYPAD_B 0xFD
-#define JOYPAD_RIGHT 0xFE // 1111 1110
-#define JOYPAD_A 0xFE
+#define joypad_action_selected(x) (!(bit_5(x)))
+#define joypad_direction_selected(x) (!(bit_4(x)))
+
+#define joypad_down_press(x) res_bit_3(x)
+#define joypad_down_release(x) set_bit_3(x)
+#define joypad_start_press(x) res_bit_3(x)
+#define joypad_start_release(x) set_bit_3(x)
+#define joypad_up_press(x) res_bit_2(x)
+#define joypad_up_release(x) set_bit_2(x)
+#define joypad_select_press(x) res_bit_2(x)
+#define joypad_select_release(x) set_bit_2(x)
+#define joypad_left_press(x) res_bit_1(x)
+#define joypad_left_release(x) set_bit_1(x)
+#define joypad_b_press(x) res_bit_1(x)
+#define joypad_b_release(x) set_bit_1(x)
+#define joypad_right_press(x) res_bit_0(x)
+#define joypad_right_release(x) set_bit_0(x)
+#define joypad_a_press(x) res_bit_0(x)
+#define joypad_a_release(x) set_bit_0(x)
 
 
 #define REQUEST_INTERRUPT(__state, __bit) \
