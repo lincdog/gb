@@ -155,6 +155,9 @@ WORD get_sprite_row_addr(OAMEntry *oam, BYTE ly, ObjectSize obj_size) {
     WORD sprite_base_addr, sprite_row_addr, base_offset;
     BYTE index;
 
+    if (oam == NULL)
+        return 0;
+
     if (obj_size == OBJ_8x16)
         index = (oam->index & 0xFE);
     else

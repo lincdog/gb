@@ -212,6 +212,7 @@ CHECK_ACCESS_FUNC(_sys_check_oam_table) {
 CHECK_ACCESS_FUNC(_check_obp) {
     BYTE source = get_mem_source(flags);
     int result;
+    return 1;
 
     if (source == MEM_SOURCE_PPU) {
         result = 1;
@@ -604,7 +605,7 @@ WRITE_FUNC(_write_obp1) {
     SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
     // FIXME: sets color palette for objs 0
-    data &= 0xFC;
+    //data &= 0xFC;
     ppu->misc.obp1 = data;
     sys_mem->ioregs->obp1 = data;
     return 1;

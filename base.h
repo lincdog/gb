@@ -385,17 +385,6 @@ typedef struct {
 
 } TimerState;
 
-/*
-typedef struct {
-    ToggleEnum a;
-    ToggleEnum b;
-    ToggleEnum select;
-    ToggleEnum start;
-    ToggleEnum up;
-    ToggleEnum down;
-    ToggleEnum left;
-    ToggleEnum right;
-} Buttons_t;*/
 
 typedef struct {
     BYTE button_select;
@@ -406,6 +395,94 @@ typedef struct {
     SDL_Renderer *renderer;
     SDL_Surface *surface;
 } SDLComponents;
+
+typedef enum {DECREASE=0, INCREASE=1} DirEnum;
+
+typedef struct {
+    BYTE sweep_time; // FF10 bit 4-6
+    DirEnum sweep_dir; // FF10 bit 3
+    BYTE sweep_shift; // FF10 bit 0-2
+    BYTE wave_duty; // FF11 bit 6-7
+    BYTE sound_length; // FF11 bit 0-5
+    BYTE env_init; // FF12 bit 4-7
+    DirEnum env_dir; // FF12 bit 3
+    BYTE n_sweeps; // FF12 bit 0-2
+    WORD frequency; // FF13 | ((FF14 & 0x7) << 8) - 11 bits
+    ToggleEnum stop_counter;
+    ToggleEnum init;
+} APUChannel1;
+
+typedef struct {
+    BYTE wave_duty; // FF16 bit 6-7
+    BYTE sound_length; // FF16 bit 0-5
+    BYTE env_init; // FF17 bits 4-7
+    DirEnum env_dir; // FF17 bit 3
+    BYTE n_sweeps; // FF17 bits 0-2
+    WORD frequency; // FF18 | ((FF19 & 0x7) << 8)
+    ToggleEnum stop_counter;
+    ToggleEnum init;
+} APUChannel2;
+ 
+typedef struct {
+    ToggleEnum on_off; // FF1A bit 7
+    BYTE sound_length; // FF1B
+    BYTE volume; // FF1C bits 5-6
+    WORD frequency; // FF1D | ((FF1E & 0x7) << 8) - 11 bits
+    ToggleEnum stop_counter;
+    ToggleEnum init;
+    BYTE wave_ram[32]; // FF30-FF3F (32 * 4 bit samples)
+ } APUChannel3;
+
+typedef enum {Step_15=0x7FFF, Step_7=0x7F} Ch4StepEnum;
+typedef struct {
+    BYTE sound_length; // FF20 bit 0-5
+    BYTE env_init; // FF21 bit 4-7
+    DirEnum env_dir; // FF21 bit 3
+    BYTE n_sweeps; // FF21 bit 0-2
+    BYTE shift_frequency; // FF22 bit 4-7
+    Ch4StepEnum shift_step; // FF22 bit 3
+    BYTE shift_ratio; // FF22 bit 0-2
+    ToggleEnum stop_counter;
+    ToggleEnum init;
+} APUChannel4;
+
+typedef struct {
+    ToggleEnum vin_so2; // FF24 bit 7
+    BYTE vol_so2; // FF24 bit 4-6
+    ToggleEnum vin_so1; // FF24 bit 3
+    BYTE vol_so1; // FF24 bit 0-2
+} MasterControl;
+
+// FF25
+typedef struct {
+    ToggleEnum ch4_so2;
+    ToggleEnum ch3_so2;
+    ToggleEnum ch2_so2;
+    ToggleEnum ch1_so2;
+    ToggleEnum ch4_so1;
+    ToggleEnum ch3_so1;
+    ToggleEnum ch2_so1;
+    ToggleEnum ch1_so1;
+} OutputControl;
+
+// FF26
+typedef struct {
+    ToggleEnum sound_on; // bit 7
+    ToggleEnum ch4_flag; // bit 3
+    ToggleEnum ch3_flag; // bit 2
+    ToggleEnum ch2_flag; // bit 1
+    ToggleEnum ch1_flag; // bit 0
+} SoundSwitch;
+
+typedef struct {
+    APUChannel1 ch1;
+    APUChannel2 ch2;
+    APUChannel3 ch3;
+    APUChannel4 ch4;
+    MasterControl master;
+    OutputControl output;
+    SoundSwitch switch;
+} APUState;
 
 /* The top-level Game Boy state structure. This is passed around to all the 
 important functions. Contains pointers to the various subsystems. */
