@@ -51,7 +51,7 @@ void reset_registers(CPUState *cpu) {
 }
 
 void reset_pipeline(CPUState *cpu) {
-    //cpu->state = READY;
+    cpu->branch_taken = OFF;
     cpu->changes_flags = 0;
     cpu->check_flags = (CPUFlags){
         .z=NOCHANGE, 
@@ -86,6 +86,7 @@ CPUState *initialize_cpu(void) {
     cpu->int_enable = 0;
     cpu->int_flag = 0;
     cpu->state = PREINIT;
+    cpu->branch_taken = OFF;
         
     return cpu;
 }
@@ -397,6 +398,22 @@ CYCLE_FUNC(_do_da) {
     reg_a(state->cpu) = a_val;
 }
 
+CYCLE_FUNC(_branch_if_z) {
+    state->cpu->branch_taken = (state->cpu->flags.z == ON) ? ON : OFF;
+    state->cpu->state = BRANCH;
+}
+CYCLE_FUNC(_branch_if_nz) {
+    state->cpu->branch_taken = (state->cpu->flags.z == ON) ? OFF : ON;
+    state->cpu->state = BRANCH;
+}
+CYCLE_FUNC(_branch_if_c) {
+    state->cpu->branch_taken = (state->cpu->flags.c == ON) ? ON : OFF;
+    state->cpu->state = BRANCH;
+}
+CYCLE_FUNC(_branch_if_nc) {
+    state->cpu->branch_taken = (state->cpu->flags.c == ON) ? OFF : ON;
+    state->cpu->state = BRANCH;
+}
 /* Copy data from a src register to a dest register */
 CYCLE_FUNC(_copy_reg) {
     *(state->cpu->reg_dest) = *(state->cpu->reg_src);
@@ -663,9 +680,9 @@ are no further pipelined actions after this.
 */
 void task_cpu_m_cycle(GBState *state) {
     CPUState *cpu = state->cpu;
+    int branch_failure = 0;
 
-    if (cpu->state == READY
-        || cpu->state == PREFIX) {
+    if (cpu->state == READY || cpu->state == READY_PREFIX) {
         // Execute the next cycle step of the current queue
         (*cpu->pipeline[cpu->counter])(state);
         // Increment the cycle counter
@@ -680,13 +697,20 @@ void task_cpu_m_cycle(GBState *state) {
         cpu->flags.ime = SET;
         cpu->flags.wants_ime = 0;
     }
+
+    if (cpu->state == BRANCH) {
+        _cpu_dummy();
+        cpu->state = READY;
+        if (cpu->branch_taken == OFF)
+            branch_failure = 1;
+    }
+    
     /* XXXX need to stop fetching instructions during HALT/STOP, but 
     allow interrupts to take CPU out of HALT*/
     // counter is index into pipeline; if NULL,
     // no further actions are queued and we fetch an opcode.
-    if (cpu->pipeline[cpu->counter] == NULL) {
+    if (branch_failure || (cpu->pipeline[cpu->counter] == NULL)) {
         cpu_next_inst_or_interrupt(state);
-        _cpu_dummy();
     } 
 }
 
@@ -712,7 +736,7 @@ void cpu_next_inst_or_interrupt(GBState *state) {
         if (cpu->state == READY) {
             // Set up cycle queue based on this opcode
             cpu_setup_pipeline(cpu, cpu->opcode);
-        } else if (cpu->state == PREFIX) {
+        } else if (cpu->state == READY_PREFIX) {
             cpu_setup_prefix_pipeline(cpu, cpu->opcode);
             cpu->state = READY;
         }
@@ -886,7 +910,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             cpu->pipeline[0] = &_rl_reg;
             break;
         case 0x18:
-            COND_REL_JMP(cpu, 1);
+            COND_REL_JMP(cpu, &_nop);
             break;
        case 0x19:
             cpu->reg_dest = &reg_hl(cpu);
@@ -932,7 +956,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             break; 
         case 0x20:
             // Conditional jump: JR NZ
-            COND_REL_JMP(cpu, cpu->flags.z == CLEAR);
+            COND_REL_JMP(cpu, &_branch_if_nz);
             break;
          case 0x21:
             cpu->is_16_bit = 1;
@@ -978,7 +1002,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             cpu->pipeline[0] = &_do_da;
             break;
         case 0x28:
-            COND_REL_JMP(cpu, cpu->flags.z == SET);
+            COND_REL_JMP(cpu, &_branch_if_z);
             break; 
         case 0x29:
             cpu->reg_dest = &reg_hl(cpu);
@@ -1023,7 +1047,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             cpu->pipeline[0] = &_do_cpl;
             break;
         case 0x30:
-            COND_REL_JMP(cpu, cpu->flags.c == CLEAR);
+            COND_REL_JMP(cpu, &_branch_if_nc);
             break;
         case 0x31:
             cpu->is_16_bit = 1;
@@ -1074,7 +1098,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             cpu->pipeline[0] = &_check_flags;
             break;
         case 0x38:
-            COND_REL_JMP(cpu, cpu->flags.c == SET);
+            COND_REL_JMP(cpu, &_branch_if_c);
             break; 
         case 0x39:
             cpu->reg_dest = &reg_hl(cpu);
@@ -1283,6 +1307,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
         case 0x76:
             // TODO HALT
             cpu->pipeline[0] = &_do_halt;
+            //cpu->pipeline[1] = &_read_imm_l;
             break;
         case 0x77:
             LD_HL_REG(cpu, a);
@@ -1504,7 +1529,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             CP_8_REG(cpu, a, a); 
             break;
         case 0xC0:
-            CONDITIONAL_RET(cpu, cpu->flags.z == CLEAR);
+            CONDITIONAL_RET(cpu, &_branch_if_nz);
             break;
         case 0xC1:
             cpu->reg_dest = &reg_bc(cpu);
@@ -1515,13 +1540,13 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             cpu->pipeline[2] = &_inc_sp_2;
             break;
         case 0xC2:
-            COND_ABS_JMP(cpu, cpu->flags.z == CLEAR);
+            COND_ABS_JMP(cpu, &_branch_if_nz);
             break;
         case 0xC3:
-            COND_ABS_JMP(cpu, 1);
+            COND_ABS_JMP(cpu, &_nop);
             break;
         case 0xC4:
-            CONDITIONAL_CALL(cpu, cpu->flags.z == CLEAR);
+            CONDITIONAL_CALL(cpu, &_branch_if_nz);
             break;
         case 0xC5:
             cpu->reg_src = &reg_bc(cpu);
@@ -1544,7 +1569,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             break;
         case 0xC8:
             // RET Z
-            CONDITIONAL_RET(cpu, cpu->flags.z == SET);
+            CONDITIONAL_RET(cpu, &_branch_if_z);
             break;
         case 0xC9:
             // RET
@@ -1557,18 +1582,18 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             cpu->pipeline[3] = &_write_reg_data; 
             break;
         case 0xCA:
-            COND_ABS_JMP(cpu, cpu->flags.z == SET);
+            COND_ABS_JMP(cpu, &_branch_if_z);
             break; 
         case 0xCB:
             //PREFIX
-            cpu->state = PREFIX;
+            cpu->state = READY_PREFIX;
             cpu->pipeline[0] = &_nop;
             break;
         case 0xCC:
-            CONDITIONAL_CALL(cpu, cpu->flags.z == SET);
+            CONDITIONAL_CALL(cpu, &_branch_if_z);
             break;
         case 0xCD:
-            CONDITIONAL_CALL(cpu, 1);
+            CONDITIONAL_CALL(cpu, &_nop);
             break;
         case 0xCE:
             cpu->reg_dest = &reg_a(cpu);
@@ -1582,7 +1607,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             RST(cpu, 0x08);
             break;
         case 0xD0:
-            CONDITIONAL_RET(cpu, cpu->flags.c == CLEAR);
+            CONDITIONAL_RET(cpu, &_branch_if_nc);
             break;
         case 0xD1:
             cpu->reg_dest = &reg_de(cpu);
@@ -1593,13 +1618,13 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             cpu->pipeline[2] = &_inc_sp_2;
             break;
         case 0xD2:
-            COND_ABS_JMP(cpu, cpu->flags.c == CLEAR);
+            COND_ABS_JMP(cpu, &_branch_if_c);
             break; 
         case 0xD3:
             ILLEGAL_INST(cpu, 0xD3);
             break;
         case 0xD4:
-            CONDITIONAL_CALL(cpu, cpu->flags.c == CLEAR);
+            CONDITIONAL_CALL(cpu, &_branch_if_nc);
             break; 
         case 0xD5:
             cpu->reg_src = &reg_de(cpu);
@@ -1622,7 +1647,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             break;
         case 0xD8:
             // RET C
-            CONDITIONAL_RET(cpu, cpu->flags.c == SET);
+            CONDITIONAL_RET(cpu, &_branch_if_c);
             break;
         case 0xD9:
             // RETI
@@ -1635,13 +1660,13 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             cpu->pipeline[3] = &_inc_sp_2_enable_ints;
             break;
         case 0xDA:
-            COND_ABS_JMP(cpu, cpu->flags.c == SET);
+            COND_ABS_JMP(cpu, &_branch_if_c);
             break;  
         case 0xDB:
             ILLEGAL_INST(cpu, 0xDB);
             break;
         case 0xDC:
-            CONDITIONAL_CALL(cpu, cpu->flags.c == SET);
+            CONDITIONAL_CALL(cpu, &_branch_if_c);
             break;
         case 0xDD:
             ILLEGAL_INST(cpu, 0xDD);

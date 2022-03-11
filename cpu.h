@@ -212,12 +212,10 @@ void set_flags_from_byte(CPUState *, BYTE);
     __cpu->is_16_bit = 1; \
     __cpu->pipeline[0] = &_read_imm_l; \
     __cpu->pipeline[1] = &_read_imm_h; \
-    __cpu->pipeline[2] = &_nop; \
-    if (__condition) { \
-        __cpu->pipeline[3] = &_dec_sp_2; \
-        __cpu->pipeline[4] = &_write_reg16_to_stack; \
-        __cpu->pipeline[5] = &_write_reg_data; \
-    }
+    __cpu->pipeline[2] = __condition; \
+    __cpu->pipeline[3] = &_dec_sp_2; \
+    __cpu->pipeline[4] = &_write_reg16_to_stack; \
+    __cpu->pipeline[5] = &_write_reg_data; \
 
 #define RST(__cpu, __addr) \
     __cpu->reg_src = &reg_pc(__cpu); \
@@ -235,34 +233,29 @@ void set_flags_from_byte(CPUState *, BYTE);
     __cpu->reg_dest = &reg_pc(cpu); \
     __cpu->addr = reg_sp(__cpu); \
     __cpu->is_16_bit = 1; \
-    __cpu->pipeline[0] = &_nop; \
-    if (__condition) { \
-        __cpu->pipeline[1] = &_read_mem_l; \
-        __cpu->pipeline[2] = &_read_mem_h; \
-        __cpu->pipeline[3] = &_inc_sp_2; \
-        __cpu->pipeline[4] = &_write_reg_data; \
-    } else { \
-        __cpu->pipeline[1] = &_nop; \
-    }
+    __cpu->pipeline[0] = &_read_mem_l; \
+    __cpu->pipeline[1] = __condition; \
+    __cpu->pipeline[2] = &_read_mem_h; \
+    __cpu->pipeline[3] = &_inc_sp_2; \
+    __cpu->pipeline[4] = &_write_reg_data;
+    
 
 #define COND_REL_JMP(__cpu, __condition) \
     __cpu->reg_dest = &reg_pc(__cpu); \
     __cpu->is_16_bit = 1; \
-    __cpu->pipeline[0] = &_nop; \
-    __cpu->pipeline[1] = &_read_imm_offset; \
-    if (__condition) { \
-        __cpu->pipeline[2] = &_add_reg_signed_data; \
-    }
+    __cpu->pipeline[0] = &_read_imm_offset; \
+    __cpu->pipeline[1] = __condition; \
+    __cpu->pipeline[2] = &_add_reg_signed_data;
+    
 
 #define COND_ABS_JMP(__cpu, __condition) \
     __cpu->reg_dest = &reg_pc(__cpu); \
     __cpu->is_16_bit = 1; \
-    __cpu->pipeline[0] = &_nop; \
-    __cpu->pipeline[1] = &_read_imm_l; \
-    __cpu->pipeline[2] = &_read_imm_h; \
-    if (__condition) { \
-        __cpu->pipeline[3] = &_write_reg_data; \
-    }
+    __cpu->pipeline[0] = &_read_imm_l; \
+    __cpu->pipeline[1] = &_read_imm_h; \
+    __cpu->pipeline[2] = __condition; \
+    __cpu->pipeline[3] = &_write_reg_data;
+    
 
 
 #endif // GB_CPU

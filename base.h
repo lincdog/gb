@@ -92,10 +92,19 @@ int _debug_dummy(void);
 #define REQUEST_INTERRUPT(__state, __bit) \
     __state->cpu->int_flag |= __bit;
 
+#define CPU_STATE_FETCH 0x1
+#define CPU_STATE_EXECUTE 0x2
+#define CPU_STATE_PREFIX 0x4
+#define CPU_STATE_BRANCH 0x8
+#define CPU_STATE_INTERRUPT 0x10
+#define CPU_STATE_HALT 0x40
+#define CPU_STATE_STOP 0x80
 enum CPU_STATE {
     PREINIT,
     READY,
-    PREFIX,
+    READY_PREFIX,
+    EXECUTE,
+    BRANCH,
     INTERRUPT,
     HALT,
     STOP
@@ -108,6 +117,8 @@ enum CPU_FLAG {
     NOCHANGE,
     FLIP
 };
+
+typedef enum {STABLE=-1, OFF=0, ON=1} ToggleEnum;
 
 typedef struct {
     enum CPU_FLAG z;
@@ -142,6 +153,7 @@ typedef struct __attribute__ ((packed)) {
     enum CPU_STATE state;
     BYTE changes_flags; // Flag to indicate check_flags should be examined
     CPUFlags check_flags;
+    ToggleEnum branch_taken; // Flag to indicate branch 
     int result; // Result of operation, for flag checks
     BYTE is_16_bit; // Flag to indicate 16 bit store/load
     BYTE opcode; // Opcode pending execution
@@ -172,7 +184,6 @@ typedef enum {
     PUSH
 } PPUFifoState;
 
-typedef enum {STABLE=-1, OFF=0, ON=1} ToggleEnum;
 typedef enum {DATA_AREA0=0x9000, DATA_AREA1=0x8000} TileDataArea;
 typedef enum {MAP_AREA0=0x9800, MAP_AREA1=0x9C00} TileMapArea;
 typedef enum {OBJ_8x8=8, OBJ_8x16=16} ObjectSize;
