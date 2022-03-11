@@ -174,8 +174,11 @@ void task_event(GBState *state) {
                     default:
                         break;
                 }
-                if (button_pressed)
+                if (button_pressed) {
                     REQUEST_INTERRUPT(state, INT_JOYPAD);
+                    if (state->cpu->state == STOP)
+                        state->cpu->state = PREINIT;
+                }
                 break;
             case SDL_KEYUP:
                 printf("Key %s released (%s)\n", 

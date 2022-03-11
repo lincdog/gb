@@ -31,7 +31,11 @@ APUState *initialize_apu(void) {
     FF24: 0x77
     FF25: 0xF3
     FF26: 0xF1
-    
+
     */
 
+}
+
+void teardown_apu(APUState *apu) {
+    free(apu);
 }

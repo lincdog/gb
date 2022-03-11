@@ -529,6 +529,7 @@ void ppu_render_scanline(GBState *state) {
 
 void ppu_next_scanline(PPUState *ppu) {
     ppu->scanline.counter = PPU_PER_SCANLINE;
+    
     memset(ppu->scanline.bg.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.bg.offset = ppu->misc.scx & 0x7;
     ppu->scanline.bg.x_pos = 0;

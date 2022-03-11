@@ -550,7 +550,7 @@ CYCLE_FUNC(_enable_interrupts) {
 }
 CYCLE_FUNC(_do_halt) {
     state->cpu->state = HALT;
-    state->cpu->r.pc++;
+    reg_pc(state->cpu)++;
 }
 CYCLE_FUNC(_do_stop) {
     state->cpu->state = STOP;
@@ -843,7 +843,6 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             break;
         case 0x10:
             cpu->pipeline[0] = &_do_stop;
-            cpu->pipeline[1] = &_read_imm_l;
             break;
         case 0x11:
             cpu->is_16_bit = 1;

@@ -481,7 +481,7 @@ typedef struct {
     APUChannel4 ch4;
     MasterControl master;
     OutputControl output;
-    SoundSwitch switch;
+    SoundSwitch sound_switch;
 } APUState;
 
 /* The top-level Game Boy state structure. This is passed around to all the 
