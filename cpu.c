@@ -1618,7 +1618,7 @@ void cpu_setup_pipeline(CPUState *cpu, BYTE opcode) {
             cpu->pipeline[2] = &_inc_sp_2;
             break;
         case 0xD2:
-            COND_ABS_JMP(cpu, &_branch_if_c);
+            COND_ABS_JMP(cpu, &_branch_if_nc);
             break; 
         case 0xD3:
             ILLEGAL_INST(cpu, 0xD3);
