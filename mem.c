@@ -228,93 +228,67 @@ CHECK_ACCESS_FUNC(_check_obp) {
 }
 
 READ_FUNC(_sys_read_boot_rom) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->bootrom[rel_addr];
+    return mem_sys(state, SysMemState)->bootrom[rel_addr];
 }
 
 READ_FUNC(_sys_read_vram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->vram[rel_addr];
+    return mem_sys(state, SysMemState)->vram[rel_addr];
 }
 
 WRITE_FUNC(_sys_write_vram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    sys_mem->vram[rel_addr] = data;
+    mem_sys(state, SysMemState)->vram[rel_addr] = data;
 
     return 1;
 }
 
 READ_FUNC(_sys_read_wram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->wram[rel_addr];
+    return mem_sys(state, SysMemState)->wram[rel_addr];
 }
-
 WRITE_FUNC(_sys_write_wram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    sys_mem->wram[rel_addr] = data;
+    mem_sys(state, SysMemState)->wram[rel_addr] = data;
 
     return 1;
 }
-
 READ_FUNC(_sys_read_oam_table) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->oam_table[rel_addr];
+    return mem_sys(state, SysMemState)->oam_table[rel_addr];
 }
 
 WRITE_FUNC(_sys_write_oam_table) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    sys_mem->oam_table[rel_addr] = data;
+    mem_sys(state, SysMemState)->oam_table[rel_addr] = data;
 
     return 1;
 }
 
 READ_FUNC(_sys_read_hiram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    return sys_mem->hram[rel_addr];
+    return mem_sys(state, SysMemState)->hram[rel_addr];
 }
 
 WRITE_FUNC(_sys_write_hiram) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-
-    sys_mem->hram[rel_addr] = data;
+    mem_sys(state, SysMemState)->hram[rel_addr] = data;
 
     return 1;
 }
 
 READ_FUNC(_basic_read_rom) {
-    BasicCartState *cart_mem = (BasicCartState *)state->mem->cartridge->state;
-
-    return cart_mem->rom[rel_addr];
+    return mem_cart(state, BasicCartState)->rom[rel_addr];
 }
 
 WRITE_FUNC(_basic_write_rom) {
-    BasicCartState *cart_mem = (BasicCartState *)state->mem->cartridge->state;
-    cart_mem->rom[rel_addr] = data;
+    mem_cart(state, BasicCartState)->rom[rel_addr] = data;
     return 1;
 }
 
 READ_FUNC(_debug_read_mem) {
-    DebugMemState *debug = (DebugMemState *)state->mem->system->state;
-    return debug->mem[rel_addr];
+    return mem_sys(state, DebugMemState)->mem[rel_addr];
 }
 
 WRITE_FUNC(_debug_write_mem) {
-    DebugMemState *debug = (DebugMemState *)state->mem->system->state;
-    debug->mem[rel_addr] = data;
+    mem_sys(state, DebugMemState)->mem[rel_addr] = data;
     return 1;
 }
 
 /* BEGIN ioreg read/write functions */
 READ_FUNC(_read_p1) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     BYTE action_buttons = state->sdl->action_buttons;
     BYTE direction_buttons = state->sdl->direction_buttons;
     BYTE button_select = state->sdl->button_select;
@@ -327,57 +301,48 @@ READ_FUNC(_read_p1) {
     if (joypad_direction_selected(button_select))
         result &= direction_buttons;
 
-    sys_mem->ioregs->p1 = result;
+    mem_sys(state, SysMemState)->ioregs->p1 = result;
 
     return result;
 }
 WRITE_FUNC(_write_p1) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     // Only writable bits are 4 and 5
     data = (data & 0x30) | 0xCF;
     state->sdl->button_select = data;
-    sys_mem->ioregs->p1 &= data;
+    mem_sys(state, SysMemState)->ioregs->p1 &= data;
     return 1;
 }
 READ_FUNC(_read_div) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->div = state->timer->reg_div;
-    return sys_mem->ioregs->div;
+    mem_sys(state, SysMemState)->ioregs->div = state->timer->reg_div;
+    return mem_sys(state, SysMemState)->ioregs->div;
 }
 WRITE_FUNC(_write_div) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     state->timer->reg_div = 0;
-    sys_mem->ioregs->div = 0;
+    mem_sys(state, SysMemState)->ioregs->div = 0;
     return 1;    
 }
 READ_FUNC(_read_tima) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->tima = state->timer->reg_tima;
-    return sys_mem->ioregs->tima;
+    mem_sys(state, SysMemState)->ioregs->tima = state->timer->reg_tima;
+    return mem_sys(state, SysMemState)->ioregs->tima;
 }
 WRITE_FUNC(_write_tima) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     state->timer->reg_tima = data;
-    sys_mem->ioregs->tima = data;
+    mem_sys(state, SysMemState)->ioregs->tima = data;
     return 1;
 }
 READ_FUNC(_read_tma) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->tma = state->timer->reg_tma;
-    return sys_mem->ioregs->tma;
+    mem_sys(state, SysMemState)->ioregs->tma = state->timer->reg_tma;
+    return mem_sys(state, SysMemState)->ioregs->tma;
 }
 WRITE_FUNC(_write_tma) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     state->timer->reg_tma = data;
-    sys_mem->ioregs->tma = data;
+    mem_sys(state, SysMemState)->ioregs->tma = data;
     return 1;
 }
 READ_FUNC(_read_tac) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->tac;
+    return mem_sys(state, SysMemState)->ioregs->tac;
 }
 WRITE_FUNC(_write_tac) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     data &= 0x07;
 
     if (data & 0x4) 
@@ -401,52 +366,42 @@ WRITE_FUNC(_write_tac) {
             break;
     }
     
-    // FIXME bit 2 enables timer, bit 0-1 selects timer frequency
-    sys_mem->ioregs->tac = data;
+    mem_sys(state, SysMemState)->ioregs->tac = data;
     return 1;
 }
 READ_FUNC(_read_if) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     // Upper 3 bits always read as 1
-    sys_mem->ioregs->if_ = 0xE0 | state->cpu->int_flag;
-    return sys_mem->ioregs->if_;
+    mem_sys(state, SysMemState)->ioregs->if_ = 0xE0 | state->cpu->int_flag;
+    return mem_sys(state, SysMemState)->ioregs->if_;
 }
 WRITE_FUNC(_write_if) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     state->cpu->int_flag = data & 0x1F;
-    sys_mem->ioregs->if_ = data;
+    mem_sys(state, SysMemState)->ioregs->if_ = data;
     return 1;    
 }
 READ_FUNC(_read_ie) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    sys_mem->ioregs->ie_ = state->cpu->int_enable;
-    return sys_mem->ioregs->ie_;
+    mem_sys(state, SysMemState)->ioregs->ie_ = state->cpu->int_enable;
+    return mem_sys(state, SysMemState)->ioregs->ie_;
 }
 WRITE_FUNC(_write_ie) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     state->cpu->int_enable = data;
-    sys_mem->ioregs->ie_ = data;
+    mem_sys(state, SysMemState)->ioregs->ie_ = data;
     return 1;    
 }
 
 READ_FUNC(_read_dma) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    return sys_mem->ioregs->dma;
+    return mem_sys(state, SysMemState)->ioregs->dma;
 }
 WRITE_FUNC(_write_dma) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     state->dma->addr = ((WORD)data) << 8;
     state->dma->status = DMA_ON;
-    sys_mem->ioregs->dma = data;
+    mem_sys(state, SysMemState)->ioregs->dma = data;
     return 1;    
 }
 READ_FUNC(_read_lcdc) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    // FIXME 
-    return sys_mem->ioregs->lcdc;
+    return mem_sys(state, SysMemState)->ioregs->lcdc;
 }
 WRITE_FUNC(_write_lcdc) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     LCDControl *lcdc = &state->ppu->lcdc;
     // FIXME: all bits of lcdc control aspects of the PPU
     lcdc->lcd_enable = bit_7(data) ? ON : OFF;
@@ -458,12 +413,10 @@ WRITE_FUNC(_write_lcdc) {
     lcdc->obj_enable = bit_1(data) ? ON : OFF;
     lcdc->bg_window_enable = bit_0(data) ? ON : OFF;
 
-
-    sys_mem->ioregs->lcdc = data;
+    mem_sys(state, SysMemState)->ioregs->lcdc = data;
     return 1;    
 }
 READ_FUNC(_read_stat) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
     BYTE result = 0;
     result |= ((ppu->stat.lyc_ly_interrupt == ON) ? 0x40 : 0x00);
@@ -473,11 +426,10 @@ READ_FUNC(_read_stat) {
     ppu->stat.lyc_ly_equal = (ppu->misc.ly == ppu->misc.lyc) ? ON : OFF;
     result |= ((ppu->stat.lyc_ly_equal == ON) ? 0x04 : 0x00);
     result |= ((BYTE)ppu->stat.mode & 0x3);
-    sys_mem->ioregs->stat = result;
+    mem_sys(state, SysMemState)->ioregs->stat = result;
     return result;
 }
 WRITE_FUNC(_write_stat) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
     // Only bits 3-6 are writable
     data &= 0x78;
@@ -485,140 +437,111 @@ WRITE_FUNC(_write_stat) {
     ppu->stat.mode_2_interrupt = bit_5(data) ? ON : OFF;
     ppu->stat.mode_1_interrupt = bit_4(data) ? ON : OFF;
     ppu->stat.mode_0_interrupt = bit_3(data) ? ON : OFF;
-    sys_mem->ioregs->stat &= (data | 0x7);
+    mem_sys(state, SysMemState)->ioregs->stat &= (data | 0x7);
     return 1;    
 }
 READ_FUNC(_read_scy) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    sys_mem->ioregs->scy = ppu->misc.scy;
-    return sys_mem->ioregs->scy;
+    mem_sys(state, SysMemState)->ioregs->scy = ppu->misc.scy;
+    return mem_sys(state, SysMemState)->ioregs->scy;
 }
 WRITE_FUNC(_write_scy) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
     ppu->misc.scy = data;
-    sys_mem->ioregs->scy = data;
+    mem_sys(state, SysMemState)->ioregs->scy = data;
     return 1;
 }
 READ_FUNC(_read_scx) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    sys_mem->ioregs->scx = ppu->misc.scx;
-    return sys_mem->ioregs->scx;
+    mem_sys(state, SysMemState)->ioregs->scx = ppu->misc.scx;
+    return mem_sys(state, SysMemState)->ioregs->scx;
 }
 WRITE_FUNC(_write_scx) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
     ppu->misc.scx = data;
-    sys_mem->ioregs->scx = data;
+    mem_sys(state, SysMemState)->ioregs->scx = data;
     return 1;
 }
 READ_FUNC(_read_ly) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: current horizontal line (0-153, 144-154==VBlank)
-    sys_mem->ioregs->ly = ppu->misc.ly;
-    return sys_mem->ioregs->ly;
+    mem_sys(state, SysMemState)->ioregs->ly = ppu->misc.ly;
+    return mem_sys(state, SysMemState)->ioregs->ly;
 }
 READ_FUNC(_read_lyc) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    
-    sys_mem->ioregs->lyc = ppu->misc.lyc;
-    return sys_mem->ioregs->lyc;
+    mem_sys(state, SysMemState)->ioregs->lyc = ppu->misc.lyc;
+    return mem_sys(state, SysMemState)->ioregs->lyc;
 }
 WRITE_FUNC(_write_lyc) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
     ppu->misc.lyc = data;
-    sys_mem->ioregs->lyc = data;
+    mem_sys(state, SysMemState)->ioregs->lyc = data;
     return 1;
 }
 READ_FUNC(_read_wy) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    sys_mem->ioregs->wy = ppu->misc.wy;
-    return sys_mem->ioregs->wy;
+    mem_sys(state, SysMemState)->ioregs->wy = ppu->misc.wy;
+    return mem_sys(state, SysMemState)->ioregs->wy;
 }
 WRITE_FUNC(_write_wy) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: Sets window position
     ppu->misc.wy = data;
-    sys_mem->ioregs->wy = data;
+    mem_sys(state, SysMemState)->ioregs->wy = data;
     return 1;
 }
 READ_FUNC(_read_wx) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    sys_mem->ioregs->wx = ppu->misc.wx;
-    return sys_mem->ioregs->wx;
+    mem_sys(state, SysMemState)->ioregs->wx = ppu->misc.wx;
+    return mem_sys(state, SysMemState)->ioregs->wx;
 }
 WRITE_FUNC(_write_wx) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: Sets window position
     ppu->misc.wx = data;
-    sys_mem->ioregs->wx = data;
+    mem_sys(state, SysMemState)->ioregs->wx = data;
     return 1;
 }
 READ_FUNC(_read_bgp) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: returns color palette to BG/window
-    sys_mem->ioregs->bgp = ppu->misc.bgp;
-    return sys_mem->ioregs->bgp;
+    mem_sys(state, SysMemState)->ioregs->bgp = ppu->misc.bgp;
+    return mem_sys(state, SysMemState)->ioregs->bgp;
 }
 WRITE_FUNC(_write_bgp) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: Sets color palette for bg/window
     ppu->misc.bgp = data;
-    sys_mem->ioregs->bgp = data;
+    mem_sys(state, SysMemState)->ioregs->bgp = data;
     return 1;
 }
 READ_FUNC(_read_obp0) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: returns color palette to obj palette 0
-    sys_mem->ioregs->obp0 = ppu->misc.obp0;
-    return sys_mem->ioregs->obp0;
+    mem_sys(state, SysMemState)->ioregs->obp0 = ppu->misc.obp0;
+    return mem_sys(state, SysMemState)->ioregs->obp0;
 }
 WRITE_FUNC(_write_obp0) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: sets color palette for objs 0
     data &= 0xFC;
     ppu->misc.obp0 = data;
-    sys_mem->ioregs->obp0 = data;
+    mem_sys(state, SysMemState)->ioregs->obp0 = data;
     return 1;
 }
 READ_FUNC(_read_obp1) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: returns color palette to obj palette 1
-    sys_mem->ioregs->obp1 = ppu->misc.obp1;
-    return sys_mem->ioregs->obp1;
+    mem_sys(state, SysMemState)->ioregs->obp1 = ppu->misc.obp1;
+    return mem_sys(state, SysMemState)->ioregs->obp1;
 }
 WRITE_FUNC(_write_obp1) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
     PPUState *ppu = state->ppu;
-    // FIXME: sets color palette for objs 0
-    //data &= 0xFC;
     ppu->misc.obp1 = data;
-    sys_mem->ioregs->obp1 = data;
+    mem_sys(state, SysMemState)->ioregs->obp1 = data;
     return 1;
 } 
 READ_FUNC(_read_boot) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
-    if (sys_mem->bootrom_mapped)
+    if (mem_sys(state, SysMemState)->bootrom_mapped)
         return 0xFE;
     else
         return 0xFF;
 }
 WRITE_FUNC(_write_boot) {
-    SysMemState *sys_mem = (SysMemState *)state->mem->system->state;
+    SysMemState *sys_mem = mem_sys(state, SysMemState);
     if (sys_mem->bootrom_mapped && (data & 0x1)) {
         sys_mem->bootrom_mapped = 0;
         sys_mem->ioregs->boot = 0x1;
@@ -1248,84 +1171,86 @@ GET_PTR_FUNC(_ptr_unimplemented) {
     return NULL;
 }
 GET_PTR_FUNC(_sys_ptr_boot_rom) {
-    SysMemState *sys_mem;
-    sys_mem = (SysMemState *)state->mem->system->state;
-    return &sys_mem->bootrom[rel_addr];
+    return &mem_sys(state, SysMemState)->bootrom[rel_addr];
 }
 GET_PTR_FUNC(_sys_ptr_vram) {
-    SysMemState *sys_mem;
-    sys_mem = (SysMemState *)state->mem->system->state;
-    return &sys_mem->vram[rel_addr];
+    return &mem_sys(state, SysMemState)->vram[rel_addr];
 }
 GET_PTR_FUNC(_sys_ptr_wram) {
-    SysMemState *sys_mem;
-    sys_mem = (SysMemState *)state->mem->system->state;
-    return &sys_mem->wram[rel_addr];
+    return &mem_sys(state, SysMemState)->wram[rel_addr];
 }
 GET_PTR_FUNC(_sys_ptr_hiram) {
-    SysMemState *sys_mem;
-    sys_mem = (SysMemState *)state->mem->system->state;
-    return &sys_mem->hram[rel_addr];
+    return &mem_sys(state, SysMemState)->hram[rel_addr];
 }
 GET_PTR_FUNC(_sys_ptr_oam_table) {
-    SysMemState *sys_mem;
-    sys_mem = (SysMemState *)state->mem->system->state;
-    return &sys_mem->oam_table[rel_addr];
+    return &mem_sys(state, SysMemState)->oam_table[rel_addr];
 }
 GET_PTR_FUNC(_basic_ptr) {
-    BasicCartState *basic_mem;
-    basic_mem = (BasicCartState *)state->mem->cartridge->state;
-    return &basic_mem->rom[rel_addr];
+    return &mem_cart(state, BasicCartState)->rom[rel_addr];
 }
 GET_PTR_FUNC(_debug_ptr) {
-    DebugMemState *debug_mem;
-    debug_mem = (DebugMemState *)state->mem->system->state;
-    return &debug_mem->mem[rel_addr];
+    return &mem_sys(state, DebugMemState)->mem[rel_addr];
 }
-/*
+READ_FUNC(_mbc1_read_rom_base) {
+
+}
+WRITE_FUNC(_mbc1_write_0_3fff) {
+
+}
+GET_PTR_FUNC(_mbc1_ptr_rom_base) {
+
+}
+READ_FUNC(_mbc1_read_rom_1) {
+
+}
+WRITE_FUNC(_mbc1_write_4000_7fff) {
+
+}
+GET_PTR_FUNC(_mbc1_ptr_rom_1) {
+    
+}
+READ_FUNC(_mbc1_read_ram_bank) {
+
+}
+WRITE_FUNC(_mbc1_write_ram_bank) {
+
+}
+GET_PTR_FUNC(_mbc1_ptr_ram_bank) {
+    
+}
 MemoryRegion mbc1_mem_map[] = {
     { // 0001 1111 1111 1111
         .base=0x0000,
-        .end=0x1FFF,
-        .len=0x2000,
-        .flags=0,
-        .read=&_mbc1_read_rom_base,
-        .write=&_mbc1_ram_enable
-    },
-    { // 0011 1111 1111 1111
-        .base=0x2000,
         .end=0x3FFF,
-        .len=0x2000,
+        .len=0x4000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc1_read_rom_base,
-        .write=&_mbc1_rom_bank_num
+        .write=&_mbc1_write_0_3fff,
+        .get_ptr=&_mbc1_ptr_rom_base
     },
     { // 0101 1111 1111 1111
         .base=0x4000,
-        .end=0x5FFF,
-        .len=0x2000,
-        .flags=0,
-        .read=&_mbc1_read_rom_1,
-        .write=&_mbc1_ram_or_upperrom
-    },
-    { // 0111 1111 1111 1111
-        .base=0x6000,
         .end=0x7FFF,
-        .len=0x2000,
+        .len=0x4000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc1_read_rom_1,
-        .write=&_mbc1_bank_mode_select
+        .write=&_mbc1_write_4000_7fff,
+        .get_ptr=&_mbc1_ptr_rom_1
     },
     { // 1011 1111 1111 1111
         .base=0xA000,
         .end=0xBFFF,
         .len=0x2000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc1_read_ram_bank,
-        .write=&_mbc1_write_ram_bank
+        .write=&_mbc1_write_ram_bank,
+        .get_ptr=&_mbc1_ptr_ram_bank
     }
 };
-
+/*
 MemoryRegion mbc3_mem_map[] = {
     {
         .base=0x0000,
@@ -1670,7 +1595,7 @@ BYTE *allocate_region(size_t size, char *name) {
     return result;
 }
 
-SysMemState *initialize_sys_memory(void) {
+SysMemState *initialize_sys_memory(CartridgeHeader *header) {
     SysMemState *sys_mem = malloc(sizeof(SysMemState));
     if (sys_mem == NULL) {
         printf("Error allocating system memory\n");
@@ -1695,7 +1620,7 @@ void teardown_sys_memory(SysMemState *sys_mem) {
     free(sys_mem->hram);
 }
 
-BasicCartState *initialize_basic_memory(void) {
+BasicCartState *initialize_basic_memory(CartridgeHeader *header) {
     BasicCartState *cart_mem = malloc(sizeof(BasicCartState));
     if (cart_mem == NULL) {
         printf("Error allocating cartridge memory\n");
@@ -1711,7 +1636,7 @@ void teardown_basic_memory(BasicCartState *cart_mem) {
     free(cart_mem);
 }
 
-DebugMemState *initialize_debug_memory(void) {
+DebugMemState *initialize_debug_memory(CartridgeHeader *header) {
     DebugMemState *debug = malloc(sizeof(DebugMemState));
     if (debug == NULL) {
         printf("Error allocating cartridge memory\n");
@@ -1723,6 +1648,90 @@ DebugMemState *initialize_debug_memory(void) {
 
 void teardown_debug_memory(DebugMemState *debug) {
     free(debug);
+}
+int read_basic_rom_into_mem(GBState *state, FILE *fp) {
+    int status = 0;
+    int n_read;
+    n_read = fread(mem_cart(state, BasicCartState)->rom, 1, 0x8000, fp);
+    if (n_read != 0x8000) {
+        printf("Error: read %04x rather than 0x8000\n", n_read);
+        status = 1;
+    }
+
+    return status;
+}
+
+MBC1CartState *initialize_mbc1_memory(CartridgeHeader *header) {
+    MBC1CartState *mbc1 = malloc(sizeof(MBC1CartState));
+    if (mbc1 == NULL) {
+        printf("Error allocating MBC1 memory\n");
+        exit(1);
+    }
+    mbc1->ram_enabled = 0;
+    mbc1->active_ram_bank = 0;
+    mbc1->active_rom_bank = 1;
+
+    mbc1->n_rom_banks = 2;
+
+    if (header->rom_size < 9)
+        mbc1->n_rom_banks <<= header->rom_size;
+    else 
+        printf("ILLEGAL ROM SIZE %d\n", header->rom_size);
+
+    mbc1->n_ram_banks = 0;
+    
+    switch(header->ram_size) {
+        case 0:
+            mbc1->n_ram_banks = 0;
+            break;
+        case 1:
+            printf("ILLEGAL RAM SIZE 1\n");
+            break;
+        case 2:
+            mbc1->n_ram_banks = 1;
+            break;
+        case 3:
+            mbc1->n_ram_banks = 4;
+            break;
+        case 4:
+            mbc1->n_ram_banks = 16;
+            break;
+        case 5:
+            mbc1->n_ram_banks = 8;
+            break;
+        default:
+            printf("ILLEGAL RAM SIZE %d\n", header->ram_size);
+            break;
+    }
+    if (mbc1->n_ram_banks > 1) // > 8 KiB ram
+        mbc1->cart_type = LARGE_RAM;
+    else if (mbc1->n_rom_banks >= 64) // >= 1 MiB rom
+        mbc1->cart_type = LARGE_ROM;
+
+    mbc1->bank_mode = MODE_SIMPLE;
+
+    int rom_total_size = mbc1->n_rom_banks * ROM_BANK_SIZE;
+    int ram_total_size = mbc1->n_ram_banks * RAM_BANK_SIZE;
+    mbc1->rom_banks = allocate_region(rom_total_size, "rom banks");
+    mbc1->ram_banks = allocate_region(ram_total_size, "ram banks");
+
+    return mbc1;
+}
+
+void teardown_mbc1_memory(MBC1CartState *mbc1) {
+    if (mbc1->n_rom_banks > 0)
+        free(mbc1->rom_banks);
+    if (mbc1->n_ram_banks > 0)
+        free(mbc1->ram_banks);
+    
+    free(mbc1);
+}
+
+void *initialize_null(CartridgeHeader *header) {
+    return NULL;
+}
+void teardown_null(void *ptr) {
+
 }
 
 MemoryState *initialize_memory(CartridgeHeader *header) {
@@ -1742,39 +1751,42 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
     /* DEBUG condition */
     if (header == NULL) {
         mem->cartridge->n_regions = 0;
+        mem->cartridge->regions = NULL;
+        mem->cartridge->initialize = &initialize_null;
+        mem->cartridge->teardown = &teardown_null;
         
         mem->system->n_regions = 1;
         mem->system->regions = debug_mem_map;
         mem->system->initialize = &initialize_debug_memory;
         mem->system->teardown = &teardown_debug_memory;
-        mem->system->state = initialize_debug_memory();
 
         goto init_done;
+    } else {
+        mem->system->n_regions = 9;
+        mem->system->regions = system_mem_map;
+        mem->system->initialize = &initialize_sys_memory;
+        mem->system->teardown = &teardown_sys_memory;
     }
 
     printf("%02x\n", header->cartridge_type);
 
     switch (header->cartridge_type) {
         case CART_ROM:
+            mem->read_rom = &read_basic_rom_into_mem;
             mem->cartridge->n_regions = 1;
             mem->cartridge->regions = basic_mem_map;
             mem->cartridge->initialize = &initialize_basic_memory;
             mem->cartridge->teardown = &teardown_basic_memory;
-            // FIXME could do this later, as we save the fn pointer
-            // Also, may need a loadrom function that handles loading
-            // the cartridge
-            mem->cartridge->state = initialize_basic_memory();
-
-            mem->system->n_regions = 9;
-            mem->system->regions = system_mem_map;
-            mem->system->initialize = &initialize_sys_memory;
-            mem->system->teardown = &teardown_sys_memory;
-            mem->system->state = initialize_sys_memory();
+            
             break;
         case CART_MBC1:
         case CART_MBC1_RAM:
         case CART_MBC1_RAM_BAT:
-            //break;
+            mem->cartridge->n_regions = 3;
+            mem->cartridge->regions = mbc1_mem_map;
+            mem->cartridge->initialize = &initialize_mbc1_memory;
+            mem->cartridge->teardown = &teardown_mbc1_memory;
+            break;
         case CART_MBC2:
         case CART_MBC2_BAT:
             //break;
@@ -1807,26 +1819,27 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
         case CART_TAMA5:
             //break;
         case CART_HUC3:
-            break;
+            //break;
         case CART_HUC1_RAM_BAT:
             //break;
         default:
-            printf("Unsupported cartridge type %02x\n", header->cartridge_type);
-            exit(1);
+            printf("Unsupported cartridge type 0x%02x\n", header->cartridge_type);
+            return NULL;
     }
 
     init_done:
+    mem->cartridge->state = (mem->cartridge->initialize)(header);
+    mem->system->state = (mem->system->initialize)(header);
+
     return mem;
 }
 
 void teardown_memory(MemoryState *mem) {
+    free(mem->header);
 
-    if (mem->cartridge->n_regions > 0) {
-        mem->cartridge->teardown(mem->cartridge->state);
-        free(mem->cartridge);
-    }
-
+    mem->cartridge->teardown(mem->cartridge->state);
     mem->system->teardown(mem->system->state);
+    free(mem->cartridge);
     free(mem->system);
     free(mem);
 }
@@ -1905,30 +1918,4 @@ void task_dma_cycle(GBState *state) {
 
     dma_cycle_end:
     1;
-}
-
-int read_basic_rom_into_mem(GBState *state, FILE *fp) {
-    int status = 0;
-    int n_read;
-    n_read = fread(((BasicCartState *)state->mem->cartridge->state)->rom, 1, 0x8000, fp);
-    if (n_read != 0x8000) {
-        printf("Error: read %04x rather than 0x8000\n", n_read);
-        status = 1;
-    }
-
-    return status;
-}
-
-int read_rom_into_mem(GBState *state, FILE *fp) {
-    int status = 0;
-    switch (state->mem->header->cartridge_type) {
-        case CART_ROM:
-            status = read_basic_rom_into_mem(state, fp);
-            break;
-        default:
-            printf("Unsupported cartridge type at this time\n");
-            status = 1;
-    }
-
-    return status;
 }

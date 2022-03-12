@@ -50,13 +50,18 @@ void teardown_sdl_core(SDLComponents *sdl) {
 
 GBState *initialize_gb(CartridgeHeader *header) {
     GBState *state = malloc(sizeof(GBState));
-
+    state->mem = initialize_memory(header);
+    if (state->mem == NULL) {
+        free(state);
+        return NULL;
+    }
+    
     state->cpu = initialize_cpu();
     state->counter = 0;
 
     state->sdl = initialize_sdl_core();
     state->ppu = initialize_ppu();
-    state->mem = initialize_memory(header);
+    
     state->timer = initialize_timer();
     state->dma = initialize_dma();
     state->should_quit = OFF;
@@ -297,14 +302,13 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     
-    if (read_rom_into_mem(state, fp) != 0) {
+    if (state->mem->read_rom(state, fp) != 0) {
         printf("Error reading ROM into memory\n");
         fclose(fp);
         exit(1);
     }
     
     fclose(fp);
-    free(header);
 
     main_loop(state);
     

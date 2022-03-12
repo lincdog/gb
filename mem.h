@@ -81,6 +81,9 @@ They are contiguous from 0 to 0x7F, with blank spaces inserted where needed,
 but 0xFFFF (interrupt enable) is placed at 0x80 to avoid having 126 blanks 
 where high RAM would be (0xFF80-0xFFFE). The sys_*_ioreg functions are
 aware of this and map 0xFFFF to the relative address 0x80. */
+/* FIXME phase this structure out; currently we maintain two "copies" of
+the data in it, one in this, one in the actual state controlled by the
+various IO regs (e.g. the PPU, CPU, APU states) */
 #define BLANK(n) BYTE __space_ ## n
 typedef struct __attribute__ ((packed)) {
     BYTE p1; //    00
@@ -270,24 +273,21 @@ enum ram_size {
     RAM_64KB=5
 };
 
-typedef enum {
-    SIMPLE_LARGERAM=0,
-    SIMPLE_LARGEROM=1,
-    ADVANCED_LARGERAM=2,
-    ADVANCED_LARGEROM=3
-} BANK_MODE;
+#define ROM_BANK_SIZE 0x4000
+#define RAM_BANK_SIZE 0x2000
 /* Contains the state needed to manage the MBC1 ROM/RAM 
 bank controller. rom_banks and ram_banks are pointers to 
 the actual memory data. This basically represents the cartridge.*/
 typedef struct {
     int ram_enabled;
-    BYTE rom_bank_number;
-    BYTE n_rom_banks;
+    int active_rom_bank;
+    int n_rom_banks;
     BYTE *rom_banks;
-    BYTE ram_bank_number;
-    BYTE n_ram_banks;
+    int active_ram_bank;
+    int n_ram_banks;
     BYTE *ram_banks;
-    BANK_MODE bank_mode;
+    enum {LARGE_RAM=0, LARGE_ROM=1} cart_type;
+    enum {MODE_SIMPLE=0, MODE_ADVANCED=1} bank_mode;
 } MBC1CartState;
 
 typedef struct {
@@ -328,11 +328,12 @@ void teardown_dma(DMAState *);
 void task_div_timer(GBState *);
 void task_tima_timer(GBState *);
 void task_dma_cycle(GBState *);
-int read_rom_into_mem(GBState *, FILE *);
 
 #define unused_ioreg(__addr) \
     (IOReg_t){.name="none\0", .addr=__addr, .check_access=&_check_always_yes, .read=&_read_unimplemented, .write=&_write_unimplemented}
 #define named_ioregs(__ptr) (IORegs *)(__ptr)
 
+#define mem_cart(__state, __type) ((__type*)__state->mem->cartridge->state)
+#define mem_sys(__state, __type) ((__type*)__state->mem->system->state)
 
 #endif // GB_MEMORY
