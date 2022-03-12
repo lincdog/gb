@@ -1682,7 +1682,7 @@ SysMemState *initialize_sys_memory(void) {
     sys_mem->wram = allocate_region(0x2000, "wram\0");
     sys_mem->oam_table = allocate_region(0xA0, "oam\0");
     sys_mem->ioregs = initialize_ioregs();
-    sys_mem->hram = allocate_region(0x79, "hram\0");
+    sys_mem->hram = allocate_region(0x7E, "hram\0");
     
     return sys_mem;
 }
@@ -1731,7 +1731,7 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
         printf("Error allocating memory state\n");
         exit(1);
     }
-    //mem->mode = flag;
+    mem->header = header;
     mem->cartridge = malloc(sizeof(Memmap_t));
     mem->system = malloc(sizeof(Memmap_t));
     if (mem->cartridge == NULL || mem->system == NULL) {
@@ -1752,32 +1752,67 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
         goto init_done;
     }
 
-    if (flag == BASIC) {
-        mem->cartridge->n_regions = 1;
-        mem->cartridge->regions = basic_mem_map;
-        mem->cartridge->initialize = &initialize_basic_memory;
-        mem->cartridge->teardown = &teardown_basic_memory;
-        // FIXME could do this later, as we save the fn pointer
-        // Also, may need a loadrom function that handles loading
-        // the cartridge
-        mem->cartridge->state = initialize_basic_memory();
+    printf("%02x\n", header->cartridge_type);
 
-        mem->system->n_regions = 9;
-        mem->system->regions = system_mem_map;
-        mem->system->initialize = &initialize_sys_memory;
-        mem->system->teardown = &teardown_sys_memory;
-        mem->system->state = initialize_sys_memory();
-    } else if (flag == DEBUG) {
-        mem->cartridge->n_regions = 0;
-        
-        mem->system->n_regions = 1;
-        mem->system->regions = debug_mem_map;
-        mem->system->initialize = &initialize_debug_memory;
-        mem->system->teardown = &teardown_debug_memory;
-        mem->system->state = initialize_debug_memory();
-    } else {
-        printf("Unsupported MemInitFlag %d\n", flag);
-        exit(1);
+    switch (header->cartridge_type) {
+        case CART_ROM:
+            mem->cartridge->n_regions = 1;
+            mem->cartridge->regions = basic_mem_map;
+            mem->cartridge->initialize = &initialize_basic_memory;
+            mem->cartridge->teardown = &teardown_basic_memory;
+            // FIXME could do this later, as we save the fn pointer
+            // Also, may need a loadrom function that handles loading
+            // the cartridge
+            mem->cartridge->state = initialize_basic_memory();
+
+            mem->system->n_regions = 9;
+            mem->system->regions = system_mem_map;
+            mem->system->initialize = &initialize_sys_memory;
+            mem->system->teardown = &teardown_sys_memory;
+            mem->system->state = initialize_sys_memory();
+            break;
+        case CART_MBC1:
+        case CART_MBC1_RAM:
+        case CART_MBC1_RAM_BAT:
+            //break;
+        case CART_MBC2:
+        case CART_MBC2_BAT:
+            //break;
+        case CART_ROM_RAM:
+        case CART_ROM_RAM_BAT:
+            //break;
+        case CART_MMM01:
+        case CART_MMM01_RAM:
+        case CART_MMM01_RAM_BAT:
+            //break;
+        case CART_MBC3_TIMER_BAT:
+        case CART_MBC3_TIMER_RAM_BAT:
+        case CART_MBC3:
+        case CART_MBC3_RAM:
+        case CART_MBC3_RAM_BAT:
+            //break;
+        case CART_MBC5:
+        case CART_MBC5_RAM:
+        case CART_MBC5_RAM_BAT:
+        case CART_MBC5_RUM:
+        case CART_MBC5_RUM_RAM:
+        case CART_MBC5_RUM_RAM_BAT:
+            //break;
+        case CART_MBC6:
+            //break;
+        case CART_MBC7_SENS_RUM_RAM_BAT:
+            //break;
+        case CART_CAMERA:
+            //break;
+        case CART_TAMA5:
+            //break;
+        case CART_HUC3:
+            break;
+        case CART_HUC1_RAM_BAT:
+            //break;
+        default:
+            printf("Unsupported cartridge type %02x\n", header->cartridge_type);
+            exit(1);
     }
 
     init_done:
@@ -1886,13 +1921,10 @@ int read_basic_rom_into_mem(GBState *state, FILE *fp) {
 
 int read_rom_into_mem(GBState *state, FILE *fp) {
     int status = 0;
-    switch (state->mem->mode) {
-        case BASIC:
+    switch (state->mem->header->cartridge_type) {
+        case CART_ROM:
             status = read_basic_rom_into_mem(state, fp);
             break;
-        case DEBUG:
-        case MBC1:
-        case MBC3:
         default:
             printf("Unsupported cartridge type at this time\n");
             status = 1;

@@ -866,7 +866,7 @@ int main(int argc, char *argv[]) {
 
     printf("%lu\n", sizeof(PPUState));
 
-    GBState *state = initialize_gb(DEBUG);
+    GBState *state = initialize_gb(NULL);
     
     VideoTestState *vtstate = initialize_video_tests(state);
 

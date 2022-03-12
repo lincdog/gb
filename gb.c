@@ -74,23 +74,6 @@ void teardown_gb(GBState *state) {
     free(state);
 }
 
-GBState *initialize_state_from_header(CartridgeHeader *header) {
-    GBState *state;
-
-    if (header->cartridge_type == 0x00 &&
-        header->rom_size == 0 &&
-        header->rom_size == 0) {
-            state = initialize_gb(BASIC);
-            
-    } else {
-        printf("Currently unsupported cart type %02x, rom type %02x, ram type %02x\n",
-            header->cartridge_type, header->rom_size, header->ram_size);
-        
-        state = NULL;
-    }
-
-    return state;
-}
 
 void task_event(GBState *state) {
     SDLComponents *sdl = state->sdl;
@@ -285,7 +268,6 @@ CartridgeHeader *read_cart_header(FILE *fp) {
 
     CartridgeHeader *header = (CartridgeHeader *)_header;
     return header;
-    
 }
 
 #ifdef GB_MAIN

@@ -2917,8 +2917,8 @@ void print_test_status(CPUTestState *tstate) {
 
 int main(void) {
 
-    GBState *test_state = initialize_gb(DEBUG);
-    GBState *post_state = initialize_gb(DEBUG);
+    GBState *test_state = initialize_gb(NULL);
+    GBState *post_state = initialize_gb(NULL);
     CPUTestState *tstate = initialize_cpu_tests(test_state, post_state);
 
     run_tests(tstate);

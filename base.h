@@ -360,23 +360,49 @@ typedef struct {
     void *state;
 } Memmap_t;
 
-typedef enum {
-    BASIC,
-    MBC1,
-    MBC3,
-    DEBUG
-} MemInitFlag;
-
 typedef struct {
     enum {DMA_OFF, DMA_INIT, DMA_ON} status;
     WORD addr;
 } DMAState;
 
+typedef struct __attribute__((packed)) {
+    // 0x100-0x103
+    BYTE entry_point[4];
+    // 0x104-0x133
+    BYTE nintendo_logo[48];
+    /* 0x134-0x143 in early cartridges;
+     * later ones use 13F-142 for manufacturer,
+     * and 143 bit 7 for CGB flag
+    */
+    BYTE title_or_mfc[16];
+    // 0x144-0x145
+    BYTE new_licensee[2];
+    // 0x146
+    BYTE sgb;
+    // 0x147
+    BYTE cartridge_type;
+    // 0x148
+    BYTE rom_size;
+    // 0x149
+    BYTE ram_size;
+    // 0x14A
+    BYTE destination;
+    // 0x14B
+    BYTE old_licensee;
+    // 0x14C
+    BYTE version;
+    // 0x14D
+    BYTE header_cksum;
+    // 0x14E-0x14F
+    BYTE global_cksum[2];
+} CartridgeHeader;
+
 /* The total memory system of the Game Boy consists of a system memory
 map and a cartridge memory map. The configuration of these is specified 
 by a MemInitFlag mode. This is determined from the cartridge header. */
 typedef struct {
-    MemInitFlag mode;
+    CartridgeHeader *header;
+    int (*read_rom)(void *, FILE *);
     Memmap_t *system;
     Memmap_t *cartridge;
 } MemoryState;
@@ -558,7 +584,7 @@ typedef struct {
 #define BASE_PER_VSYNC (BASE_PER_PPU * CPU_PER_VSYNC)
 #define BASE_PER_M 4
 
-GBState *initialize_gb(MemInitFlag);
+GBState *initialize_gb(CartridgeHeader *);
 void teardown_gb(GBState *);
 
 #endif // GB_BASE

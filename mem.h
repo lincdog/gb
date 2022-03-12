@@ -215,38 +215,6 @@ typedef struct __attribute__ ((packed)) {
     BYTE ie_;
 } IORegs;
 
-typedef struct __attribute__((packed)) {
-    // 0x100-0x103
-    BYTE entry_point[3];
-    // 0x104-0x133
-    BYTE nintendo_logo[48];
-    /* 0x134-0x143 in early cartridges;
-     * later ones use 13F-142 for manufacturer,
-     * and 143 bit 7 for CGB flag
-    */
-    BYTE title_or_mfc[16];
-    // 0x144-0x145
-    BYTE new_licensee[2];
-    // 0x146
-    BYTE sgb;
-    // 0x147
-    BYTE cartridge_type;
-    // 0x148
-    BYTE rom_size;
-    // 0x149
-    BYTE ram_size;
-    // 0x14A
-    BYTE destination;
-    // 0x14B
-    BYTE old_licensee;
-    // 0x14C
-    BYTE version;
-    // 0x14D
-    BYTE header_cksum;
-    // 0x14E-0x14F
-    BYTE global_cksum[2];
-} CartridgeHeader;
-
 enum cart_type {
     CART_ROM=0,
     CART_MBC1=1,
@@ -257,7 +225,7 @@ enum cart_type {
     CART_ROM_RAM=8,
     CART_ROM_RAM_BAT=9,
     CART_MMM01=0xB,
-    CART_MMM01_RAM=0xC
+    CART_MMM01_RAM=0xC,
     CART_MMM01_RAM_BAT=0xD,
     CART_MBC3_TIMER_BAT=0xF,
     CART_MBC3_TIMER_RAM_BAT=0x10,
