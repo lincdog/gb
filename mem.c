@@ -1725,18 +1725,31 @@ void teardown_debug_memory(DebugMemState *debug) {
     free(debug);
 }
 
-MemoryState *initialize_memory(MemInitFlag flag) {
+MemoryState *initialize_memory(CartridgeHeader *header) {
     MemoryState *mem = malloc(sizeof(MemoryState));
     if (mem == NULL) {
         printf("Error allocating memory state\n");
         exit(1);
     }
-    mem->mode = flag;
+    //mem->mode = flag;
     mem->cartridge = malloc(sizeof(Memmap_t));
     mem->system = malloc(sizeof(Memmap_t));
     if (mem->cartridge == NULL || mem->system == NULL) {
         printf("Error allocating memmap_t\n");
         exit(1);
+    }
+
+    /* DEBUG condition */
+    if (header == NULL) {
+        mem->cartridge->n_regions = 0;
+        
+        mem->system->n_regions = 1;
+        mem->system->regions = debug_mem_map;
+        mem->system->initialize = &initialize_debug_memory;
+        mem->system->teardown = &teardown_debug_memory;
+        mem->system->state = initialize_debug_memory();
+
+        goto init_done;
     }
 
     if (flag == BASIC) {
@@ -1767,6 +1780,7 @@ MemoryState *initialize_memory(MemInitFlag flag) {
         exit(1);
     }
 
+    init_done:
     return mem;
 }
 
@@ -1856,4 +1870,33 @@ void task_dma_cycle(GBState *state) {
 
     dma_cycle_end:
     1;
+}
+
+int read_basic_rom_into_mem(GBState *state, FILE *fp) {
+    int status = 0;
+    int n_read;
+    n_read = fread(((BasicCartState *)state->mem->cartridge->state)->rom, 1, 0x8000, fp);
+    if (n_read != 0x8000) {
+        printf("Error: read %04x rather than 0x8000\n", n_read);
+        status = 1;
+    }
+
+    return status;
+}
+
+int read_rom_into_mem(GBState *state, FILE *fp) {
+    int status = 0;
+    switch (state->mem->mode) {
+        case BASIC:
+            status = read_basic_rom_into_mem(state, fp);
+            break;
+        case DEBUG:
+        case MBC1:
+        case MBC3:
+        default:
+            printf("Unsupported cartridge type at this time\n");
+            status = 1;
+    }
+
+    return status;
 }

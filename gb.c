@@ -48,7 +48,7 @@ void teardown_sdl_core(SDLComponents *sdl) {
     SDL_Quit();
 }
 
-GBState *initialize_gb(MemInitFlag flag) {
+GBState *initialize_gb(CartridgeHeader *header) {
     GBState *state = malloc(sizeof(GBState));
 
     state->cpu = initialize_cpu();
@@ -56,7 +56,7 @@ GBState *initialize_gb(MemInitFlag flag) {
 
     state->sdl = initialize_sdl_core();
     state->ppu = initialize_ppu();
-    state->mem = initialize_memory(flag);
+    state->mem = initialize_memory(header);
     state->timer = initialize_timer();
     state->dma = initialize_dma();
     state->should_quit = OFF;
@@ -90,35 +90,6 @@ GBState *initialize_state_from_header(CartridgeHeader *header) {
     }
 
     return state;
-}
-
-int read_basic_rom_into_mem(GBState *state, FILE *fp) {
-    int status = 0;
-    int n_read;
-    n_read = fread(((BasicCartState *)state->mem->cartridge->state)->rom, 1, 0x8000, fp);
-    if (n_read != 0x8000) {
-        printf("Error: read %04x rather than 0x8000\n", n_read);
-        status = 1;
-    }
-
-    return status;
-}
-
-int read_rom_into_mem(GBState *state, FILE *fp) {
-    int status = 0;
-    switch (state->mem->mode) {
-        case BASIC:
-            status = read_basic_rom_into_mem(state, fp);
-            break;
-        case DEBUG:
-        case MBC1:
-        case MBC3:
-        default:
-            printf("Unsupported cartridge type at this time\n");
-            status = 1;
-    }
-
-    return status;
 }
 
 void task_event(GBState *state) {
@@ -337,7 +308,7 @@ int main(int argc, char *argv[]) {
     }
 
     CartridgeHeader *header = read_cart_header(fp);
-    state = initialize_state_from_header(header);
+    state = initialize_gb(header);
     if (state == NULL) {
         printf("Error in initializing emulator state\n");
         fclose(fp);
@@ -351,6 +322,7 @@ int main(int argc, char *argv[]) {
     }
     
     fclose(fp);
+    free(header);
 
     main_loop(state);
     

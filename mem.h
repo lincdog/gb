@@ -247,6 +247,61 @@ typedef struct __attribute__((packed)) {
     BYTE global_cksum[2];
 } CartridgeHeader;
 
+enum cart_type {
+    CART_ROM=0,
+    CART_MBC1=1,
+    CART_MBC1_RAM=2,
+    CART_MBC1_RAM_BAT=3,
+    CART_MBC2=5,
+    CART_MBC2_BAT=6,
+    CART_ROM_RAM=8,
+    CART_ROM_RAM_BAT=9,
+    CART_MMM01=0xB,
+    CART_MMM01_RAM=0xC
+    CART_MMM01_RAM_BAT=0xD,
+    CART_MBC3_TIMER_BAT=0xF,
+    CART_MBC3_TIMER_RAM_BAT=0x10,
+    CART_MBC3=0x11,
+    CART_MBC3_RAM=0x12,
+    CART_MBC3_RAM_BAT=0x13,
+    CART_MBC5=0x19,
+    CART_MBC5_RAM=0x1A,
+    CART_MBC5_RAM_BAT=0x1B,
+    CART_MBC5_RUM=0x1C,
+    CART_MBC5_RUM_RAM=0x1D,
+    CART_MBC5_RUM_RAM_BAT=0x1E,
+    CART_MBC6=0x20,
+    CART_MBC7_SENS_RUM_RAM_BAT=0x22,
+    CART_CAMERA=0xFC,
+    CART_TAMA5=0xFD,
+    CART_HUC3=0xFE,
+    CART_HUC1_RAM_BAT=0xFF
+};
+
+enum rom_size {
+    ROM_32KB=0,
+    ROM_64KB=1,
+    ROM_128KB=2,
+    ROM_256KB=3,
+    ROM_512KB=4,
+    ROM_1MB=5,
+    ROM_2MB=6,
+    ROM_4MB=7,
+    ROM_8MB=8,
+    ROM_1_1MB=0x52,
+    ROM_1_2MB=0x53,
+    ROM_1_5MB=0x54
+};
+
+enum ram_size {
+    RAM_NONE=0,
+    RAM_2KB=1,
+    RAM_8KB=2,
+    RAM_32KB=3,
+    RAM_128KB=4,
+    RAM_64KB=5
+};
+
 typedef enum {
     SIMPLE_LARGERAM=0,
     SIMPLE_LARGEROM=1,
@@ -294,7 +349,8 @@ typedef struct {
 } SysMemState;
 
 IORegs *initialize_ioregs(void);
-MemoryState *initialize_memory(MemInitFlag);
+MemoryState *initialize_memory(CartridgeHeader *);
+
 void teardown_memory(MemoryState *);
 TimerState *initialize_timer(void);
 void teardown_timer(TimerState *);
@@ -304,6 +360,7 @@ void teardown_dma(DMAState *);
 void task_div_timer(GBState *);
 void task_tima_timer(GBState *);
 void task_dma_cycle(GBState *);
+int read_rom_into_mem(GBState *, FILE *);
 
 #define unused_ioreg(__addr) \
     (IOReg_t){.name="none\0", .addr=__addr, .check_access=&_check_always_yes, .read=&_read_unimplemented, .write=&_write_unimplemented}
