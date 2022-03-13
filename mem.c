@@ -1194,15 +1194,14 @@ GET_PTR_FUNC(_debug_ptr) {
 READ_FUNC(_mbc1_read_rom_base) {
     /* addr/rel_addr = 0 - 0x3FFF */
     MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
-    int eff_addr = rel_addr;
+    int eff_addr, active_rom_bank;
 
-    if (mbc1->bank_mode == MODE_ADVANCED) {
-        if (mbc1->cart_type == LARGE_ROM) {
-            assert((mbc1->reg_2_2bits << 5) < mbc1->n_rom_banks);
-            eff_addr = (mbc1->reg_2_2bits << 5) * ROM_BANK_SIZE + rel_addr;
-        }
-    }
+    active_rom_bank = 0;
+    if (mbc1->bank_mode == MODE_ADVANCED
+    && mbc1->cart_type == LARGE_ROM)
+        active_rom_bank = (mbc1->reg_2_2bits << 5) & mbc1->rom_bank_mask;
 
+    eff_addr = active_rom_bank * ROM_BANK_SIZE + rel_addr;
     return mbc1->rom_banks[eff_addr];
 }
 WRITE_FUNC(_mbc1_write_0_3fff) {
@@ -1218,18 +1217,10 @@ WRITE_FUNC(_mbc1_write_0_3fff) {
         /* 0x2000 - 0x3FFF */
         int active_rom_bank;
 
-        if (data == 0) data = 1;
         data &= 0x1F;
+        if (data == 0) data = 1;
         data &= mbc1->rom_bank_mask;
         mbc1->reg_1_5bits = data;
-
-        if (mbc1->cart_type == LARGE_ROM) {
-            active_rom_bank = ((mbc1->reg_2_2bits & 0x3) << 5) | data;
-        } else {
-            active_rom_bank = data;
-        }
-
-        mbc1->active_rom_bank = active_rom_bank;
     }
 
     return 1;
@@ -1241,9 +1232,16 @@ READ_FUNC(_mbc1_read_rom_1) {
     /*  addr = 0x4000 - 0x7FFF
     rel_addr = 0 - 0x3FFF */
     MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
-    int eff_addr;
-    assert(mbc1->active_rom_bank & 0xF != 0);
-    assert(mbc1->active_rom_bank < mbc1->n_rom_banks);
+    int eff_addr, active_rom_bank;
+
+    if (mbc1->cart_type == LARGE_ROM)
+        active_rom_bank = ((mbc1->reg_2_2bits & 0x3) << 5) | mbc1->reg_1_5bits;
+    else
+        active_rom_bank = mbc1->reg_1_5bits;
+    
+    active_rom_bank &= mbc1->rom_bank_mask;
+
+    mbc1->active_rom_bank = active_rom_bank;
 
     eff_addr = mbc1->active_rom_bank * ROM_BANK_SIZE + rel_addr;
 
@@ -1258,23 +1256,14 @@ WRITE_FUNC(_mbc1_write_4000_7fff) {
         /* 0x4000 - 0x5FFF */
         data &= 0x3;
         mbc1->reg_2_2bits = data;
-
-        if (mbc1->bank_mode == MODE_SIMPLE) {
-            if (mbc1->cart_type == LARGE_ROM)
-                mbc1->active_rom_bank = (data << 5) | (mbc1->reg_1_5bits & 0x1F);
-        } else {
-            if (mbc1->cart_type == LARGE_RAM)
-                mbc1->active_ram_bank = data;
-        }
-
     } else {
         /* 0x6000 - 0x7FFF */
         if (data & 0x1) {
             mbc1->bank_mode = MODE_ADVANCED;
-            mbc1->active_ram_bank = mbc1->reg_2_2bits;
+            //mbc1->active_ram_bank = mbc1->reg_2_2bits;
         } else {
             mbc1->bank_mode = MODE_SIMPLE;
-            mbc1->active_ram_bank = 0;
+            //mbc1->active_ram_bank = 0;
         }
     }
 
@@ -1287,17 +1276,20 @@ READ_FUNC(_mbc1_read_ram_bank) {
     rel_addr = 0 - 0x1FFF */
 
     MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
-    int eff_addr;
+    int eff_addr, active_ram_bank;
 
     if (! mbc1->ram_enabled)
         return UNINIT;
-
+    
+    active_ram_bank = 0;
+    if (mbc1->bank_mode == MODE_ADVANCED
+    && mbc1->cart_type == LARGE_RAM)
+        active_ram_bank = mbc1->reg_2_2bits;
+    
+    mbc1->active_ram_bank = active_ram_bank;
     assert(mbc1->active_ram_bank < mbc1->n_ram_banks);
-
-    if (mbc1->bank_mode == MODE_ADVANCED)
-        eff_addr = mbc1->active_ram_bank * RAM_BANK_SIZE + rel_addr;
-    else
-        eff_addr = rel_addr;
+    
+    eff_addr = mbc1->active_ram_bank * RAM_BANK_SIZE + rel_addr;
 
     return mbc1->ram_banks[eff_addr];
 }
@@ -1305,17 +1297,20 @@ WRITE_FUNC(_mbc1_write_ram_bank) {
     /* addr  = 0xA000 - 0xBFFF 
     rel_addr = 0 - 0x1FFF */
     MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
-    int eff_addr;
+    int eff_addr, active_ram_bank;
 
     if (! mbc1->ram_enabled)
         return -1;
+
+    active_ram_bank = 0;
+    if (mbc1->bank_mode == MODE_ADVANCED
+    && mbc1->cart_type == LARGE_RAM)
+        active_ram_bank = mbc1->reg_2_2bits;
     
+    mbc1->active_ram_bank = active_ram_bank;
     assert(mbc1->active_ram_bank < mbc1->n_ram_banks);
 
-    if (mbc1->bank_mode == MODE_ADVANCED)
-        eff_addr = mbc1->active_ram_bank * RAM_BANK_SIZE + rel_addr;
-    else
-        eff_addr = rel_addr;
+    eff_addr = mbc1->active_ram_bank * RAM_BANK_SIZE + rel_addr;
 
     mbc1->ram_banks[eff_addr] = data;
 
@@ -1780,7 +1775,7 @@ MBC1CartState *initialize_mbc1_memory(CartridgeHeader *header) {
     mbc1->active_rom_bank = 1;
     mbc1->bank_mode = MODE_SIMPLE;
 
-    if (header->rom_size < 9) {
+    if (header->rom_size < 7) {
         mbc1->n_rom_banks = 2 << header->rom_size;
         mbc1->rom_bank_mask = mbc1->n_rom_banks - 1;
     } else {
@@ -1791,6 +1786,7 @@ MBC1CartState *initialize_mbc1_memory(CartridgeHeader *header) {
         case 0:
             mbc1->n_ram_banks = 0;
             break;
+        case 1:
         case 2:
             mbc1->n_ram_banks = 1;
             break;
@@ -1824,6 +1820,22 @@ void teardown_mbc1_memory(MBC1CartState *mbc1) {
         free(mbc1->ram_banks);
     
     free(mbc1);
+}
+
+int read_mbc1_rom_into_mem(GBState *state, FILE *fp) {
+    MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
+
+    int n_banks = mbc1->n_rom_banks;
+    int total_rom_size = n_banks * ROM_BANK_SIZE;
+    int n_read;
+
+    fseek(fp, 0, SEEK_SET);
+
+    n_read = fread(mbc1->rom_banks, ROM_BANK_SIZE, n_banks, fp);
+
+    assert(n_read == total_rom_size);
+
+    return 0;
 }
 
 void *initialize_null(CartridgeHeader *header) {
@@ -1881,6 +1893,7 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
         case CART_MBC1:
         case CART_MBC1_RAM:
         case CART_MBC1_RAM_BAT:
+            mem->read_rom = &read_mbc1_rom_into_mem;
             mem->cartridge->n_regions = 3;
             mem->cartridge->regions = mbc1_mem_map;
             mem->cartridge->initialize = &initialize_mbc1_memory;
