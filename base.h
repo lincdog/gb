@@ -413,12 +413,7 @@ typedef struct {
     BYTE reg_tma;
     BYTE reg_tac;
     ToggleEnum timer_enabled;
-    enum {
-        _00=1024,
-        _01=16,
-        _10=64,
-        _11=256
-    } tima_period_cycles;
+    unsigned int tima_period_mask;
 
 } TimerState;
 

@@ -669,9 +669,14 @@ void task_ppu_cycle(GBState *state) {
         ppu_render_scanline(state);
         ppu_next_scanline(ppu);
     }
-
+    struct timespec ts;
     if (ppu->frame.counter == 0) {
         SDL_UpdateWindowSurface(state->sdl->window);
+        
+        /*ts.tv_sec = 5 /1000;
+        ts.tv_nsec = 5 * 1000000;
+        nanosleep(&ts, &ts);*/
+        
         ppu_next_frame(ppu);
     }
 

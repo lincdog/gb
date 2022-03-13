@@ -138,14 +138,17 @@ CYCLE_FUNC(_do_cpl) {
     _check_flags(state);
 }
 CYCLE_FUNC(_add_reg_reg) {
+
     if (state->cpu->is_16_bit) {
+
         state->cpu->result = *(WORD*)(state->cpu->reg_dest) 
                            + *(WORD*)(state->cpu->reg_src);
-        *(WORD*)(state->cpu->reg_dest) = state->cpu->result;
+        
+        *(WORD*)(state->cpu->reg_dest) = 0xFFFF & state->cpu->result;
     } else {
         state->cpu->result = *(state->cpu->reg_dest) 
                            + *(state->cpu->reg_src); 
-        *(state->cpu->reg_dest) = state->cpu->result;
+        *(state->cpu->reg_dest) = 0xFF & state->cpu->result;
     }
     _check_flags(state);
 }
@@ -546,9 +549,10 @@ CYCLE_FUNC(_set_pc_from_data) {
 CYCLE_FUNC(_add_reg_signed_data) {
     state->cpu->result = *(WORD*)(state->cpu->reg_dest) 
         + (signed)state->cpu->offset; 
+
     state->cpu->is_16_bit = 1;
     _check_flags(state);
-    *(WORD*)(state->cpu->reg_dest) += (signed)state->cpu->offset;
+    *(WORD*)(state->cpu->reg_dest) = 0xFFFF & state->cpu->result;
 }
 CYCLE_FUNC(_inc_hl) {
     reg_hl(state->cpu)++;
@@ -600,46 +604,84 @@ CYCLE_FUNC(_check_flags) {
     CPUFlags cur_flags = cpu->flags;
     CPUFlags chk_flags = cpu->check_flags;
 
-    if (chk_flags.z == SET || chk_flags.z == CLEAR) {
-        cpu->flags.z = chk_flags.z;
-    } else if (chk_flags.z == CHECK) {
-        if (cpu->is_16_bit)
-            cpu->flags.z = ((cpu->result & 0xFFFF) == 0) ? SET : CLEAR;
-        else
-            cpu->flags.z = ((cpu->result & 0xFF) == 0) ? SET : CLEAR;
-    } else if (chk_flags.z == FLIP) {
-        cpu->flags.z = (cur_flags.z == SET) ? CLEAR : SET;
+    switch (chk_flags.z) {
+        case SET:
+        case CLEAR:
+            cpu->flags.z = chk_flags.z;
+            break;
+        case CHECK:
+            if (cpu->is_16_bit)
+                cpu->flags.z = ((cpu->result & 0xFFFF) == 0) ? SET : CLEAR;
+            else
+                cpu->flags.z = ((cpu->result & 0xFF) == 0) ? SET : CLEAR;
+            break;
+        case FLIP:
+            cpu->flags.z = (cur_flags.z == SET) ? CLEAR : SET;
+            break;
+        default:
+            break;
     }
-    if (chk_flags.n == SET || chk_flags.n == CLEAR) {
-        cpu->flags.n = chk_flags.n;
-    } else if (chk_flags.n == CHECK) {
-        // should be unreachable
-    } else if (chk_flags.n == FLIP) {
-        cpu->flags.n = (cur_flags.n == SET) ? CLEAR : SET;
+
+    switch (chk_flags.n) {
+        case SET:
+        case CLEAR:
+            cpu->flags.n = chk_flags.n;
+            break;
+        case CHECK:
+            assert(0);
+            break;
+        case FLIP:
+            cpu->flags.n = (cur_flags.n == SET) ? CLEAR : SET;
+            break;
+        default:
+            break;
     }
-    if (chk_flags.h == SET || chk_flags.h == CLEAR) {
-        cpu->flags.h = chk_flags.h;
-    } else if (chk_flags.h == CHECK) {
-        // FIXME: This does not capture all cases that set H. Need to
-        // look at the two operands to determine if there is a carry out
-        // of the 4 least significant bits. Not just the result.
-        cpu->flags.h = ((cpu->result & 0xF)>9) ? SET : CLEAR;
-    } else if (chk_flags.h == FLIP) {
-        cpu->flags.h = (cur_flags.h == SET) ? CLEAR : SET;
+    
+    switch (chk_flags.h) {
+        case SET:
+        case CLEAR:
+            cpu->flags.h = chk_flags.h;
+            break;
+        case CHECK:
+            // FIXME: This does not capture all cases that set H. Need to
+            // look at the two operands to determine if there is a carry out
+            // of the 4 least significant bits. Not just the result.
+            cpu->flags.h = (ls_nib(cpu->result)>9) ? SET : CLEAR;
+            BYTE ls_d, ls_s;
+            /*ls_d = ls_nib(*cpu->reg_dest);
+            ls_s = ls_nib(*cpu->reg_src);
+            if (((ls_s + ls_d) & 0xF0)
+            || )
+                cpu->flags.h = SET; */
+            break;
+        case FLIP:
+            cpu->flags.h = (cur_flags.h == SET) ? CLEAR : SET;
+            break;
+        default:
+            break;
     }
-    if (chk_flags.c == SET || chk_flags.c == CLEAR) {
-        cpu->flags.c = chk_flags.c;
-    } else if (chk_flags.c == CHECK) {
-        if (cpu->is_16_bit)
-            cpu->flags.c = (cpu->result > (int)0xFFFF) ? SET : CLEAR;
-        else
-            cpu->flags.c = (cpu->result > (int)0xFF) ? SET : CLEAR;
-        
-        if (cpu->result < 0)
-            cpu->flags.c = SET;
-    } else if (chk_flags.c == FLIP) {
-        cpu->flags.c = (cur_flags.c == SET) ? CLEAR : SET;
+
+    switch (chk_flags.c) {
+        case SET:
+        case CLEAR:
+            cpu->flags.c = chk_flags.c;
+            break;
+        case CHECK:
+            if (cpu->is_16_bit)
+                cpu->flags.c = (cpu->result > 0xFFFF) ? SET : CLEAR;
+            else
+                cpu->flags.c = (cpu->result > 0xFF) ? SET : CLEAR;
+            
+            if (cpu->result < 0)
+                cpu->flags.c = SET;
+            break;
+        case FLIP:
+            cpu->flags.c = (cur_flags.c == SET) ? CLEAR : SET;
+            break;
+        default:
+            break;
     }
+    
     _end_check_flags:
     1;
 

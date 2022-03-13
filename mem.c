@@ -344,27 +344,15 @@ READ_FUNC(_read_tac) {
 }
 WRITE_FUNC(_write_tac) {
     data &= 0x07;
+    static unsigned int tima_period_masks[] = {0x3FF, 0xF, 0x3F, 0xFF};
 
-    if (data & 0x4) 
+    if (bit_2(data)) 
         state->timer->timer_enabled = ON;
     else
         state->timer->timer_enabled = OFF;
 
     state->timer->reg_tac = data;
-    switch (data & 0x3) {
-        case 0:
-            state->timer->tima_period_cycles = _00;
-            break;
-        case 1:
-            state->timer->tima_period_cycles = _01;
-            break;
-        case 2:
-            state->timer->tima_period_cycles = _10;
-            break;
-        case 3:
-            state->timer->tima_period_cycles = _11;
-            break;
-    }
+    state->timer->tima_period_mask = tima_period_masks[data & 0x3];
     
     mem_sys(state, SysMemState)->ioregs->tac = data;
     return 1;
@@ -1833,7 +1821,7 @@ int read_mbc1_rom_into_mem(GBState *state, FILE *fp) {
 
     n_read = fread(mbc1->rom_banks, ROM_BANK_SIZE, n_banks, fp);
 
-    assert(n_read == total_rom_size);
+    assert(n_read == n_banks);
 
     return 0;
 }
@@ -1849,14 +1837,16 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
     MemoryState *mem = malloc(sizeof(MemoryState));
     if (mem == NULL) {
         printf("Error allocating memory state\n");
-        exit(1);
+        return NULL;
     }
     mem->header = header;
+
     mem->cartridge = malloc(sizeof(Memmap_t));
     mem->system = malloc(sizeof(Memmap_t));
     if (mem->cartridge == NULL || mem->system == NULL) {
         printf("Error allocating memmap_t\n");
-        exit(1);
+        free(mem);
+        return NULL;
     }
 
     if (header == NULL) {
@@ -1880,6 +1870,14 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
         mem->system->teardown = &teardown_sys_memory;
     }
 
+    if (ms_nib(header->title_or_mfc[15]) == 0xC) {
+        printf("Header suggests CGB-only, not supported\n");
+        free(mem->cartridge);
+        free(mem->system);
+        free(mem);
+        return NULL;
+    }
+
     /* Set up cartridge memory based on header info */
     switch (header->cartridge_type) {
         case CART_ROM:
@@ -1890,6 +1888,7 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
             mem->cartridge->teardown = &teardown_basic_memory;
             
             break;
+        
         case CART_MBC1:
         case CART_MBC1_RAM:
         case CART_MBC1_RAM_BAT:
@@ -1967,7 +1966,7 @@ TimerState *initialize_timer(void) {
     timer->reg_tima = 0x00;
     timer->reg_tma = 0x00;
     timer->timer_enabled = OFF;
-    timer->tima_period_cycles = _00;
+    timer->tima_period_mask = 0x3FF;
 
     return timer;
 }
@@ -1983,11 +1982,12 @@ void task_div_timer(GBState *state) {
 void task_tima_timer(GBState *state) {
     TimerState *timer = state->timer;
     if (timer->timer_enabled) {
-        if ((state->counter % timer->tima_period_cycles) == 0) {
+        if (! (state->counter & timer->tima_period_mask)) {
             timer->reg_tima++;
 
             if (timer->reg_tima == 0) {
                 timer->reg_tima = timer->reg_tma;
+                printf("timer expired\n");
                 REQUEST_INTERRUPT(state, INT_TIMER);
             }
         }
