@@ -1192,28 +1192,134 @@ GET_PTR_FUNC(_debug_ptr) {
     return &mem_sys(state, DebugMemState)->mem[rel_addr];
 }
 READ_FUNC(_mbc1_read_rom_base) {
+    /* addr/rel_addr = 0 - 0x3FFF */
+    MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
+    int eff_addr = rel_addr;
 
+    if (mbc1->bank_mode == MODE_ADVANCED) {
+        if (mbc1->cart_type == LARGE_ROM) {
+            assert((mbc1->reg_2_2bits << 5) < mbc1->n_rom_banks);
+            eff_addr = (mbc1->reg_2_2bits << 5) * ROM_BANK_SIZE + rel_addr;
+        }
+    }
+
+    return mbc1->rom_banks[eff_addr];
 }
 WRITE_FUNC(_mbc1_write_0_3fff) {
+    /* addr/rel_addr = 0 - 0x3FFF */
+    MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
+    if (rel_addr < 0x2000) {
+        /* 0x0000 - 0x1FFF */
+        if (ls_nib(data) == 0xA)
+            mbc1->ram_enabled = 1;
+        else
+            mbc1->ram_enabled = 0;
+    } else {
+        /* 0x2000 - 0x3FFF */
+        int active_rom_bank;
 
+        if (data == 0) data = 1;
+        data &= 0x1F;
+        data &= mbc1->rom_bank_mask;
+        mbc1->reg_1_5bits = data;
+
+        if (mbc1->cart_type == LARGE_ROM) {
+            active_rom_bank = ((mbc1->reg_2_2bits & 0x3) << 5) | data;
+        } else {
+            active_rom_bank = data;
+        }
+
+        mbc1->active_rom_bank = active_rom_bank;
+    }
+
+    return 1;
 }
 GET_PTR_FUNC(_mbc1_ptr_rom_base) {
 
 }
 READ_FUNC(_mbc1_read_rom_1) {
+    /*  addr = 0x4000 - 0x7FFF
+    rel_addr = 0 - 0x3FFF */
+    MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
+    int eff_addr;
+    assert(mbc1->active_rom_bank & 0xF != 0);
+    assert(mbc1->active_rom_bank < mbc1->n_rom_banks);
 
+    eff_addr = mbc1->active_rom_bank * ROM_BANK_SIZE + rel_addr;
+
+    return mbc1->rom_banks[eff_addr];
 }
 WRITE_FUNC(_mbc1_write_4000_7fff) {
+    /*  addr = 0x4000 - 0x7FFF
+    rel_addr = 0 - 0x3FFF */
+    MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
+
+    if (rel_addr < 0x2000) { 
+        /* 0x4000 - 0x5FFF */
+        data &= 0x3;
+        mbc1->reg_2_2bits = data;
+
+        if (mbc1->bank_mode == MODE_SIMPLE) {
+            if (mbc1->cart_type == LARGE_ROM)
+                mbc1->active_rom_bank = (data << 5) | (mbc1->reg_1_5bits & 0x1F);
+        } else {
+            if (mbc1->cart_type == LARGE_RAM)
+                mbc1->active_ram_bank = data;
+        }
+
+    } else {
+        /* 0x6000 - 0x7FFF */
+        if (data & 0x1) {
+            mbc1->bank_mode = MODE_ADVANCED;
+            mbc1->active_ram_bank = mbc1->reg_2_2bits;
+        } else {
+            mbc1->bank_mode = MODE_SIMPLE;
+            mbc1->active_ram_bank = 0;
+        }
+    }
 
 }
 GET_PTR_FUNC(_mbc1_ptr_rom_1) {
     
 }
 READ_FUNC(_mbc1_read_ram_bank) {
+    /* addr  = 0xA000 - 0xBFFF 
+    rel_addr = 0 - 0x1FFF */
 
+    MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
+    int eff_addr;
+
+    if (! mbc1->ram_enabled)
+        return UNINIT;
+
+    assert(mbc1->active_ram_bank < mbc1->n_ram_banks);
+
+    if (mbc1->bank_mode == MODE_ADVANCED)
+        eff_addr = mbc1->active_ram_bank * RAM_BANK_SIZE + rel_addr;
+    else
+        eff_addr = rel_addr;
+
+    return mbc1->ram_banks[eff_addr];
 }
 WRITE_FUNC(_mbc1_write_ram_bank) {
+    /* addr  = 0xA000 - 0xBFFF 
+    rel_addr = 0 - 0x1FFF */
+    MBC1CartState *mbc1 = mem_cart(state, MBC1CartState);
+    int eff_addr;
 
+    if (! mbc1->ram_enabled)
+        return -1;
+    
+    assert(mbc1->active_ram_bank < mbc1->n_ram_banks);
+
+    if (mbc1->bank_mode == MODE_ADVANCED)
+        eff_addr = mbc1->active_ram_bank * RAM_BANK_SIZE + rel_addr;
+    else
+        eff_addr = rel_addr;
+
+    mbc1->ram_banks[eff_addr] = data;
+
+    return 1;
 }
 GET_PTR_FUNC(_mbc1_ptr_ram_bank) {
     
@@ -1668,24 +1774,22 @@ MBC1CartState *initialize_mbc1_memory(CartridgeHeader *header) {
         exit(1);
     }
     mbc1->ram_enabled = 0;
+    mbc1->reg_1_5bits = 1;
+    mbc1->reg_2_2bits = 0;
     mbc1->active_ram_bank = 0;
     mbc1->active_rom_bank = 1;
+    mbc1->bank_mode = MODE_SIMPLE;
 
-    mbc1->n_rom_banks = 2;
-
-    if (header->rom_size < 9)
-        mbc1->n_rom_banks <<= header->rom_size;
-    else 
+    if (header->rom_size < 9) {
+        mbc1->n_rom_banks = 2 << header->rom_size;
+        mbc1->rom_bank_mask = mbc1->n_rom_banks - 1;
+    } else {
         printf("ILLEGAL ROM SIZE %d\n", header->rom_size);
-
-    mbc1->n_ram_banks = 0;
+    }
     
     switch(header->ram_size) {
         case 0:
             mbc1->n_ram_banks = 0;
-            break;
-        case 1:
-            printf("ILLEGAL RAM SIZE 1\n");
             break;
         case 2:
             mbc1->n_ram_banks = 1;
@@ -1693,22 +1797,17 @@ MBC1CartState *initialize_mbc1_memory(CartridgeHeader *header) {
         case 3:
             mbc1->n_ram_banks = 4;
             break;
-        case 4:
-            mbc1->n_ram_banks = 16;
-            break;
-        case 5:
-            mbc1->n_ram_banks = 8;
-            break;
         default:
             printf("ILLEGAL RAM SIZE %d\n", header->ram_size);
+            mbc1->n_ram_banks = 0;
             break;
     }
     if (mbc1->n_ram_banks > 1) // > 8 KiB ram
         mbc1->cart_type = LARGE_RAM;
     else if (mbc1->n_rom_banks >= 64) // >= 1 MiB rom
         mbc1->cart_type = LARGE_ROM;
-
-    mbc1->bank_mode = MODE_SIMPLE;
+    else
+        mbc1->cart_type = DEFAULT;
 
     int rom_total_size = mbc1->n_rom_banks * ROM_BANK_SIZE;
     int ram_total_size = mbc1->n_ram_banks * RAM_BANK_SIZE;
@@ -1748,8 +1847,8 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
         exit(1);
     }
 
-    /* DEBUG condition */
     if (header == NULL) {
+        /* Debug mode - just setup plain 0x10000 byte array */
         mem->cartridge->n_regions = 0;
         mem->cartridge->regions = NULL;
         mem->cartridge->initialize = &initialize_null;
@@ -1762,14 +1861,14 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
 
         goto init_done;
     } else {
+        /* If not in debug mode, set up the system memory */
         mem->system->n_regions = 9;
         mem->system->regions = system_mem_map;
         mem->system->initialize = &initialize_sys_memory;
         mem->system->teardown = &teardown_sys_memory;
     }
 
-    printf("%02x\n", header->cartridge_type);
-
+    /* Set up cartridge memory based on header info */
     switch (header->cartridge_type) {
         case CART_ROM:
             mem->read_rom = &read_basic_rom_into_mem;

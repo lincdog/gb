@@ -281,14 +281,18 @@ the actual memory data. This basically represents the cartridge.*/
 typedef struct {
     int ram_enabled;
     int active_rom_bank;
+    int reg_1_5bits;
+    int rom_bank_mask;
     int n_rom_banks;
     BYTE *rom_banks;
+    int reg_2_2bits;
     int active_ram_bank;
     int n_ram_banks;
     BYTE *ram_banks;
-    enum {LARGE_RAM=0, LARGE_ROM=1} cart_type;
+    enum {DEFAULT=0, LARGE_RAM=1, LARGE_ROM=2} cart_type;
     enum {MODE_SIMPLE=0, MODE_ADVANCED=1} bank_mode;
 } MBC1CartState;
+
 
 typedef struct {
     BYTE rom[0x8000];
