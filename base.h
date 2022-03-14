@@ -170,7 +170,6 @@ typedef struct __attribute__ ((packed)) {
 } CPUState;
 
 typedef enum {
-    INIT=-1,
     HBLANK=0, 
     VBLANK=1, 
     OAMSCAN=2, 

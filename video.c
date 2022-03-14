@@ -3,8 +3,6 @@
 #include "video.h"
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/time.h>
-
 #include <SDL.h>
 
 const BYTE color_table[] = { 0xFF, 0xAA, 0x55, 0x00 };
