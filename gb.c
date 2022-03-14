@@ -27,11 +27,17 @@ SDLComponents *initialize_sdl_core(void) {
         EMU_WIDTH_PX, EMU_HEIGHT_PX,
         SDL_WINDOW_RESIZABLE
     );
-    sdl->surface = SDL_GetWindowSurface(sdl->window);
-    sdl->renderer = SDL_CreateSoftwareRenderer(sdl->surface);
+    //sdl->surface = SDL_GetWindowSurface(sdl->window);
+    sdl->renderer = SDL_CreateRenderer(sdl->window, -1, 0);
     SDL_RenderSetLogicalSize(sdl->renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
     SDL_SetRenderDrawColor(sdl->renderer, 0, 0, 0, 0xFF);
     SDL_RenderClear(sdl->renderer);
+    sdl->texture = SDL_CreateTexture(
+        sdl->renderer, 
+        SDL_PIXELFORMAT_RGB888, 
+        SDL_TEXTUREACCESS_STREAMING,
+        GB_WIDTH_PX, GB_HEIGHT_PX
+    );
     
     sdl->button_select = 0xFF;
     sdl->action_buttons = 0xFF;

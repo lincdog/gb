@@ -1072,10 +1072,7 @@ GET_PTR_FUNC(_mbc1_ptr_ram_bank) {
 READ_FUNC(_mbc3_read_rom_base) {
     /* addr/rel_addr = 0 - 0x3FFF */
     MBC3CartState *mbc3 = mem_cart(state, MBC3CartState);
-    int eff_addr;
-
-    eff_addr =  rel_addr;
-    return mbc3->rom_banks[eff_addr];
+    return mbc3->rom_banks[rel_addr];
 }
 WRITE_FUNC(_mbc3_write_0_3fff) {
     /* addr/rel_addr = 0 - 0x3FFF */
@@ -1088,12 +1085,11 @@ WRITE_FUNC(_mbc3_write_0_3fff) {
             mbc3->ram_rtc_enabled = 0;
     } else {
         /* 0x2000 - 0x3FFF */
-        int active_rom_bank;
-
         data &= 0x7F;
         if (data == 0) data = 1;
         data &= mbc3->rom_bank_mask;
         mbc3->reg_1_7bits = data;
+        mbc3->active_rom_bank = data;
     }
 
     return 1;
@@ -1102,16 +1098,23 @@ READ_FUNC(_mbc3_read_rom_1) {
     /*  addr = 0x4000 - 0x7FFF
     rel_addr = 0 - 0x3FFF */
     MBC3CartState *mbc3 = mem_cart(state, MBC3CartState);
-    int eff_addr, active_rom_bank;
-    
-    active_rom_bank = mbc3->reg_1_7bits;
-    active_rom_bank &= mbc3->rom_bank_mask;
-    mbc3->active_rom_bank = active_rom_bank;
-
-    eff_addr = active_rom_bank * ROM_BANK_SIZE + rel_addr;
+    int eff_addr;
+    eff_addr = mbc3->active_rom_bank * ROM_BANK_SIZE + rel_addr;
     
     return mbc3->rom_banks[eff_addr];
 }
+
+void _update_mbc3_rtc(MBC3CartState *mbc3) {
+    time_t time_epoch;
+    struct tm *time_struct;
+
+    time_epoch = time(NULL);
+    time_struct = localtime(&time_epoch);
+
+    mbc3->rtc.time_epoch = time_epoch;
+    mbc3->rtc.time_struct = time_struct; 
+}
+
 WRITE_FUNC(_mbc3_write_4000_7fff) {
     /*  addr = 0x4000 - 0x7FFF
     rel_addr = 0 - 0x3FFF */
@@ -1122,7 +1125,7 @@ WRITE_FUNC(_mbc3_write_4000_7fff) {
         data &= 0xF;
         mbc3->reg_2_4bits = data;
         if (data < 4) {
-            mbc3->active_ram_bank = data;
+            mbc3->active_ram_bank = (data < mbc3->n_ram_banks) ? data : 0;
             mbc3->bank_mode = MODE_RAM;
         } else if (data > 0x7 && data < 0xD) {
             mbc3->active_rtc_bank = data;
@@ -1137,12 +1140,14 @@ WRITE_FUNC(_mbc3_write_4000_7fff) {
                     mbc3->rtc.latch = LATCH_1;
                 break;
             case LATCH_1:
-                if (data == 1)
+                if (data == 1) {
                     mbc3->rtc.latch = LATCHED;
+                    _update_mbc3_rtc(mbc3);
+                }
                 break;
             case LATCHED:
                 if (data == 0)
-                    mbc3->rtc.latch = LATCH_0;
+                    mbc3->rtc.latch = LATCH_1;
                 break;
         }
     }
@@ -1152,7 +1157,7 @@ WRITE_FUNC(_mbc3_write_4000_7fff) {
 READ_FUNC(_mbc3_read_ram_or_rtc) {
     /* 0xA000 - 0xBFFF */
     MBC3CartState *mbc3 = mem_cart(state, MBC3CartState); 
-    int eff_addr, active_ram_bank;
+    int eff_addr;
     BYTE result;
     time_t time_epoch;
     struct tm *time_struct;
@@ -1161,21 +1166,14 @@ READ_FUNC(_mbc3_read_ram_or_rtc) {
             return UNINIT;
 
     if (mbc3->bank_mode == MODE_RAM) {
-        active_ram_bank = (mbc3->active_ram_bank < mbc3->n_ram_banks) ?
-            mbc3->active_ram_bank : 0;
+        assert(mbc3->active_ram_bank < mbc3->n_ram_banks);
 
-        eff_addr = active_ram_bank * RAM_BANK_SIZE + rel_addr;
+        eff_addr = mbc3->active_ram_bank * RAM_BANK_SIZE + rel_addr;
         result = mbc3->ram_banks[eff_addr];
-
     } else if (mbc3->bank_mode == MODE_RTC) {
 
-        if (mbc3->rtc.latch != LATCHED) {
-            time_epoch = time(NULL);
-            time_struct = localtime(&time_epoch);
-
-            mbc3->rtc.time_epoch = time_epoch;
-            mbc3->rtc.time_struct = time_struct;
-        }
+        if (mbc3->rtc.latch != LATCHED)
+            _update_mbc3_rtc(mbc3);
 
         switch (mbc3->active_rtc_bank) {
             case 0x8:
@@ -1207,16 +1205,13 @@ READ_FUNC(_mbc3_read_ram_or_rtc) {
 WRITE_FUNC(_mbc3_write_ram_or_rtc) {
     /* 0xA000 - 0xBFFF */
     MBC3CartState *mbc3 = mem_cart(state, MBC3CartState); 
-    int eff_addr, active_ram_bank; 
+    int eff_addr; 
 
     if (! mbc3->ram_rtc_enabled)
         return -1;
     
     if (mbc3->bank_mode == MODE_RAM) {
-        active_ram_bank = (mbc3->active_ram_bank < mbc3->n_ram_banks) ?
-            mbc3->active_ram_bank : 0;
-
-        eff_addr = active_ram_bank * RAM_BANK_SIZE + rel_addr;
+        eff_addr = mbc3->active_ram_bank * RAM_BANK_SIZE + rel_addr;
         mbc3->ram_banks[eff_addr] = data;
 
     } else if (mbc3->bank_mode == MODE_RTC) {
