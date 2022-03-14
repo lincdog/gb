@@ -237,7 +237,7 @@ void main_loop(GBState *state) {
     post = clock();
     elapsed = (float)(post - pre)/CLOCKS_PER_SEC;
 
-    printf("Cycles: %d\nSeconds: %f (%f MHz)\n", 
+    printf("Cycles: %lu\nSeconds: %f (%f MHz)\n", 
     state->counter, elapsed, (state->counter/elapsed)/exp2(20));
 }
 

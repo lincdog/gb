@@ -668,6 +668,7 @@ void task_ppu_cycle(GBState *state) {
     if (ppu->scanline.counter == 0) {
         ppu_render_scanline(state);
         ppu_next_scanline(ppu);
+        //SDL_UpdateWindowSurface(state->sdl->window);
     }
     struct timespec ts;
     if (ppu->frame.counter == 0) {

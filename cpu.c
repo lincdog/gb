@@ -572,9 +572,11 @@ CYCLE_FUNC(_enable_interrupts) {
 CYCLE_FUNC(_do_halt) {
     state->cpu->state = HALT;
     reg_pc(state->cpu)++;
+    //printf("do halt\n");
 }
 CYCLE_FUNC(_do_stop) {
     state->cpu->state = STOP;
+   // printf("do stop\n");
 }
 CYCLE_FUNC(_read_imm_offset) {
     state->cpu->addr = reg_pc(state->cpu);
@@ -786,7 +788,6 @@ void cpu_next_inst_or_interrupt(GBState *state) {
 }
 
 void cpu_setup_interrupt_pipeline(CPUState *cpu, WORD vec) {
-    printf("Interrupt pipeline\n");
     cpu->flags.ime = CLEAR;
     cpu->reg_src = &reg_pc(cpu);
     cpu->reg_dest = &reg_pc(cpu);

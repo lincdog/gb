@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define _read_sb _read_unimplemented
 #define _write_sb _write_unimplemented
@@ -1246,15 +1247,9 @@ WRITE_FUNC(_mbc1_write_4000_7fff) {
         mbc1->reg_2_2bits = data;
     } else {
         /* 0x6000 - 0x7FFF */
-        if (data & 0x1) {
-            mbc1->bank_mode = MODE_ADVANCED;
-            //mbc1->active_ram_bank = mbc1->reg_2_2bits;
-        } else {
-            mbc1->bank_mode = MODE_SIMPLE;
-            //mbc1->active_ram_bank = 0;
-        }
+        mbc1->bank_mode = (data & 0x1) ? MODE_ADVANCED : MODE_SIMPLE;
     }
-
+    return 1;
 }
 GET_PTR_FUNC(_mbc1_ptr_rom_1) {
     
@@ -1307,6 +1302,165 @@ WRITE_FUNC(_mbc1_write_ram_bank) {
 GET_PTR_FUNC(_mbc1_ptr_ram_bank) {
     
 }
+
+READ_FUNC(_mbc3_read_rom_base) {
+    /* addr/rel_addr = 0 - 0x3FFF */
+    MBC3CartState *mbc3 = mem_cart(state, MBC3CartState);
+    int eff_addr;
+
+    eff_addr =  rel_addr;
+    return mbc3->rom_banks[eff_addr];
+}
+WRITE_FUNC(_mbc3_write_0_3fff) {
+    /* addr/rel_addr = 0 - 0x3FFF */
+    MBC3CartState *mbc3 = mem_cart(state, MBC3CartState);
+    if (rel_addr < 0x2000) {
+        /* 0x0000 - 0x1FFF */
+        if (ls_nib(data) == 0xA)
+            mbc3->ram_rtc_enabled = 1;
+        else
+            mbc3->ram_rtc_enabled = 0;
+    } else {
+        /* 0x2000 - 0x3FFF */
+        int active_rom_bank;
+
+        data &= 0x7F;
+        if (data == 0) data = 1;
+        data &= mbc3->rom_bank_mask;
+        mbc3->reg_1_7bits = data;
+    }
+
+    return 1;
+}
+READ_FUNC(_mbc3_read_rom_1) {
+    /*  addr = 0x4000 - 0x7FFF
+    rel_addr = 0 - 0x3FFF */
+    MBC3CartState *mbc3 = mem_cart(state, MBC3CartState);
+    int eff_addr, active_rom_bank;
+    
+    active_rom_bank = mbc3->reg_1_7bits;
+    active_rom_bank &= mbc3->rom_bank_mask;
+    mbc3->active_rom_bank = active_rom_bank;
+
+    eff_addr = active_rom_bank * ROM_BANK_SIZE + rel_addr;
+    
+    return mbc3->rom_banks[eff_addr];
+}
+WRITE_FUNC(_mbc3_write_4000_7fff) {
+    /*  addr = 0x4000 - 0x7FFF
+    rel_addr = 0 - 0x3FFF */
+    MBC3CartState *mbc3 = mem_cart(state, MBC3CartState);
+
+    if (rel_addr < 0x2000) { 
+        /* 0x4000 - 0x5FFF */
+        data &= 0xF;
+        mbc3->reg_2_4bits = data;
+        if (data < 4) {
+            mbc3->active_ram_bank = data;
+            mbc3->bank_mode = MODE_RAM;
+        } else if (data > 0x7 && data < 0xD) {
+            mbc3->active_rtc_bank = data;
+            mbc3->bank_mode = MODE_RTC;
+        }
+
+    } else {
+        /* 0x6000 - 0x7FFF */
+        switch (mbc3->rtc.latch) {
+            case LATCH_0:
+                if (data == 0)
+                    mbc3->rtc.latch = LATCH_1;
+                break;
+            case LATCH_1:
+                if (data == 1)
+                    mbc3->rtc.latch = LATCHED;
+                break;
+            case LATCHED:
+                if (data == 0)
+                    mbc3->rtc.latch = LATCH_0;
+                break;
+        }
+    }
+    return 1;
+}
+
+READ_FUNC(_mbc3_read_ram_or_rtc) {
+    /* 0xA000 - 0xBFFF */
+    MBC3CartState *mbc3 = mem_cart(state, MBC3CartState); 
+    int eff_addr, active_ram_bank;
+    BYTE result;
+    time_t time_epoch;
+    struct tm *time_struct;
+
+    if (! mbc3->ram_rtc_enabled)
+            return UNINIT;
+
+    if (mbc3->bank_mode == MODE_RAM) {
+        active_ram_bank = (mbc3->active_ram_bank < mbc3->n_ram_banks) ?
+            mbc3->active_ram_bank : 0;
+
+        eff_addr = active_ram_bank * RAM_BANK_SIZE + rel_addr;
+        result = mbc3->ram_banks[eff_addr];
+
+    } else if (mbc3->bank_mode == MODE_RTC) {
+
+        if (mbc3->rtc.latch != LATCHED) {
+            time_epoch = time(NULL);
+            time_struct = localtime(&time_epoch);
+
+            mbc3->rtc.time_epoch = time_epoch;
+            mbc3->rtc.time_struct = time_struct;
+        }
+
+        switch (mbc3->active_rtc_bank) {
+            case 0x8:
+                result = mbc3->rtc.time_struct->tm_sec;
+                break;
+            case 0x9:
+                result = mbc3->rtc.time_struct->tm_min;
+                break;
+            case 0xA:
+                result = mbc3->rtc.time_struct->tm_hour;
+                break;
+            case 0xB:
+                result = 0xFF & mbc3->rtc.time_struct->tm_yday;
+                break;
+            case 0xC:
+                result = (0x100 & mbc3->rtc.time_struct->tm_yday) >> 8;
+                result |= ((mbc3->rtc.halt) ? 0x40 : 0);
+                result |= ((mbc3->rtc.day_carry) ? 0x80 : 0);
+                break;
+            default:
+                result = UNINIT;
+                break;
+        }
+    }
+
+    return result;
+}
+
+WRITE_FUNC(_mbc3_write_ram_or_rtc) {
+    /* 0xA000 - 0xBFFF */
+    MBC3CartState *mbc3 = mem_cart(state, MBC3CartState); 
+    int eff_addr, active_ram_bank; 
+
+    if (! mbc3->ram_rtc_enabled)
+        return -1;
+    
+    if (mbc3->bank_mode == MODE_RAM) {
+        active_ram_bank = (mbc3->active_ram_bank < mbc3->n_ram_banks) ?
+            mbc3->active_ram_bank : 0;
+
+        eff_addr = active_ram_bank * RAM_BANK_SIZE + rel_addr;
+        mbc3->ram_banks[eff_addr] = data;
+
+    } else if (mbc3->bank_mode == MODE_RTC) {
+
+    }
+
+    return 1;
+}
+
+/* Memory maps */
 MemoryRegion mbc1_mem_map[] = {
     { // 0001 1111 1111 1111
         .base=0x0000,
@@ -1339,50 +1493,40 @@ MemoryRegion mbc1_mem_map[] = {
         .get_ptr=&_mbc1_ptr_ram_bank
     }
 };
-/*
+
 MemoryRegion mbc3_mem_map[] = {
     {
         .base=0x0000,
-        .end=0x1FFF,
-        .len=0x2000,
-        .flags=0,
-        .read=&_mbc3_read_rom_base,
-        .write=&_mbc3_ram_timer_enable
-    },
-    {
-        .base=0x2000,
         .end=0x3FFF,
-        .len=0x2000,
+        .len=0x4000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc3_read_rom_base,
-        .write=&_mbc3_rom_bank_num
+        .write=&_mbc3_write_0_3fff,
+        .get_ptr=&_mbc1_ptr_rom_base
     },
     {
         .base=0x4000,
-        .end=0x5FFF,
-        .len=0x2000,
-        .flags=0,
-        .read=&_mbc3_read_rom_1,
-        .write=&_mbc3_ram_or_rtc_sel
-    },
-    {
-        .base=0x6000,
         .end=0x7FFF,
         .len=0x2000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc3_read_rom_1,
-        .write=&_mbc3_latch_clock
+        .write=&_mbc3_write_4000_7fff,
+        .get_ptr=&_mbc1_ptr_rom_1
     },
     {
         .base=0xA000,
         .end=0xBFFF,
         .len=0x2000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc3_read_ram_or_rtc,
-        .write=&_mbc3_write_ram_or_rtc
+        .write=&_mbc3_write_ram_or_rtc,
+        .get_ptr=&_mbc1_ptr_ram_bank
     }
 };
-*/
+
 
 MemoryRegion system_mem_map[] = {
     { // 0000 0000 1111 1111
@@ -1534,6 +1678,32 @@ MemoryRegion *find_mem_region(GBState *state, WORD addr, BYTE flags) {
     found_mem_region:
     return source;
 
+}
+
+int lock_region(MemoryRegion *region, BYTE source_flags) {
+    if (!(region->flags & MEM_LOCKED)) {
+        region->flags &= 0xF8;
+        region->flags |= (MEM_LOCKED | get_mem_source(source_flags));
+    }
+}
+
+int unlock_region(MemoryRegion *region, BYTE source_flags) {
+    if ((region->flags & MEM_LOCKED)
+    && get_mem_source(region->flags) 
+    == get_mem_source(source_flags))
+        region->flags &= (~MEM_LOCKED);
+}
+
+int check_access(MemoryRegion *region, BYTE source_flags) {
+    int accessible = 1;
+
+    BYTE reg_flags = region->flags;
+    if (reg_flags & MEM_LOCKED)
+        accessible = get_mem_source(reg_flags) == get_mem_source(source_flags);
+   
+    accessible = accessible || (source_flags & MEM_DEBUG);
+
+    return accessible;
 }
 
 BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
@@ -1826,6 +1996,82 @@ int read_mbc1_rom_into_mem(GBState *state, FILE *fp) {
     return 0;
 }
 
+MBC3CartState *initialize_mbc3_memory(CartridgeHeader *header) {
+    MBC3CartState *mbc3 = malloc(sizeof(MBC1CartState));
+    if (mbc3 == NULL) {
+        printf("Error allocating MBC1 memory\n");
+        exit(1);
+    }
+    mbc3->ram_rtc_enabled = 0;
+    mbc3->rtc.time_epoch = time(NULL);
+    mbc3->rtc.time_struct = localtime(&mbc3->rtc.time_epoch);
+    mbc3->rtc.halt = 0;
+    mbc3->rtc.day_carry = 0;
+
+    mbc3->reg_1_7bits = 1;
+    mbc3->reg_2_4bits = 0;
+    mbc3->active_ram_bank = 0;
+    mbc3->active_rtc_bank = 0;
+    mbc3->active_rom_bank = 1;
+    mbc3->bank_mode = MODE_SIMPLE;
+
+    if (header->rom_size < 7) {
+        mbc3->n_rom_banks = 2 << header->rom_size;
+        mbc3->rom_bank_mask = mbc3->n_rom_banks - 1;
+    } else {
+        printf("ILLEGAL ROM SIZE %d\n", header->rom_size);
+    }
+    
+    switch(header->ram_size) {
+        case 0:
+            mbc3->n_ram_banks = 0;
+            break;
+        case 1:
+        case 2:
+            mbc3->n_ram_banks = 1;
+            break;
+        case 3:
+            mbc3->n_ram_banks = 4;
+            break;
+        default:
+            printf("ILLEGAL RAM SIZE %d\n", header->ram_size);
+            mbc3->n_ram_banks = 0;
+            break;
+    }
+
+    int rom_total_size = mbc3->n_rom_banks * ROM_BANK_SIZE;
+    int ram_total_size = mbc3->n_ram_banks * RAM_BANK_SIZE;
+    mbc3->rom_banks = allocate_region(rom_total_size, "rom banks");
+    mbc3->ram_banks = allocate_region(ram_total_size, "ram banks");
+
+    return mbc3;
+}
+
+void teardown_mbc3_memory(MBC3CartState *mbc3) {
+    if (mbc3->n_rom_banks > 0)
+        free(mbc3->rom_banks);
+    if (mbc3->n_ram_banks > 0)
+        free(mbc3->ram_banks);
+    
+    free(mbc3);
+}
+
+int read_mbc3_rom_into_mem(GBState *state, FILE *fp) {
+    MBC3CartState *mbc1 = mem_cart(state, MBC3CartState);
+
+    int n_banks = mbc1->n_rom_banks;
+    int total_rom_size = n_banks * ROM_BANK_SIZE;
+    int n_read;
+
+    fseek(fp, 0, SEEK_SET);
+
+    n_read = fread(mbc1->rom_banks, ROM_BANK_SIZE, n_banks, fp);
+
+    assert(n_read == n_banks);
+
+    return 0;
+}
+
 void *initialize_null(CartridgeHeader *header) {
     return NULL;
 }
@@ -1913,7 +2159,12 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
         case CART_MBC3:
         case CART_MBC3_RAM:
         case CART_MBC3_RAM_BAT:
-            //break;
+            mem->read_rom = &read_mbc3_rom_into_mem;
+            mem->cartridge->n_regions = 3;
+            mem->cartridge->regions = mbc3_mem_map;
+            mem->cartridge->initialize = &initialize_mbc3_memory;
+            mem->cartridge->teardown = &teardown_mbc3_memory;
+            break;
         case CART_MBC5:
         case CART_MBC5_RAM:
         case CART_MBC5_RAM_BAT:
@@ -2015,8 +2266,6 @@ void task_dma_cycle(GBState *state) {
         goto dma_cycle_end;
     }
     
-    printf("In DMA, addr = %04x\n", dma->addr);
-
     BYTE data;
     WORD source_addr = dma->addr;
     WORD dest_addr = 0xFE00 | (source_addr & 0xFF);

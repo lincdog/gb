@@ -2,6 +2,7 @@
 #define GB_MEMORY
 
 #include "base.h"
+#include <time.h>
 
 /* Memory mapping */
 #define REGION_CHECK(x, lb, ub) (((WORD)(x)>=lb)&&((WORD)(x)<=ub))
@@ -293,6 +294,27 @@ typedef struct {
     enum {MODE_SIMPLE=0, MODE_ADVANCED=1} bank_mode;
 } MBC1CartState;
 
+typedef struct {
+    int ram_rtc_enabled;
+    int active_rom_bank;
+    int reg_1_7bits;
+    int rom_bank_mask;
+    int n_rom_banks;
+    BYTE *rom_banks;
+    int reg_2_4bits;
+    int active_ram_bank;
+    int active_rtc_bank;
+    int n_ram_banks;
+    BYTE *ram_banks;
+    enum {MODE_RAM=0, MODE_RTC=1} bank_mode; 
+    struct {
+        enum {LATCH_0=0, LATCH_1=1, LATCHED=2} latch;
+        time_t time_epoch;
+        struct tm *time_struct;
+        int halt;
+        int day_carry;
+    } rtc;
+} MBC3CartState;
 
 typedef struct {
     BYTE rom[0x8000];
