@@ -57,10 +57,10 @@ S: MEM_SOURCE_* - the owner of this region, or the source of this memory access
 #define get_mem_source(__f) ((__f) & 0x7)
 #define MEM_SOURCE_CPU 0x0
 #define MEM_SOURCE_PPU 0x1
-#define MEM_SOURCE_BUTTONS 0x2
+#define MEM_SOURCE_DMA 0x2
 #define MEM_SOURCE_TIMER 0x3
-#define MEM_SOURCE_INTERRUPT 0x4
-#define MEM_SOURCE_DMA 0x5
+#define MEM_SOURCE_BUTTONS 0x4
+#define MEM_SOURCE_INTERRUPT 0x5
 
 #define MEM_LOCKED 0x20
 #define MEM_DEBUG 0x80
@@ -183,6 +183,12 @@ typedef struct {
     BYTE mem[0x10000];
 }   DebugMemState;
 
+#define SYS_VRAM_BASE 0x8000
+#define SYS_WRAM_BASE 0xC000
+#define SYS_OAM_BASE 0xFE00
+#define SYS_IOREG_BASE 0xFF00
+#define SYS_HRAM_BASE 0xFF80
+
 /* This is the memory structure for components present on the Game Boy system
 itself. bootrom_mapped is a flag. */
 typedef struct {
@@ -202,6 +208,10 @@ typedef struct {
 
 MemoryState *initialize_memory(CartridgeHeader *);
 void replace_mem_region(const MemoryRegion *, MemoryRegion **);
+int lock_region(MemoryRegion *, BYTE);
+int lock_region_by_addr(GBState *, WORD, BYTE);
+int unlock_region(MemoryRegion *, BYTE);
+int unlock_region_by_addr(GBState *, WORD, BYTE);
 
 void teardown_memory(MemoryState *);
 TimerState *initialize_timer(void);
@@ -214,7 +224,7 @@ void task_tima_timer(GBState *);
 void task_dma_cycle(GBState *);
 
 #define unused_ioreg(__addr) \
-    (IOReg_t){.name="none\0", .addr=__addr, .check_access=&_check_always_yes, .read=&_read_unimplemented, .write=&_write_unimplemented}
+    (IOReg_t){.name="none\0", .addr=__addr, .read=&_read_unimplemented, .write=&_write_unimplemented}
 #define named_ioregs(__ptr) (IORegs *)(__ptr)
 
 #define mem_cart(__state, __type) ((__type*)__state->mem->cartridge->state)

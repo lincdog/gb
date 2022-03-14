@@ -379,7 +379,6 @@ typedef struct {
     WORD end;
     unsigned int len;
     BYTE flags; // owner / lock status? / priority
-    int (*check_access)(void *, WORD, BYTE);
     BYTE (*read)(void *, WORD, BYTE);
     BYTE (*write)(void *, WORD, BYTE, BYTE);
     BYTE *(*get_ptr)(void *, WORD, BYTE);
@@ -398,6 +397,8 @@ typedef struct {
     void *state;
 } Memmap_t;
 
+#define TOTAL_MEM_SIZE 0x10000
+
 /* The total memory system of the Game Boy consists of a system memory
 map and a cartridge memory map. The configuration of these is specified 
 by a MemInitFlag mode. This is determined from the cartridge header. */
@@ -406,7 +407,7 @@ typedef struct {
     int (*read_rom)(void *, FILE *);
     Memmap_t *system;
     Memmap_t *cartridge;
-    MemoryRegion **table;
+    MemoryRegion *table[TOTAL_MEM_SIZE];
 } MemoryState;
 
 typedef struct {

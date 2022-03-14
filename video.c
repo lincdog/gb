@@ -562,7 +562,8 @@ void ppu_next_frame(PPUState *ppu) {
     ppu->misc.ly = 0;
 }
 
-void ppu_do_mode_switch(PPUState *ppu) {
+void ppu_do_mode_switch(GBState *state) {
+    PPUState *ppu = state->ppu;
     PPUMode next_mode;
     unsigned int next_mode_counter;
     assert(ppu->mode_counter == 0);
@@ -585,9 +586,10 @@ void ppu_do_mode_switch(PPUState *ppu) {
             if (ppu->misc.ly < (N_DRAW_SCANLINES - 1)) {
                 next_mode = OAMSCAN;
                 next_mode_counter = COUNTER_OAMSCAN_LENGTH;
+                
             } else {
                 /* End of HBLANK for scanline 143. We have not yet incremented
-                LY - which happens in ppu_next_scanline() - 
+                LY - which happens in ppu_next_scanline()
                 */
                 assert(ppu->frame.counter == COUNTER_VBLANK_LENGTH);
                 assert(ppu->misc.ly == 143);
@@ -605,6 +607,23 @@ void ppu_do_mode_switch(PPUState *ppu) {
             assert(0);
             break;
     }
+
+    switch (next_mode) {
+        case OAMSCAN:
+            lock_region_by_addr(state, SYS_OAM_BASE, MEM_SOURCE_PPU);
+            lock_region_by_addr(state, SYS_VRAM_BASE, MEM_SOURCE_PPU);
+            break;
+        case DRAW:
+            unlock_region_by_addr(state, SYS_OAM_BASE, MEM_SOURCE_PPU);
+            lock_region_by_addr(state, SYS_VRAM_BASE, MEM_SOURCE_PPU);
+            break;
+        case HBLANK:
+        case VBLANK:
+            unlock_region_by_addr(state, SYS_OAM_BASE, MEM_SOURCE_PPU);
+            unlock_region_by_addr(state, SYS_VRAM_BASE, MEM_SOURCE_PPU);
+            break;
+    }
+
     assert(next_mode_counter <= 10*PPU_PER_SCANLINE);
     ppu->mode_counter = next_mode_counter;
     ppu->stat.mode = next_mode;
@@ -661,7 +680,7 @@ void task_ppu_cycle(GBState *state) {
     ppu->mode_counter--;
 
     if (ppu->mode_counter == 0) {
-        ppu_do_mode_switch(ppu);
+        ppu_do_mode_switch(state);
         if (ppu->stat.mode == VBLANK)
             REQUEST_INTERRUPT(state, INT_VBLANK);
     }
