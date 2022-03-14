@@ -405,6 +405,7 @@ typedef struct {
     int (*read_rom)(void *, FILE *);
     Memmap_t *system;
     Memmap_t *cartridge;
+    MemoryRegion **table;
 } MemoryState;
 
 typedef struct {
