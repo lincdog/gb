@@ -72,6 +72,7 @@ PPUState *initialize_ppu(void) {
     ppu->stat.lyc_ly_equal = ON;
     ppu->stat.mode = VBLANK;
 
+    ppu->frame.n_frames = 0;
     ppu->frame.counter = PPU_PER_FRAME + COUNTER_VBLANK_LENGTH;
     ppu->frame.win_y = 0;
     ppu->frame.in_window = OFF;
@@ -557,7 +558,7 @@ void ppu_next_frame(PPUState *ppu) {
     ppu->frame.win_y = 0;
     ppu->frame.in_window = OFF;
     ppu->frame.n_sprites_total = 0;
-    
+    ppu->frame.n_frames++;
     ppu->misc.ly = 0;
 }
 

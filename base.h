@@ -260,6 +260,7 @@ typedef struct {
 
 typedef struct {
     unsigned int counter;
+    unsigned int n_frames;
     ToggleEnum in_window;
     int n_sprites_total;
     BYTE win_y;

@@ -217,10 +217,10 @@ runs the task if counter is divisible by the task's period. Then increments the 
 void main_loop(GBState *state) {
     GBTask task;
     int t = 0;
-    float elapsed = 0.0;
-    clock_t pre, post;
+    double elapsed = 0.0;
+    time_t pre, post;
 
-    pre = clock();
+    pre = time(NULL);
     while (state->should_quit == OFF) {
         t = 0;
         task = gb_tasks[0];
@@ -234,11 +234,13 @@ void main_loop(GBState *state) {
 
         state->counter++; 
     }
-    post = clock();
-    elapsed = (float)(post - pre)/CLOCKS_PER_SEC;
+    post = time(NULL);
+    elapsed = difftime(post, pre);
 
     printf("Cycles: %lu\nSeconds: %f (%f MHz)\n", 
     state->counter, elapsed, (state->counter/elapsed)/exp2(20));
+    printf("Frames: %d (%f frames per second)\n", 
+    state->ppu->frame.n_frames, state->ppu->frame.n_frames / elapsed);
 }
 
 /* Reads the cartridge header from a given open file descriptor.
