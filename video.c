@@ -245,9 +245,10 @@ void ppu_oamscan_cleanup(PPUState *ppu) {
         sizeof(OAMRow_t),
         _oamscan_sort_key
     );
-
+    /*
     reset_ppu_fifo(&ppu->draw.fifo_bg);
     reset_ppu_fifo(&ppu->draw.fifo_obj);
+    */
 }
 
 void fetch_current_obj_row(GBState *state) {
