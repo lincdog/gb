@@ -169,142 +169,6 @@ typedef struct __attribute__ ((packed)) {
     BYTE int_flag;
 } CPUState;
 
-typedef enum {
-    HBLANK=0, 
-    VBLANK=1, 
-    OAMSCAN=2, 
-    DRAW=3
-} PPUMode;
-typedef enum {
-    FETCH_TILE, 
-    FETCH_DATA_LOW, 
-    FETCH_DATA_HIGH, 
-    SLEEP, 
-    PUSH
-} PPUFifoState;
-
-typedef enum {DATA_AREA0=0x9000, DATA_AREA1=0x8000} TileDataArea;
-typedef enum {MAP_AREA0=0x9800, MAP_AREA1=0x9C00} TileMapArea;
-typedef enum {OBJ_8x8=8, OBJ_8x16=16} ObjectSize;
-typedef struct {
-    ToggleEnum lcd_enable;
-    TileMapArea win_map_area;
-    ToggleEnum window_enable;
-    TileDataArea bg_win_data_area;
-    TileMapArea bg_map_area;
-    ObjectSize obj_size;
-    ToggleEnum obj_enable;
-    ToggleEnum bg_window_enable;
-} LCDControl;
-
-typedef struct {
-    ToggleEnum lyc_ly_interrupt;
-    ToggleEnum mode_2_interrupt;
-    ToggleEnum mode_1_interrupt;
-    ToggleEnum mode_0_interrupt;
-    ToggleEnum lyc_ly_equal;
-    PPUMode mode;
-} LCDStatus;
-
-typedef struct {
-    BYTE scy;
-    BYTE scx;
-    BYTE ly;
-    BYTE lyc;
-    BYTE wy;
-    BYTE wx;
-    BYTE bgp;
-    BYTE obp0;
-    BYTE obp1;
-} PPUMisc;
-
-typedef struct {
-    PPUFifoState state;
-    struct {
-        BYTE color;
-        BYTE palette;
-        BYTE sprite_prio;
-        BYTE bg_prio;
-    } data[16];
-    int head;
-    int counter;
-} PPUFifo;
-
-typedef struct __attribute__ ((packed)) {
-    BYTE y;
-    BYTE x;
-    BYTE index;
-    BYTE flags;
-} OAMEntry;
-
-typedef struct {
-    WORD entry_addr;
-    OAMEntry oam;
-    BYTE lsb;
-    BYTE msb;
-} OAMRow_t;
-
-typedef struct {
-    int counter;
-    int n_sprites_row;
-    OAMRow_t current_row_sprites[10];
-} OAMScan_t;
-
-typedef struct {
-    BYTE fetcher_x;
-    BYTE fetcher_y;
-    PPUFifo fifo_bg;
-    PPUFifo fifo_obj;
-} Drawing_t;
-
-typedef struct {
-    unsigned int counter;
-    unsigned int n_frames;
-    ToggleEnum in_window;
-    int n_sprites_total;
-    BYTE win_y;
-} Frame_t;
-
-/* Location for unpacking rows of pixels to be rendered. 
-
- - x_pos: the X coordinate in *screen* pixels that is currently being 
-   fetched into the buffer. x_pos can go between 0 and 160. 
-   For the BG, it always covers 0-160 fully. For the window, it starts at 
-   max(misc.wx - 7, 0). For objects, it jumps around according to X coordinates
-   in the OAM entries in the sorted list for this scanline.
- - offset: the start index in the buffer to use for rendering. This is used because
-   the BG or window can be scrolled by individual pixels, but tiles are 8 pixels wide.
-   The offset means that we can still copy the full first tile to the buffer, but only
-   render its last few pixels, according to SCX or WX. 
-
-*/
-typedef struct {
-    BYTE buf[176];
-    BYTE x_pos;
-    unsigned int offset;
-} Pixelbuf_t;
-
-typedef struct {
-    unsigned int counter;
-    BYTE priority[160];
-    Pixelbuf_t obj;
-    Pixelbuf_t bg;
-    Pixelbuf_t win;
-} Scanline_t;
-
-typedef struct {
-    LCDControl lcdc; // 0xFF40: LCD Control
-    LCDStatus stat; // 0xFF41: LCD Status
-    PPUMisc misc; // 0xFF42-0xFF4B: Scrolling, palettes, LY,  LY compare
-    Frame_t frame; // Per-frame data structure
-    Scanline_t scanline; // Per-scanline data structure
-    OAMScan_t oamscan; // Per-scanline OAM scan data structure
-    unsigned int mode_counter; // Counts down to the next mode switch
-    ToggleEnum stat_interrupt;
-    Drawing_t draw;
-} PPUState;
-
-
 typedef struct {
     enum {DMA_OFF, DMA_INIT, DMA_ON} status;
     WORD addr;
@@ -418,6 +282,145 @@ typedef struct {
     unsigned int tima_period_mask;
 
 } TimerState;
+
+typedef enum {
+    HBLANK=0, 
+    VBLANK=1, 
+    OAMSCAN=2, 
+    DRAW=3
+} PPUMode;
+typedef enum {
+    FETCH_TILE, 
+    FETCH_DATA_LOW, 
+    FETCH_DATA_HIGH, 
+    SLEEP, 
+    PUSH
+} PPUFifoState;
+
+typedef enum {DATA_AREA0=0x9000, DATA_AREA1=0x8000} TileDataArea;
+typedef enum {MAP_AREA0=0x9800, MAP_AREA1=0x9C00} TileMapArea;
+typedef enum {OBJ_8x8=8, OBJ_8x16=16} ObjectSize;
+typedef struct {
+    ToggleEnum lcd_enable;
+    TileMapArea win_map_area;
+    ToggleEnum window_enable;
+    TileDataArea bg_win_data_area;
+    TileMapArea bg_map_area;
+    ObjectSize obj_size;
+    ToggleEnum obj_enable;
+    ToggleEnum bg_window_enable;
+} LCDControl;
+
+typedef struct {
+    ToggleEnum lyc_ly_interrupt;
+    ToggleEnum mode_2_interrupt;
+    ToggleEnum mode_1_interrupt;
+    ToggleEnum mode_0_interrupt;
+    ToggleEnum lyc_ly_equal;
+    PPUMode mode;
+} LCDStatus;
+
+typedef struct {
+    BYTE scy;
+    BYTE scx;
+    BYTE ly;
+    BYTE lyc;
+    BYTE wy;
+    BYTE wx;
+    BYTE bgp;
+    BYTE obp0;
+    BYTE obp1;
+} PPUMisc;
+
+typedef struct {
+    PPUFifoState state;
+    struct {
+        BYTE color;
+        BYTE palette;
+        BYTE sprite_prio;
+        BYTE bg_prio;
+    } data[16];
+    int head;
+    int counter;
+} PPUFifo;
+
+typedef struct __attribute__ ((packed)) {
+    BYTE y;
+    BYTE x;
+    BYTE index;
+    BYTE flags;
+} OAMEntry;
+
+typedef struct {
+    WORD entry_addr;
+    OAMEntry *oam;
+    BYTE lsb;
+    BYTE msb;
+} OAMRow_t;
+
+typedef struct {
+    OAMEntry *oam_ptr;
+    MemoryRegion *oam_region;
+    int counter;
+    int n_sprites_row;
+    OAMRow_t current_row_sprites[10];
+} OAMScan_t;
+
+typedef struct {
+    BYTE fetcher_x;
+    BYTE fetcher_y;
+    PPUFifo fifo_bg;
+    PPUFifo fifo_obj;
+} Drawing_t;
+
+typedef struct {
+    unsigned int counter;
+    unsigned int n_frames;
+    ToggleEnum in_window;
+    int n_sprites_total;
+    BYTE win_y;
+} Frame_t;
+
+/* Location for unpacking rows of pixels to be rendered. 
+
+ - x_pos: the X coordinate in *screen* pixels that is currently being 
+   fetched into the buffer. x_pos can go between 0 and 160. 
+   For the BG, it always covers 0-160 fully. For the window, it starts at 
+   max(misc.wx - 7, 0). For objects, it jumps around according to X coordinates
+   in the OAM entries in the sorted list for this scanline.
+ - offset: the start index in the buffer to use for rendering. This is used because
+   the BG or window can be scrolled by individual pixels, but tiles are 8 pixels wide.
+   The offset means that we can still copy the full first tile to the buffer, but only
+   render its last few pixels, according to SCX or WX. 
+
+*/
+typedef struct {
+    BYTE buf[176];
+    BYTE x_pos;
+    unsigned int offset;
+} Pixelbuf_t;
+
+typedef struct {
+    unsigned int counter;
+    BYTE priority[160];
+    Pixelbuf_t obj;
+    Pixelbuf_t bg;
+    Pixelbuf_t win;
+} Scanline_t;
+
+typedef struct {
+    LCDControl lcdc; // 0xFF40: LCD Control
+    LCDStatus stat; // 0xFF41: LCD Status
+    PPUMisc misc; // 0xFF42-0xFF4B: Scrolling, palettes, LY,  LY compare
+    Frame_t frame; // Per-frame data structure
+    Scanline_t scanline; // Per-scanline data structure
+    OAMScan_t oamscan; // Per-scanline OAM scan data structure
+    unsigned int mode_counter; // Counts down to the next mode switch
+    ToggleEnum stat_interrupt;
+    Drawing_t draw;
+    BYTE *vram_ptr;
+    MemoryRegion *vram_region;
+} PPUState;
 
 
 typedef struct {

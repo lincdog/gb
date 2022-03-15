@@ -64,6 +64,7 @@
 #define ppu_get_mem_pointer(__state, __addr) get_mem_pointer(__state, __addr,  MEM_SOURCE_PPU)
 
 PPUState *initialize_ppu(void);
+void ppu_early_init(GBState *);
 void teardown_ppu(PPUState *);
 void task_ppu_cycle(GBState *);
 

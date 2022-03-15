@@ -61,6 +61,7 @@ GBState *initialize_gb(CartridgeHeader *header) {
 
     state->sdl = initialize_sdl_core();
     state->ppu = initialize_ppu();
+    ppu_early_init(state);
     
     state->timer = initialize_timer();
     state->dma = initialize_dma();
@@ -216,20 +217,26 @@ runs the task if counter is divisible by the task's period. Then increments the 
 */
 void main_loop(GBState *state) {
     GBTask task;
-    int t = 0;
+    register unsigned long t = 0;
     double elapsed = 0.0;
     time_t pre, post;
 
     pre = time(NULL);
     while (state->should_quit == OFF) {
-        t = 0;
-        task = gb_tasks[0];
-        while (task.mask != -1) {
-            if (!(state->counter & task.mask)) {
-                (*task.run_task)(state);
+        t = state->counter;
+        task_ppu_cycle(state);
+
+        if (!(t & 0x3)) {
+            if (!(t & 0xF)) {
+                if (!(t & 0xFF)) {
+                    if (!(t & 0xFFFF))
+                        task_event(state);
+                    task_div_timer(state);
+                }
+                task_tima_timer(state);
             }
-            t++;
-            task = gb_tasks[t];
+            task_dma_cycle(state);
+            task_cpu_m_cycle(state);
         }
 
         state->counter++; 

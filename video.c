@@ -21,19 +21,6 @@ void reset_ppu_fifo(PPUFifo *fifo) {
 void reset_oamscan(OAMScan_t *oamscan) {
     oamscan->counter = 0;
     oamscan->n_sprites_row = 0;
-
-    OAMRow_t *row;
-
-    for (int i = 0; i < SPRITES_ROW_MAX; i++) {
-        row = &oamscan->current_row_sprites[i];
-        row->entry_addr = 0;
-        row->lsb = UNINIT;
-        row->msb = UNINIT;
-        row->oam.flags = 0;
-        row->oam.index = 0;
-        row->oam.x = 0;
-        row->oam.y = 0;
-    }
 }
 
 void reset_pixelbuf(Pixelbuf_t *px) {
@@ -102,6 +89,13 @@ PPUState *initialize_ppu(void) {
     ppu->stat_interrupt = OFF;
 
     return ppu;
+}
+
+void ppu_early_init(GBState *state) {
+    state->ppu->oamscan.oam_ptr = ppu_get_mem_pointer(state, SYS_OAM_BASE);
+    state->ppu->oamscan.oam_region = state->mem->table[SYS_OAM_BASE];
+    state->ppu->vram_ptr = ppu_get_mem_pointer(state, SYS_VRAM_BASE);
+    state->ppu->vram_region = state->mem->table[SYS_VRAM_BASE];
 }
 
 void teardown_ppu(PPUState *ppu) {
@@ -179,10 +173,6 @@ WORD get_sprite_row_addr(OAMEntry *oam, BYTE ly, ObjectSize obj_size) {
     return sprite_row_addr;
 }
 
-WORD get_current_entry_addr(OAMScan_t *oamscan) {
-    return OAM_BASE + sizeof(OAMEntry) * (oamscan->counter >> 1);
-}
-
 void ppu_oamscan_cycle(GBState *state) {
     PPUState *ppu = state->ppu;
     LCDControl lcdc = ppu->lcdc;
@@ -200,22 +190,18 @@ void ppu_oamscan_cycle(GBState *state) {
 
     if ((oamscan->counter & 1)
         || oamscan->n_sprites_row == SPRITES_ROW_MAX
-        //|| ppu->frame.n_sprites_total == SPRITES_TOTAL_MAX
     ) goto ppu_oamscan_end;
 
-    current_entry_addr = get_current_entry_addr(oamscan);
-    current_entry = ppu_get_mem_pointer(state, current_entry_addr);
+    current_entry = &oamscan->oam_ptr[oamscan->counter >> 1];
 
     tile_row_addr = get_sprite_row_addr(current_entry, misc.ly, lcdc.obj_size);
 
     if (tile_row_addr != 0) {
         
-        lsb = ppu_read_mem(state, tile_row_addr);
-        msb = ppu_read_mem(state, tile_row_addr+1);
-        oamscan->current_row_sprites[oamscan->n_sprites_row].entry_addr = current_entry_addr;
-        oamscan->current_row_sprites[oamscan->n_sprites_row].oam = *current_entry;
-        oamscan->current_row_sprites[oamscan->n_sprites_row].lsb = lsb;
-        oamscan->current_row_sprites[oamscan->n_sprites_row].msb = msb;
+        oamscan->current_row_sprites[oamscan->n_sprites_row].entry_addr = oamscan->counter;
+        oamscan->current_row_sprites[oamscan->n_sprites_row].oam = current_entry;
+        oamscan->current_row_sprites[oamscan->n_sprites_row].lsb = ppu_read_mem(state, tile_row_addr);
+        oamscan->current_row_sprites[oamscan->n_sprites_row].msb = ppu_read_mem(state, tile_row_addr+1);
 
         oamscan->n_sprites_row++;
         ppu->frame.n_sprites_total++;
@@ -231,7 +217,7 @@ draw the higher priority sprite pixels last so that they overwrite the
 lower priority ones.
 */
 int _oamscan_sort_key(const void *a, const void *b) {
-    int diff = ((OAMRow_t*)b)->oam.x - ((OAMRow_t*)a)->oam.x;
+    int diff = ((OAMRow_t*)b)->oam->x - ((OAMRow_t*)a)->oam->x;
 
     if (diff != 0)
         return diff;
@@ -258,7 +244,7 @@ void fetch_current_obj_row(GBState *state) {
     PPUMisc misc = ppu->misc;
     Pixelbuf_t *obj = &ppu->scanline.obj;
     OAMScan_t *oamscan = &ppu->oamscan;
-    OAMRow_t *entry;
+    OAMRow_t entry;
 
     assert(stat.mode == DRAW);
     assert(lcdc.obj_enable == ON);
@@ -269,23 +255,23 @@ void fetch_current_obj_row(GBState *state) {
     int x_start, prio_start, prio_stop;
     /* XXX we are using "x_pos" as the index of the current sprite to be rendered, not
     anything to do with actual x position */
-    entry = &oamscan->current_row_sprites[obj->x_pos];
-    x_start = entry->oam.x;
+    entry = oamscan->current_row_sprites[obj->x_pos];
+    x_start = entry.oam->x;
 
     if (x_start >= GB_WIDTH_PX+8)
         goto obj_fetch_end;
     
-    BYTE palette = (entry->oam.flags & TILE_PALETTE_NUM) ? misc.obp1 : misc.obp0;
-    unpack_row(entry->lsb, entry->msb,
-        &obj->buf[x_start], entry->oam.flags, palette);
+    BYTE palette = (entry.oam->flags & TILE_PALETTE_NUM) ? misc.obp1 : misc.obp0;
+    unpack_row(entry.lsb, entry.msb,
+        &obj->buf[x_start], entry.oam->flags, palette);
     
     prio_start = (x_start < 8) ? 0 : x_start - 8;
     prio_stop = 8 - (8 - x_start);
 
-    if (! (entry->oam.flags & TILE_BG_OVER_OBJ)) {
+    //if (! (entry->oam->flags & TILE_BG_OVER_OBJ)) {
         for (int i = prio_start; i < prio_stop; i++)
             ppu->scanline.priority[i] = PX_PRIO_OBJ;
-    }
+    //}
 
     obj_fetch_end:
     obj->x_pos++;
@@ -530,23 +516,23 @@ void ppu_render_scanline(GBState *state) {
 void ppu_next_scanline(PPUState *ppu) {
     ppu->scanline.counter = PPU_PER_SCANLINE;
     
-    memset(ppu->scanline.bg.buf, 0, SCANLINE_PIXELBUF_SIZE);
+    //memset(ppu->scanline.bg.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.bg.offset = ppu->misc.scx & 0x7;
     ppu->scanline.bg.x_pos = 0;
 
-    memset(ppu->scanline.win.buf, 0, SCANLINE_PIXELBUF_SIZE);
+    //memset(ppu->scanline.win.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.win.offset = ppu->misc.wx & 0x7;
     ppu->scanline.win.x_pos = less_7_or_0(ppu->misc.wx);
 
-    memset(ppu->scanline.obj.buf, 0, SCANLINE_PIXELBUF_SIZE);
+   // memset(ppu->scanline.obj.buf, 0, SCANLINE_PIXELBUF_SIZE);
     ppu->scanline.obj.x_pos = 0;
     ppu->scanline.obj.offset = 8;
     
-    if (ppu->lcdc.bg_window_enable == ON)
+    //if (ppu->lcdc.bg_window_enable == ON)
         memset(ppu->scanline.priority, PX_PRIO_BG, GB_WIDTH_PX);
-    else
-        memset(ppu->scanline.priority, PX_PRIO_BG, GB_WIDTH_PX);
-
+    //else
+    //    memset(ppu->scanline.priority, PX_PRIO_BG, GB_WIDTH_PX);
+    
     ppu->misc.ly++;
 
     reset_oamscan(&ppu->oamscan);
@@ -609,17 +595,17 @@ void ppu_do_mode_switch(GBState *state) {
 
     switch (next_mode) {
         case OAMSCAN:
-            lock_region_by_addr(state, SYS_OAM_BASE, MEM_SOURCE_PPU);
-            lock_region_by_addr(state, SYS_VRAM_BASE, MEM_SOURCE_PPU);
+            lock_region(ppu->oamscan.oam_region, MEM_SOURCE_PPU);
+            lock_region(ppu->vram_region, MEM_SOURCE_PPU);
             break;
         case DRAW:
-            unlock_region_by_addr(state, SYS_OAM_BASE, MEM_SOURCE_PPU);
-            lock_region_by_addr(state, SYS_VRAM_BASE, MEM_SOURCE_PPU);
+            unlock_region(ppu->oamscan.oam_region, MEM_SOURCE_PPU);
+            lock_region(ppu->vram_region, MEM_SOURCE_PPU);
             break;
         case HBLANK:
         case VBLANK:
-            unlock_region_by_addr(state, SYS_OAM_BASE, MEM_SOURCE_PPU);
-            unlock_region_by_addr(state, SYS_VRAM_BASE, MEM_SOURCE_PPU);
+            unlock_region(ppu->oamscan.oam_region, MEM_SOURCE_PPU);
+            unlock_region(ppu->vram_region, MEM_SOURCE_PPU);
             break;
     }
 
