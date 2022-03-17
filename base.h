@@ -353,7 +353,7 @@ typedef struct __attribute__ ((packed)) {
 
 typedef struct {
     WORD entry_addr;
-    OAMEntry *oam;
+    OAMEntry oam;
     BYTE lsb;
     BYTE msb;
 } OAMRow_t;
@@ -540,6 +540,21 @@ typedef struct {
     int mask;
     void (*run_task)(GBState *);
 } GBTask;
+
+typedef struct {
+    uint64_t pre;
+    uint64_t max_nsec;
+    uint64_t bad_thresh;
+    uint64_t n_bad;
+    uint64_t total_nsec;
+    uint64_t n_calls;
+} my_timer_t;
+
+void timer_init(my_timer_t *, uint64_t);
+void timer_begin(my_timer_t *);
+void timer_split(my_timer_t *);
+float timer_get_average(my_timer_t *);
+void timer_print_result(my_timer_t *t, char *);
 
 #define CPU_FREQ 4194304
 #define M_CYCLE 1048576

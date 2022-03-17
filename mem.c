@@ -1072,10 +1072,8 @@ GET_PTR_FUNC(_mbc1_ptr_ram_bank) {
 READ_FUNC(_mbc3_read_rom_base) {
     /* addr/rel_addr = 0 - 0x3FFF */
     MBC3CartState *mbc3 = mem_cart(state, MBC3CartState);
-    int eff_addr;
-
-    eff_addr =  rel_addr;
-    return mbc3->rom_banks[eff_addr];
+    
+    return mbc3->rom_banks[rel_addr];
 }
 WRITE_FUNC(_mbc3_write_0_3fff) {
     /* addr/rel_addr = 0 - 0x3FFF */

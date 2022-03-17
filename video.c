@@ -3,9 +3,12 @@
 #include "video.h"
 #include <stdlib.h>
 #include <assert.h>
+#include <time.h>
 #include <SDL.h>
 
 const BYTE color_table[] = { 0xFF, 0xAA, 0x55, 0x00 };
+
+static my_timer_t a, b, c, d, e;
 
 void reset_ppu_fifo(PPUFifo *fifo) {
     fifo->state = FETCH_TILE;
@@ -39,6 +42,11 @@ PPUState *initialize_ppu(void) {
         printf("Failed to allocate PPUState\n");
         return NULL;
     }
+    timer_init(&a, 1000); 
+    timer_init(&b, 1000); 
+    timer_init(&c, 1000); 
+    timer_init(&d, 1000); 
+    timer_init(&e, 1000);
     // 0x91: 1001 0001
     ppu->lcdc.lcd_enable = OFF;
     ppu->lcdc.win_map_area = MAP_AREA0;
@@ -100,6 +108,12 @@ void ppu_early_init(GBState *state) {
 
 void teardown_ppu(PPUState *ppu) {
     free(ppu);
+    printf("PPU Timing statistics\n");
+    timer_print_result(&a, "A");
+    timer_print_result(&b, "B");
+    timer_print_result(&c, "C");
+    timer_print_result(&d, "D");
+    timer_print_result(&e, "E");
 }
 
 
@@ -110,8 +124,6 @@ void unpack_row(
     const BYTE flags,
     const BYTE palette
 ) {
-    BYTE x_flip;
-    x_flip = flags & TILE_X_FLIP;
 
     BYTE colors[4];
     colors[0] = palette & 0x3;
@@ -119,7 +131,7 @@ void unpack_row(
     colors[2] = (palette & 0x30) >> 4;
     colors[3] = (palette & 0xC0) >> 6;
     
-    if (x_flip) {
+    if (flags & TILE_X_FLIP) {
         dest[7] = colors[(bit_7(lsb) >> 7) | (bit_7(msb) >> 6)];
         dest[6] = colors[(bit_6(lsb) >> 6) | (bit_6(msb) >> 5)];
         dest[5] = colors[(bit_5(lsb) >> 5) | (bit_5(msb) >> 4)];
@@ -179,7 +191,7 @@ void ppu_oamscan_cycle(GBState *state) {
     LCDStatus stat = ppu->stat;
     PPUMisc misc = ppu->misc;
     OAMScan_t *oamscan = &ppu->oamscan;
-    OAMEntry *oam_table_ptr, *current_entry;
+    OAMEntry *oam_table_ptr, current_entry;
 
     WORD current_entry_addr, tile_row_addr;
     BYTE lsb, msb;
@@ -192,9 +204,13 @@ void ppu_oamscan_cycle(GBState *state) {
         || oamscan->n_sprites_row == SPRITES_ROW_MAX
     ) goto ppu_oamscan_end;
 
-    current_entry = &oamscan->oam_ptr[oamscan->counter >> 1];
+    current_entry_addr = SYS_OAM_BASE + (oamscan->counter << 1);
+    current_entry.y = ppu_read_mem(state, current_entry_addr);
+    current_entry.x = ppu_read_mem(state, current_entry_addr+1);
+    current_entry.index = ppu_read_mem(state, current_entry_addr+2);
+    current_entry.flags = ppu_read_mem(state, current_entry_addr+3);
 
-    tile_row_addr = get_sprite_row_addr(current_entry, misc.ly, lcdc.obj_size);
+    tile_row_addr = get_sprite_row_addr(&current_entry, misc.ly, lcdc.obj_size);
 
     if (tile_row_addr != 0) {
         
@@ -217,7 +233,7 @@ draw the higher priority sprite pixels last so that they overwrite the
 lower priority ones.
 */
 int _oamscan_sort_key(const void *a, const void *b) {
-    int diff = ((OAMRow_t*)b)->oam->x - ((OAMRow_t*)a)->oam->x;
+    int diff = ((OAMRow_t*)b)->oam.x - ((OAMRow_t*)a)->oam.x;
 
     if (diff != 0)
         return diff;
@@ -256,14 +272,14 @@ void fetch_current_obj_row(GBState *state) {
     /* XXX we are using "x_pos" as the index of the current sprite to be rendered, not
     anything to do with actual x position */
     entry = oamscan->current_row_sprites[obj->x_pos];
-    x_start = entry.oam->x;
+    x_start = entry.oam.x;
 
     if (x_start >= GB_WIDTH_PX+8)
         goto obj_fetch_end;
     
-    BYTE palette = (entry.oam->flags & TILE_PALETTE_NUM) ? misc.obp1 : misc.obp0;
+    BYTE palette = (entry.oam.flags & TILE_PALETTE_NUM) ? misc.obp1 : misc.obp0;
     unpack_row(entry.lsb, entry.msb,
-        &obj->buf[x_start], entry.oam->flags, palette);
+        &obj->buf[x_start], entry.oam.flags, palette);
     
     prio_start = (x_start < 8) ? 0 : x_start - 8;
     prio_stop = 8 - (8 - x_start);
@@ -295,6 +311,7 @@ WORD compute_tiledata_addr(WORD base, BYTE ind) {
     BYTE mask = (base == TILEDATA_AREA0) ? 0x7F : 0xFF;
     WORD offset = TILE_SIZE_BYTES * (ind & mask) - TILE_SIZE_BYTES * (ind & ~mask);
 
+    //int offset = ((ind & mask) - (ind & ~mask)) << 4;
     return base + offset;
 }
 
@@ -533,6 +550,11 @@ void ppu_next_scanline(PPUState *ppu) {
     //else
     //    memset(ppu->scanline.priority, PX_PRIO_BG, GB_WIDTH_PX);
     
+    if (ppu->lcdc.window_enable 
+    && ppu->lcdc.bg_window_enable
+    && ppu->misc.wy <= ppu->misc.ly)
+        ppu->frame.win_y++;
+
     ppu->misc.ly++;
 
     reset_oamscan(&ppu->oamscan);
@@ -565,6 +587,8 @@ void ppu_do_mode_switch(GBState *state) {
                 && next_mode_counter <= COUNTER_HBLANK_MAX_LENGTH);
             next_mode = HBLANK;
             ppu_draw_cleanup(ppu);
+
+            //ppu_render_scanline(state);
             break;
         case HBLANK:
             assert(ppu->scanline.counter == 0);
@@ -580,6 +604,7 @@ void ppu_do_mode_switch(GBState *state) {
                 assert(ppu->misc.ly == 143);
                 next_mode = VBLANK;
                 next_mode_counter = COUNTER_VBLANK_LENGTH;
+                //SDL_UpdateWindowSurface(state->sdl->window);
             }
 
             break;
@@ -605,7 +630,7 @@ void ppu_do_mode_switch(GBState *state) {
         case HBLANK:
         case VBLANK:
             unlock_region(ppu->oamscan.oam_region, MEM_SOURCE_PPU);
-            unlock_region(ppu->vram_region, MEM_SOURCE_PPU);
+            unlock_region(ppu->vram_region, MEM_SOURCE_PPU);        
             break;
     }
 
@@ -675,14 +700,8 @@ void task_ppu_cycle(GBState *state) {
         ppu_next_scanline(ppu);
         //SDL_UpdateWindowSurface(state->sdl->window);
     }
-    struct timespec ts;
     if (ppu->frame.counter == 0) {
         SDL_UpdateWindowSurface(state->sdl->window);
-        
-        /*ts.tv_sec = 5 /1000;
-        ts.tv_nsec = 5 * 1000000;
-        nanosleep(&ts, &ts);*/
-        
         ppu_next_frame(ppu);
     }
 

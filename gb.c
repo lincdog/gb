@@ -9,8 +9,42 @@
 #include <math.h>
 #include <time.h>
 
+static my_timer_t a, b, c, d, e;
+
+void timer_init(my_timer_t *t, uint64_t bad_thresh) {
+    t->max_nsec = 0;
+    t->total_nsec = 0;
+    t->n_calls = 0;
+    t->bad_thresh = bad_thresh;
+    t->n_bad = 0;
+}
+
+void timer_begin(my_timer_t *t) {
+    t->pre = clock_gettime_nsec_np(CLOCK_MONOTONIC);
+}
+void timer_split(my_timer_t *t) {
+    uint64_t diff = (clock_gettime_nsec_np(CLOCK_MONOTONIC) - t->pre)>>10;
+    t->total_nsec += diff;
+    if (diff > t->max_nsec)
+        t->max_nsec = diff;
+    
+    if (diff > t->bad_thresh)
+        t->n_bad++;
+    
+    t->n_calls++;
+}
+float timer_get_average(my_timer_t *t) {
+    return (float)t->total_nsec / (float)t->n_calls;
+}
+
+void timer_print_result(my_timer_t *t, char *name) {
+    printf("Timer %s: %llu usec, %llu calls, %f per call, %llu max, %llu above %llu\n",
+    name, t->total_nsec, t->n_calls, timer_get_average(t), t->max_nsec,
+    t->n_bad, t->bad_thresh);
+}
+
 SDLComponents *initialize_sdl_core(void) {
-    if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, 
             "Couldn't initialize SDL: %s", SDL_GetError());
         exit(1);
@@ -50,6 +84,12 @@ void teardown_sdl_core(SDLComponents *sdl) {
 
 GBState *initialize_gb(CartridgeHeader *header) {
     GBState *state = malloc(sizeof(GBState));
+    timer_init(&a, 500); 
+    timer_init(&b, 1000); 
+    timer_init(&c, 100); 
+    timer_init(&d, 100); 
+    timer_init(&e, 100);
+
     state->mem = initialize_memory(header);
     if (state->mem == NULL) {
         free(state);
@@ -78,6 +118,13 @@ void teardown_gb(GBState *state) {
     teardown_timer(state->timer);
     teardown_dma(state->dma);
     free(state);
+
+    printf("GB Timing statistics\n");
+    timer_print_result(&a, "A");
+    timer_print_result(&b, "B");
+    timer_print_result(&c, "C");
+    timer_print_result(&d, "D");
+    timer_print_result(&e, "E");
 }
 
 
@@ -85,7 +132,7 @@ void task_event(GBState *state) {
     SDLComponents *sdl = state->sdl;
     SDL_Event *ev = &sdl->event;
     int button_pressed = 0;
-
+    //SDL_PollEvent(ev);
     while(SDL_PollEvent(ev)) {
         switch (ev->type) {
             case SDL_QUIT:
@@ -224,19 +271,31 @@ void main_loop(GBState *state) {
     pre = time(NULL);
     while (state->should_quit == OFF) {
         t = state->counter;
+        timer_begin(&a);
         task_ppu_cycle(state);
+        timer_split(&a);
 
         if (!(t & 0x3)) {
             if (!(t & 0xF)) {
                 if (!(t & 0xFF)) {
-                    if (!(t & 0xFFFF))
+                    
+                    if (!(t & 0xFFFF)) {
+                        timer_begin(&b);
                         task_event(state);
+                        timer_split(&b);
+                    }
                     task_div_timer(state);
                 }
                 task_tima_timer(state);
             }
+            
+            timer_begin(&c);
             task_dma_cycle(state);
+            timer_split(&c);
+
+            timer_begin(&d);
             task_cpu_m_cycle(state);
+            timer_split(&d);
         }
 
         state->counter++; 
