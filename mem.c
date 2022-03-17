@@ -126,6 +126,108 @@ const BYTE GAMEBOY_LOGO[] = {
     0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
 };
 
+CHECK_ACCESS_FUNC(_check_always_yes) {
+    return 1;
+}
+CHECK_ACCESS_FUNC(_check_always_no) {
+    return 0;
+}
+CHECK_ACCESS_FUNC(_check_dma) {
+    BYTE source = get_mem_source(flags);
+    int result;
+    LCDControl lcdc = state->ppu->lcdc;
+
+    if (lcdc.lcd_enable == OFF)
+        return 1;
+        
+    if (source == MEM_SOURCE_DMA)
+        result = 1;
+    else {
+        if (state->dma->status == DMA_ON)
+            result = 0;
+        else
+            result = 1;
+    }
+
+    return result;
+}
+CHECK_ACCESS_FUNC(_sys_check_vram) {
+    BYTE source = get_mem_source(flags);
+    int result;
+    LCDStatus stat = state->ppu->stat;
+    LCDControl lcdc = state->ppu->lcdc;
+
+    if (lcdc.lcd_enable == OFF)
+        return 1;
+
+    switch (source) {
+        case MEM_SOURCE_DMA:
+            result = 1;
+            break;
+        case MEM_SOURCE_PPU:
+            if (state->dma->status == DMA_ON)
+                result = 0;
+            else
+                result = 1;
+            break;
+        default:
+            if (state->dma->status == DMA_ON)
+                result = 0;
+            else 
+                result = (stat.mode != DRAW);
+            break;
+    }
+
+    return result;
+}
+
+CHECK_ACCESS_FUNC(_sys_check_oam_table) {
+    BYTE source = get_mem_source(flags);
+    int result;
+    LCDStatus stat = state->ppu->stat;
+    LCDControl lcdc = state->ppu->lcdc;
+
+    if (lcdc.lcd_enable == OFF)
+        return 1;
+    
+    switch (source) {
+        case MEM_SOURCE_DMA:
+            result = 1;
+            break;
+        case MEM_SOURCE_PPU:
+            if (state->dma->status == DMA_ON)
+                result = 0;
+            else
+                result = 1;
+            break;
+        default:
+            if (state->dma->status == DMA_ON)
+                result = 0;
+            else 
+                result = (stat.mode != DRAW) && (stat.mode != OAMSCAN);
+            break;
+    }
+
+    return result; 
+}
+CHECK_ACCESS_FUNC(_check_obp) {
+    BYTE source = get_mem_source(flags);
+    int result;
+    return 1;
+
+    if (source == MEM_SOURCE_PPU) {
+        result = 1;
+    } else {
+        if (state->ppu->stat.mode == DRAW) {
+            result = 0;
+        } else {
+            result = 1;
+        }
+    }
+
+    return result;
+}
+
 READ_FUNC(_sys_read_boot_rom) {
     return mem_sys(state, SysMemState)->bootrom[rel_addr];
 }
