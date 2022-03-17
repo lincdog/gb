@@ -406,18 +406,21 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="p1\0\0\0\0",
         .addr=0xFF00,
+        .check_access=&_check_always_yes,
         .read=&_read_p1,
         .write=&_write_p1
     },
     {
         .name="sb\0\0\0\0",
         .addr=0xFF01,
+        .check_access=&_check_always_yes,
         .read=&_read_sb,
         .write=&_write_sb
     },
     {
         .name="sb\0\0\0\0",
         .addr=0xFF02,
+        .check_access=&_check_always_yes,
         .read=&_read_sc,
         .write=&_write_sc
     },
@@ -425,24 +428,28 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="div\0\0\0",
         .addr=0xFF04,
+        .check_access=&_check_always_yes,
         .read=&_read_div,
         .write=&_write_div
     },
     {
         .name="tima\0\0",
         .addr=0xFF05,
+        .check_access=&_check_always_yes,
         .read=&_read_tima,
         .write=&_write_tima
     },
     {
         .name="tma\0\0\0",
         .addr=0xFF06,
+        .check_access=&_check_always_yes,
         .read=&_read_tma,
         .write=&_write_tma
     },
     {
         .name="tac\0\0\0",
         .addr=0xFF07,
+        .check_access=&_check_always_yes,
         .read=&_read_tac,
         .write=&_write_tac
     },
@@ -456,36 +463,42 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="if\0\0\0\0",
         .addr=0xFF0F,
+        .check_access=&_check_always_yes,
         .read=&_read_if,
         .write=&_write_if
     },
     {
         .name="nr10\0\0",
         .addr=0xFF10,
+        .check_access=&_check_always_yes,
         .read=&_read_nr10,
         .write=&_write_nr10
     },
     {
         .name="nr11\0\0",
         .addr=0xFF11,
+        .check_access=&_check_always_yes,
         .read=&_read_nr11,
         .write=&_write_nr11
     },
     {
         .name="nr12\0\0",
         .addr=0xFF12,
+        .check_access=&_check_always_yes,
         .read=&_read_nr12,
         .write=&_write_nr12
     },
     {
         .name="nr13\0\0",
         .addr=0xFF13,
+        .check_access=&_check_always_yes,
         .read=&_read_nr13,
         .write=&_write_nr13
     },
     {
         .name="nr14\0\0",
         .addr=0xFF14,
+        .check_access=&_check_always_yes,
         .read=&_read_nr14,
         .write=&_write_nr14
     },
@@ -493,54 +506,63 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="nr21\0\0",
         .addr=0xFF16,
+        .check_access=&_check_always_yes,
         .read=&_read_nr16,
         .write=&_write_nr16
     },
     {
         .name="nr22\0\0",
         .addr=0xFF17,
+        .check_access=&_check_always_yes,
         .read=&_read_nr22,
         .write=&_write_nr22
     },
     {
         .name="nr23\0\0",
         .addr=0xFF18,
+        .check_access=&_check_always_yes,
         .read=&_read_nr23,
         .write=&_write_nr23
     },
     {
         .name="nr24\0\0",
         .addr=0xFF19,
+        .check_access=&_check_always_yes,
         .read=&_read_nr24,
         .write=&_write_nr24
     },
     {
         .name="nr30\0\0",
         .addr=0xFF1A,
+        .check_access=&_check_always_yes,
         .read=&_read_nr30,
         .write=&_write_nr30
     },
     {
         .name="nr31\0\0",
         .addr=0xFF1B,
+        .check_access=&_check_always_yes,
         .read=&_read_nr31,
         .write=&_write_nr31
     },
     {
         .name="nr32\0\0",
         .addr=0xFF1C,
+        .check_access=&_check_always_yes,
         .read=&_read_nr32,
         .write=&_write_nr32
     },
     {
         .name="nr33\0\0",
         .addr=0xFF1D,
+        .check_access=&_check_always_yes,
         .read=&_read_nr33,
         .write=&_write_nr33
     },
     {
         .name="nr34\0\0",
         .addr=0xFF1E,
+        .check_access=&_check_always_yes,
         .read=&_read_nr34,
         .write=&_write_nr34
     },
@@ -548,42 +570,49 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="nr41\0\0",
         .addr=0xFF20,
+        .check_access=&_check_always_yes,
         .read=&_read_nr41,
         .write=&_write_nr41
     },
     {
         .name="nr42\0\0",
         .addr=0xFF21,
+        .check_access=&_check_always_yes,
         .read=&_read_nr42,
         .write=&_write_nr42
     },
     {
         .name="nr43\0\0",
         .addr=0xFF22,
+        .check_access=&_check_always_yes,
         .read=&_read_nr43,
         .write=&_write_nr43
     },
     {
         .name="nr44\0\0",
         .addr=0xFF23,
+        .check_access=&_check_always_yes,
         .read=&_read_nr44,
         .write=&_write_nr44
     },
     {
         .name="nr50\0\0",
         .addr=0xFF24,
+        .check_access=&_check_always_yes,
         .read=&_read_nr50,
         .write=&_write_nr50
     },
     {
         .name="nr51\0\0",
         .addr=0xFF25,
+        .check_access=&_check_always_yes,
         .read=&_read_nr51,
         .write=&_write_nr51
     },
     {
         .name="nr52\0\0",
         .addr=0xFF26,
+        .check_access=&_check_always_yes,
         .read=&_read_nr52,
         .write=&_write_nr52
     },
@@ -599,168 +628,196 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="wav00\0",
         .addr=0xFF30,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav01\0",
         .addr=0xFF31,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav02\0",
         .addr=0xFF32,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav03\0",
         .addr=0xFF33,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav04\0",
         .addr=0xFF34,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav05\0",
         .addr=0xFF35,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav06\0",
         .addr=0xFF36,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav07\0",
         .addr=0xFF37,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav08\0",
         .addr=0xFF38,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav09\0",
         .addr=0xFF39,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav10\0",
         .addr=0xFF3A,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav11\0",
         .addr=0xFF3B,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav12\0",
         .addr=0xFF3C,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav13\0",
         .addr=0xFF3D,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav14\0",
         .addr=0xFF3E,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="wav15\0",
         .addr=0xFF3F,
+        .check_access=&_check_always_yes,
         .read=&_read_wav_regs,
         .write=&_write_wav_regs
     },
     {
         .name="lcdc\0\0",
         .addr=0xFF40,
+        .check_access=&_check_always_yes,
         .read=&_read_lcdc,
         .write=&_write_lcdc
     },
     {
         .name="stat\0\0",
         .addr=0xFF41,
+        .check_access=&_check_always_yes,
         .read=&_read_stat,
         .write=&_write_stat
     },
     {
         .name="scy\0\0\0",
         .addr=0xFF42,
+        .check_access=&_check_always_yes,
         .read=&_read_scy,
         .write=&_write_scy
     },
     {
         .name="scx\0",
         .addr=0xFF43,
+        .check_access=&_check_always_yes,
         .read=&_read_scx,
         .write=&_write_scx
     },
     {
         .name="ly\0\0\0\0",
         .addr=0xFF44,
+        .check_access=&_check_always_yes,
         .read=&_read_ly,
         .write=&_write_unimplemented
     },
     {
         .name="lyc\0\0\0",
         .addr=0xFF45,
+        .check_access=&_check_always_yes,
         .read=&_read_lyc,
         .write=&_write_lyc
     },
     {
         .name="dma\0\0\0",
         .addr=0xFF46,
+        .check_access=&_check_always_yes,
         .read=&_read_dma,
         .write=&_write_dma
     },
     {
         .name="bgp\0\0\0",
         .addr=0xFF47,
+        .check_access=&_check_obp,
         .read=&_read_bgp,
         .write=&_write_bgp
     },
     {
         .name="obp0\0\0",
         .addr=0xFF48,
+        .check_access=&_check_obp,
         .read=&_read_obp0,
         .write=&_write_obp0
     },
     {
         .name="obp1\0",
         .addr=0xFF49,
+        .check_access=&_check_obp,
         .read=&_read_obp1,
         .write=&_write_obp1
     },
     {
         .name="wy\0\0\0\0",
         .addr=0xFF4A,
+        .check_access=&_check_always_yes,
         .read=&_read_wy,
         .write=&_write_wy
     },
     {
         .name="wx\0\0\0\0",
         .addr=0xFF4B,
+        .check_access=&_check_always_yes,
         .read=&_read_wx,
         .write=&_write_wx
     },
@@ -768,6 +825,7 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="key1\0\0",
         .addr=0xFF4D,
+        .check_access=&_check_always_yes,
         .read=&_read_key1,
         .write=&_write_key1
     },
@@ -775,48 +833,56 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="vbk\0\0\0",
         .addr=0xFF4F,
+        .check_access=&_check_always_yes,
         .read=&_read_vbk,
         .write=&_write_vbk
     },
     {
         .name="boot\0\0",
         .addr=0xFF50,
+        .check_access=&_check_always_yes,
         .read=&_read_boot,
         .write=&_write_boot
     },
     {
         .name="hdma1\0",
         .addr=0xFF51,
+        .check_access=&_check_always_yes,
         .read=&_read_hdma,
         .write=&_write_hdma
     },
     {
         .name="hdma2\0",
         .addr=0xFF52,
+        .check_access=&_check_always_yes,
         .read=&_read_hdma,
         .write=&_write_hdma
     },
     {
         .name="hdma3\0",
         .addr=0xFF53,
+        .check_access=&_check_always_yes,
         .read=&_read_hdma,
         .write=&_write_hdma
     },
     {
         .name="hdma4\0",
         .addr=0xFF54,
+        .check_access=&_check_always_yes,
         .read=&_read_hdma,
         .write=&_write_hdma
     },
     {
         .name="hdma5\0",
         .addr=0xFF55,
+        .check_access=&_check_always_yes,
         .read=&_read_hdma,
         .write=&_write_hdma
     },
     {
         .name="rp\0\0\0\0",
         .addr=0xFF56,
+        .check_access=&_check_always_yes,
         .read=&_read_rp,
         .write=&_write_rp
     },
@@ -840,24 +906,28 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="bcps\0\0",
         .addr=0xFF68,
+        .check_access=&_check_always_yes,
         .read=&_read_bcps,
         .write=&_write_bcps
     },
     {
         .name="bcpd\0\0",
         .addr=0xFF69,
+        .check_access=&_check_always_yes,
         .read=&_read_bcpd,
         .write=&_write_bcpd
     },
     {
         .name="ocps\0\0",
         .addr=0xFF6A,
+        .check_access=&_check_always_yes,
         .read=&_read_ocps,
         .write=&_write_ocps
     },
     {
         .name="ocpd\0\0",
         .addr=0xFF6B,
+        .check_access=&_check_always_yes,
         .read=&_read_ocpd,
         .write=&_write_ocpd
     },
@@ -868,6 +938,7 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="svbk\0\0",
         .addr=0xFF70,
+        .check_access=&_check_always_yes,
         .read=&_read_svbk,
         .write=&_write_svbk
     },
@@ -879,12 +950,14 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="pcm12\0",
         .addr=0xFF76,
+        .check_access=&_check_always_yes,
         .read=&_read_pcm12,
         .write=&_write_pcm12
     },
     {
         .name="pcm34\0",
         .addr=0xFF77,
+        .check_access=&_check_always_yes,
         .read=&_read_pcm34,
         .write=&_write_pcm34
     },
@@ -900,17 +973,25 @@ static const IOReg_t ioreg_table[] = {
     {
         .name="ie\0\0\0\0",
         .addr=0xFFFF,
+        .check_access=&_check_always_yes,
         .read=&_read_ie,
         .write=&_write_ie
     }
 };
 READ_FUNC(_sys_read_ioreg) {
     BYTE result;
+    int accessible;
     
     if (rel_addr > 0x7F)
         return UNINIT;
 
-    return ioreg_table[rel_addr].read(__READ_ARGS);
+    accessible = ioreg_table[rel_addr].check_access(__CHECK_ACCESS_ARGS);
+    if (accessible)
+        result = ioreg_table[rel_addr].read(__READ_ARGS);
+    else
+        result = UNINIT;
+    
+    return result;
 }
 
 WRITE_FUNC(_sys_write_ioreg) {
@@ -919,7 +1000,13 @@ WRITE_FUNC(_sys_write_ioreg) {
     if (rel_addr > 0x7F)
         return -1;
     
-    return ioreg_table[rel_addr].write(__WRITE_ARGS);
+    accessible = ioreg_table[rel_addr].check_access(__CHECK_ACCESS_ARGS);
+    if (accessible)
+        result = ioreg_table[rel_addr].write(__WRITE_ARGS);
+    else
+        result = -1;
+    
+    return result; 
 }
 
 GET_PTR_FUNC(_ptr_unimplemented) {
@@ -1231,6 +1318,7 @@ MemoryRegion mbc1_mem_map[] = {
         .end=0x3FFF,
         .len=0x4000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc1_read_rom_base,
         .write=&_mbc1_write_0_3fff,
         .get_ptr=&_mbc1_ptr_rom_base
@@ -1240,6 +1328,7 @@ MemoryRegion mbc1_mem_map[] = {
         .end=0x7FFF,
         .len=0x4000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc1_read_rom_1,
         .write=&_mbc1_write_4000_7fff,
         .get_ptr=&_mbc1_ptr_rom_1
@@ -1249,6 +1338,7 @@ MemoryRegion mbc1_mem_map[] = {
         .end=0xBFFF,
         .len=0x2000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc1_read_ram_bank,
         .write=&_mbc1_write_ram_bank,
         .get_ptr=&_mbc1_ptr_ram_bank
@@ -1261,6 +1351,7 @@ MemoryRegion mbc3_mem_map[] = {
         .end=0x3FFF,
         .len=0x4000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc3_read_rom_base,
         .write=&_mbc3_write_0_3fff,
         .get_ptr=&_mbc1_ptr_rom_base
@@ -1270,6 +1361,7 @@ MemoryRegion mbc3_mem_map[] = {
         .end=0x7FFF,
         .len=0x2000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc3_read_rom_1,
         .write=&_mbc3_write_4000_7fff,
         .get_ptr=&_mbc1_ptr_rom_1
@@ -1279,6 +1371,7 @@ MemoryRegion mbc3_mem_map[] = {
         .end=0xBFFF,
         .len=0x2000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_mbc3_read_ram_or_rtc,
         .write=&_mbc3_write_ram_or_rtc,
         .get_ptr=&_mbc1_ptr_ram_bank
@@ -1292,6 +1385,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFF,
         .len=0x100,
         .flags=0,
+        .check_access=&_check_dma,
         .read=&_sys_read_boot_rom,
         .write=&_write_unimplemented,
         .get_ptr=&_sys_ptr_boot_rom
@@ -1301,6 +1395,7 @@ MemoryRegion system_mem_map[] = {
         .end=0x9FFF,
         .len=0x2000,
         .flags=0,
+        .check_access=&_sys_check_vram,
         .read=&_sys_read_vram,
         .write=&_sys_write_vram,
         .get_ptr=&_sys_ptr_vram
@@ -1310,6 +1405,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xDFFF,
         .len=0x2000,
         .flags=0,
+        .check_access=&_check_dma,
         .read=&_sys_read_wram,
         .write=&_sys_write_wram,
         .get_ptr=&_sys_ptr_wram
@@ -1319,6 +1415,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFDFF,
         .len=0x1E00,
         .flags=0,
+        .check_access=&_check_always_no,
         .read=&_read_unimplemented,
         .write=&_write_unimplemented,
         .get_ptr=&_ptr_unimplemented
@@ -1328,6 +1425,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFE9F,
         .len=0xA0,
         .flags=0,
+        .check_access=&_sys_check_oam_table,
         .read=&_sys_read_oam_table,
         .write=&_sys_write_oam_table,
         .get_ptr=&_sys_ptr_oam_table
@@ -1337,6 +1435,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFEFF,
         .len=0x60,
         .flags=0,
+        .check_access=&_check_always_no,
         .read=&_read_unimplemented,
         .write=&_write_unimplemented,
         .get_ptr=&_ptr_unimplemented
@@ -1346,6 +1445,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFF7F,
         .len=0x80,
         .flags=0,
+        .check_access=&_check_dma,
         .read=&_sys_read_ioreg,
         .write=&_sys_write_ioreg,
         .get_ptr=&_ptr_unimplemented
@@ -1355,6 +1455,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFFFE,
         .len=0x7F,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_sys_read_hiram,
         .write=&_sys_write_hiram,
         .get_ptr=&_sys_ptr_hiram
@@ -1364,6 +1465,7 @@ MemoryRegion system_mem_map[] = {
         .end=0xFFFF,
         .len=0x1,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_read_ie,
         .write=&_write_ie,
         .get_ptr=&_ptr_unimplemented
@@ -1376,6 +1478,7 @@ MemoryRegion basic_mem_map[] = {
         .end=0x7FFF,
         .len=0x8000,
         .flags=0,
+        .check_access=&_check_dma,
         .read=&_basic_read_rom,
         .write=&_basic_write_rom,
         .get_ptr=&_basic_ptr
@@ -1386,66 +1489,41 @@ MemoryRegion debug_mem_map[] = {
     {
         .base=0x0000,
         .end=0xFFFF,
-        .len=TOTAL_MEM_SIZE,
+        .len=0x10000,
         .flags=0,
+        .check_access=&_check_always_yes,
         .read=&_debug_read_mem,
         .write=&_debug_write_mem,
         .get_ptr=&_debug_ptr
     }
 };
 
-MemoryRegion *find_mem_region(GBState *state, WORD addr) {
+MemoryRegion *find_mem_region(GBState *state, WORD addr, BYTE flags) {
     return state->mem->table[addr];
 }
 
-int lock_region(MemoryRegion *region, BYTE req_flags) {
-
-    int can_lock;
-    BYTE req_source = get_mem_source(req_flags);
-    BYTE cur_source = get_mem_source(region->flags);
-
-    can_lock = (!(region->flags & MEM_LOCKED))
-        || (req_source >= cur_source);
-
-    if (can_lock) {
-        region->flags &= 0xF8; // clear source bits
-        region->flags |= (MEM_LOCKED | req_source);
+int lock_region(MemoryRegion *region, BYTE source_flags) {
+    if (!(region->flags & MEM_LOCKED)) {
+        region->flags &= 0xF8;
+        region->flags |= (MEM_LOCKED | get_mem_source(source_flags));
     }
-
-    return can_lock;
 }
 
-int lock_region_by_addr(GBState *state, WORD addr, BYTE flags) {
-    return lock_region(find_mem_region(state, addr), flags);
-}
-
-int unlock_region(MemoryRegion *region, BYTE req_flags) {
-
-    int can_unlock;
-    BYTE req_source = get_mem_source(req_flags);
-    BYTE cur_source = get_mem_source(region->flags);
-
-    can_unlock = (region->flags & MEM_LOCKED)
-        && (req_source >= cur_source);
-
-    if (can_unlock)
+int unlock_region(MemoryRegion *region, BYTE source_flags) {
+    if ((region->flags & MEM_LOCKED)
+    && get_mem_source(region->flags) 
+    == get_mem_source(source_flags))
         region->flags &= (~MEM_LOCKED);
-        
-    return can_unlock;
 }
 
-int unlock_region_by_addr(GBState *state, WORD addr, BYTE flags) {
-    return unlock_region(find_mem_region(state, addr), flags);
-}
-
-int check_access(MemoryRegion *region, BYTE req_flags) {
+int check_access(MemoryRegion *region, BYTE source_flags) {
     int accessible = 1;
 
-    BYTE cur_flags = region->flags;
-    if (cur_flags & MEM_LOCKED)
-        accessible = get_mem_source(req_flags) >= get_mem_source(cur_flags);
+    BYTE reg_flags = region->flags;
+    if (reg_flags & MEM_LOCKED)
+        accessible = get_mem_source(reg_flags) == get_mem_source(source_flags);
    
-    accessible = accessible || (req_flags & MEM_DEBUG);
+    accessible = accessible || (source_flags & MEM_DEBUG);
 
     return accessible;
 }
@@ -1453,15 +1531,21 @@ int check_access(MemoryRegion *region, BYTE req_flags) {
 BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
     BYTE result = UNINIT;
     WORD rel_addr;
+    int accessible;
     MemoryRegion *source;
 
-    source = find_mem_region(state, addr);
+    source = find_mem_region(state, addr, flags);
     
     if (source != NULL) {
         rel_addr = addr - source->base;
 
-        if (check_access(source, flags))
+        accessible = (flags & MEM_DEBUG) || (*source->check_access)(state, rel_addr, flags);
+
+        if (accessible) {
             result = (*source->read)(state, rel_addr, flags);
+        } else {
+            result = UNINIT;
+        }
     }
 
     return result;
@@ -1470,15 +1554,21 @@ BYTE read_mem(GBState *state, WORD addr, BYTE flags) {
 int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
     int status = -1;
     WORD rel_addr;
+    int accessible;
     MemoryRegion *source;
 
-    source = find_mem_region(state, addr);
+    source = find_mem_region(state, addr, flags);
 
     if (source != NULL) {
         rel_addr = addr - source->base;
 
-        if (check_access(source, flags))
+        accessible = (flags & MEM_DEBUG) || (*source->check_access)(state, rel_addr, flags);
+
+        if (accessible) {
             status = (*source->write)(state, rel_addr, data, flags);
+        } else {
+            status = -1;
+        }
     }
 
     return status;
@@ -1487,14 +1577,20 @@ int write_mem(GBState *state, WORD addr, BYTE data, BYTE flags) {
 BYTE *get_mem_pointer(GBState *state, WORD addr, BYTE flags) {
     WORD rel_addr;
     BYTE *pointer = NULL;
+    int accessible;
     MemoryRegion *source;
-    source = find_mem_region(state, addr);
+    source = find_mem_region(state, addr, flags);
 
     if (source != NULL) {
         rel_addr = addr - source->base;
 
-        if (check_access(source, flags))
+        accessible = (flags & MEM_DEBUG) || (*source->check_access)(state, rel_addr, flags);
+
+        if (accessible) {
             pointer = (*source->get_ptr)(state, rel_addr, flags);
+        } else {
+            pointer = NULL;
+        }
     }
 
     return pointer;
@@ -1734,6 +1830,21 @@ void teardown_null(void *ptr) {
 
 }
 
+void mem_map_to_lookup(const MemoryRegion *regions, int n, MemoryRegion **table) {
+    MemoryRegion *current;
+    int cur, stop;
+
+    for (int i = 0; i < n; i++) {
+        current = &regions[i];
+        cur = current->base;
+        stop = current->end;
+        do { 
+            table[cur++] = current;
+        } while (cur <= stop);
+    }
+
+}
+
 void replace_mem_region(const MemoryRegion *new, MemoryRegion **table) {
     int cur, stop;
     cur = new->base;
@@ -1741,15 +1852,6 @@ void replace_mem_region(const MemoryRegion *new, MemoryRegion **table) {
     do {
         table[cur++] = new;
     } while (cur <= stop);
-}
-
-void mem_map_to_lookup(const MemoryRegion *regions, int n, MemoryRegion **table) {
-    MemoryRegion *current;
-    int cur, stop;
-
-    for (int i = 0; i < n; i++)
-        replace_mem_region(&regions[i], table);
-
 }
 
 MemoryState *initialize_memory(CartridgeHeader *header) {
@@ -1768,6 +1870,8 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
         return NULL;
     }
 
+    for (int i = 0; i < TOTAL_MEM_SIZE; i++)
+        mem->table[i] = NULL;
 
     if (header == NULL) {
         /* Debug mode - just setup plain 0x10000 byte array */
@@ -1866,8 +1970,6 @@ MemoryState *initialize_memory(CartridgeHeader *header) {
     init_done:
     mem->cartridge->state = (mem->cartridge->initialize)(header);
     mem->system->state = (mem->system->initialize)(header);
-    for (int i = 0; i < TOTAL_MEM_SIZE; i++)
-        mem->table[i] = NULL;
     mem_map_to_lookup(mem->cartridge->regions, mem->cartridge->n_regions, mem->table);
     mem_map_to_lookup(mem->system->regions, mem->system->n_regions, mem->table);
 
@@ -1881,6 +1983,7 @@ void teardown_memory(MemoryState *mem) {
     mem->system->teardown(mem->system->state);
     free(mem->cartridge);
     free(mem->system);
+    free(mem->table);
     free(mem);
 }
 
@@ -1935,40 +2038,12 @@ void teardown_dma(DMAState *dma) {
     free(dma);
 }
 
-void _dma_lock_regions(GBState *state) {
-    MemoryRegion *cart_regions = state->mem->cartridge->regions;
-    int n = state->mem->cartridge->n_regions;
-
-    for (int i = 0; i < n; i++)
-        lock_region(&cart_regions[i], MEM_SOURCE_DMA);
-
-    lock_region_by_addr(state, SYS_VRAM_BASE, MEM_SOURCE_DMA);
-    lock_region_by_addr(state, SYS_WRAM_BASE, MEM_SOURCE_DMA);
-    lock_region_by_addr(state, SYS_OAM_BASE, MEM_SOURCE_DMA);
-    lock_region_by_addr(state, SYS_IOREG_BASE, MEM_SOURCE_DMA);
-}
-
-void _dma_unlock_regions(GBState *state) {
-    MemoryRegion *cart_regions = state->mem->cartridge->regions;
-    int n = state->mem->cartridge->n_regions;
-
-    for (int i = 0; i < n; i++)
-        unlock_region(&cart_regions[i], MEM_SOURCE_DMA);
-        
-    unlock_region_by_addr(state, SYS_VRAM_BASE, MEM_SOURCE_DMA);
-    unlock_region_by_addr(state, SYS_WRAM_BASE, MEM_SOURCE_DMA);
-    unlock_region_by_addr(state, SYS_OAM_BASE, MEM_SOURCE_DMA);
-    unlock_region_by_addr(state, SYS_IOREG_BASE, MEM_SOURCE_DMA);
-}
-
 void task_dma_cycle(GBState *state) {
     DMAState *dma = state->dma;
     if (dma->status == DMA_OFF)
         goto dma_cycle_end;
     else if (dma->status == DMA_INIT) {
         dma->status = DMA_ON;
-        
-        _dma_lock_regions(state);
         goto dma_cycle_end;
     }
     
@@ -1980,10 +2055,8 @@ void task_dma_cycle(GBState *state) {
     write_mem(state, dest_addr, data, MEM_SOURCE_DMA);
     
     dma->addr++;
-    if ((dma->addr & 0xFF) == 0xA0) {
+    if ((dma->addr & 0xFF) == 0xA0)
         dma->status = DMA_OFF;
-        _dma_unlock_regions(state);
-    }
 
     dma_cycle_end:
     1;

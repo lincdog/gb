@@ -6,6 +6,28 @@
 #include "mem.h"
 #include "cpu.h"
 
+const int TIMA_FREQS[] = {
+    CPU_FREQ >> 10,
+    CPU_FREQ >> 4,
+    CPU_FREQ >> 6,
+    CPU_FREQ >> 8
+};
+const int TIMA_PERIODS_CPUS[] = {
+    1024,
+    16,
+    64,
+    256
+};
+
+#define IRQ_VBLANK(x) (x & 0x1)
+#define IRQ_LCDSTAT(x) (x & 0x2)
+#define IRQ_TIMER(x) (x & 0x4)
+#define IRQ_SERIAL(x) (x & 0x8)
+#define IRQ_JOYPAD(x) (x & 0x10)
+
+const WORD irq_addrs[] = {
+    0x40, 0x48, 0x50, 0x58, 0x60
+};
 
 void reset_registers(CPUState *cpu) {
     reg_sp(cpu) = 0xFFFE;
@@ -90,7 +112,25 @@ void print_state_info(GBState *state, char print_io_reg) {
         cpu->flags.ime
         );
     
+    /*if (print_io_reg) {
+        for (int i = 0xFF00; i <= 0xFFFF; i++) {
+            if ((i & 0xFF)%16 == 0) {
+                printf("\n%x\t", i);
+            }
+            printf("%02x ", state->code[i]);
+        }
+        printf("\n");
+    }*/
+    
 }
+
+/*
+ - write: (reg)pointer dest or (r.addr)mem dest; byte data
+ - read: addr/pointer dest; addr/pointer src
+ - check condition
+ - nop
+
+*/
 
 /* 8-bit arithmetic and bitwise operations */
 CYCLE_FUNC(_do_cpl) {

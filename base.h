@@ -241,6 +241,7 @@ typedef struct {
     WORD base;
     WORD end;
     unsigned int len;
+    int (*check_access)(void *, WORD, BYTE);
     BYTE flags; // owner / lock status? / priority
     BYTE (*read)(void *, WORD, BYTE);
     BYTE (*write)(void *, WORD, BYTE, BYTE);
