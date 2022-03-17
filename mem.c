@@ -369,7 +369,7 @@ READ_FUNC(_read_dma) {
 }
 WRITE_FUNC(_write_dma) {
     state->dma->addr = ((WORD)data) << 8;
-    state->dma->status = DMA_ON;
+    state->dma->status = DMA_INIT;
     return 1;    
 }
 READ_FUNC(_read_lcdc) {
@@ -1604,20 +1604,6 @@ MemoryRegion *find_mem_region(GBState *state, WORD addr, BYTE flags) {
     return state->mem->table[addr];
 }
 
-int lock_region(MemoryRegion *region, BYTE source_flags) {
-    if (!(region->flags & MEM_LOCKED)) {
-        region->flags &= 0xF8;
-        region->flags |= (MEM_LOCKED | get_mem_source(source_flags));
-    }
-}
-
-int unlock_region(MemoryRegion *region, BYTE source_flags) {
-    if ((region->flags & MEM_LOCKED)
-    && get_mem_source(region->flags) 
-    == get_mem_source(source_flags))
-        region->flags &= (~MEM_LOCKED);
-}
-
 int check_access(MemoryRegion *region, BYTE source_flags) {
     int accessible = 1;
 
@@ -2085,7 +2071,6 @@ void teardown_memory(MemoryState *mem) {
     mem->system->teardown(mem->system->state);
     free(mem->cartridge);
     free(mem->system);
-    free(mem->table);
     free(mem);
 }
 
