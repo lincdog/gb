@@ -380,6 +380,8 @@ typedef struct {
     ToggleEnum in_window;
     int n_sprites_total;
     BYTE win_y;
+    uint32_t *pixels;
+    int pitch;
 } Frame_t;
 
 /* Location for unpacking rows of pixels to be rendered. 

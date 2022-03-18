@@ -64,6 +64,7 @@ SDLComponents *initialize_sdl_core(void) {
     //sdl->surface = SDL_GetWindowSurface(sdl->window);
     sdl->renderer = SDL_CreateRenderer(sdl->window, -1, 0);
     SDL_RenderSetLogicalSize(sdl->renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
+    SDL_RenderSetIntegerScale(sdl->renderer, 1);
     SDL_SetRenderDrawColor(sdl->renderer, 0, 0, 0, 0xFF);
     SDL_RenderClear(sdl->renderer);
     sdl->texture = SDL_CreateTexture(

@@ -69,6 +69,8 @@ PPUState *initialize_ppu(void) {
     ppu->frame.counter = PPU_PER_FRAME + COUNTER_VBLANK_LENGTH;
     ppu->frame.win_y = 0;
     ppu->frame.in_window = OFF;
+    //ppu->frame.pixels = malloc(GB_WIDTH_PX * GB_HEIGHT_PX * sizeof(int));
+    ppu->frame.pitch = 0;
 
     ppu->scanline.counter = PPU_PER_SCANLINE;
     memset(ppu->scanline.priority, PX_PRIO_NULL, GB_WIDTH_PX);
@@ -104,6 +106,12 @@ void ppu_early_init(GBState *state) {
     state->ppu->oamscan.oam_region = state->mem->table[SYS_OAM_BASE];
     state->ppu->vram_ptr = ppu_get_mem_pointer(state, SYS_VRAM_BASE);
     state->ppu->vram_region = state->mem->table[SYS_VRAM_BASE];
+    SDL_LockTexture(
+        state->sdl->texture, 
+        NULL, 
+        &state->ppu->frame.pixels, 
+        &state->ppu->frame.pitch
+    );
 }
 
 void teardown_ppu(PPUState *ppu) {
@@ -479,19 +487,20 @@ void ppu_render_scanline(GBState *state) {
     PPUMisc misc = ppu->misc;
     LCDControl lcdc = ppu->lcdc;
     Scanline_t *scanline = &ppu->scanline;
+    Frame_t *frame = &ppu->frame;
     Pixelbuf_t *current_px;
     SDLComponents *sdl = state->sdl;
     SDL_Rect src_r, dst_r;
     int final_color, color, alpha;
-    BYTE *pixels;
-    int pitch;
+    int pitch = frame->pitch;
+    uint32_t *pixels = frame->pixels;
 
+    /*
     src_r.y = ppu->misc.ly;
     src_r.x = 0;//ppu->scanline.x_pos;
     src_r.w = EMU_WIDTH_PX; 
-    src_r.h = 1;
-
-    SDL_LockTexture(sdl->texture, &src_r, &pixels, &pitch);
+    src_r.h = 1;*/
+    int start_ind = misc.ly * pitch / 4;
 
     BYTE prio;
 
@@ -529,13 +538,10 @@ void ppu_render_scanline(GBState *state) {
             color = 0;
         
         final_color = (color << 16) | (color << 8) | color;
-        pixels[4*i] = final_color;
-        pixels[4*i+1] = final_color;
-        pixels[4*i+2] = final_color;
-        pixels[4*i+3] = final_color;
+        pixels[start_ind + i] = final_color;
     }
 
-    SDL_UnlockTexture(sdl->texture);
+    //SDL_UnlockTexture(sdl->texture);
    
 }
 
@@ -578,6 +584,18 @@ void ppu_next_frame(PPUState *ppu) {
     ppu->misc.ly = 0;
 }
 
+void sdl_show_frame(GBState *state) {
+    SDL_UnlockTexture(state->sdl->texture);
+    SDL_RenderCopy(state->sdl->renderer, state->sdl->texture, NULL, NULL);
+    SDL_RenderPresent(state->sdl->renderer);
+    SDL_LockTexture(
+        state->sdl->texture, 
+        NULL, 
+        &state->ppu->frame.pixels, 
+        &state->ppu->frame.pitch
+    );
+}
+
 void ppu_do_mode_switch(PPUState *ppu) {
     PPUMode next_mode;
     unsigned int next_mode_counter;
@@ -596,7 +614,6 @@ void ppu_do_mode_switch(PPUState *ppu) {
             next_mode = HBLANK;
             ppu_draw_cleanup(ppu);
 
-            //ppu_render_scanline(state);
             break;
         case HBLANK:
             assert(ppu->scanline.counter == 0);
@@ -611,7 +628,6 @@ void ppu_do_mode_switch(PPUState *ppu) {
                 assert(ppu->misc.ly == 143);
                 next_mode = VBLANK;
                 next_mode_counter = COUNTER_VBLANK_LENGTH;
-                //SDL_UpdateWindowSurface(state->sdl->window);
             }
 
             break;
@@ -651,7 +667,6 @@ void task_ppu_cycle(GBState *state) {
     LCDStatus stat = ppu->stat;
     PPUMisc misc = ppu->misc;
     ToggleEnum stat_interrupt;
-    SDL_Rect src_r, dst_r;
 
     if (misc.ly == misc.lyc)
         ppu->stat.lyc_ly_equal = ON;
@@ -682,29 +697,19 @@ void task_ppu_cycle(GBState *state) {
 
     if (ppu->mode_counter == 0) {
         ppu_do_mode_switch(ppu);
-        if (ppu->stat.mode == VBLANK)
+        if (ppu->stat.mode == VBLANK) {
             REQUEST_INTERRUPT(state, INT_VBLANK);
+            sdl_show_frame(state);
+        } else if (ppu->stat.mode == HBLANK) {
+            ppu_render_scanline(state);
+        }
     }
 
     if (ppu->scanline.counter == 0) {
-        ppu_render_scanline(state);
         ppu_next_scanline(ppu);
     }
 
     if (ppu->frame.counter == 0) {
-        src_r.x = 0;
-        src_r.y = 0;
-        src_r.w = GB_WIDTH_PX;
-        src_r.h = GB_HEIGHT_PX;
-
-        dst_r.x = 0;
-        dst_r.y = 0;
-        dst_r.w = EMU_WIDTH_PX;
-        dst_r.h = GB_HEIGHT_PX;
-        SDL_RenderCopy(state->sdl->renderer, state->sdl->texture, NULL, NULL);
-        SDL_RenderPresent(state->sdl->renderer);
-        //SDL_UpdateWindowSurface(state->sdl->window);
-        
         ppu_next_frame(ppu);
     }
 
