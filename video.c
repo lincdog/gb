@@ -481,19 +481,23 @@ void ppu_render_scanline(GBState *state) {
     Scanline_t *scanline = &ppu->scanline;
     Pixelbuf_t *current_px;
     SDLComponents *sdl = state->sdl;
-    SDL_Rect r;
-    BYTE color;
+    SDL_Rect src_r, dst_r;
+    int final_color, color, alpha;
+    BYTE *pixels;
+    int pitch;
 
-    r.y = ppu->misc.ly;
-    r.x = 0;//ppu->scanline.x_pos;
-    r.w = 1; 
-    r.h = 1;
+    src_r.y = ppu->misc.ly;
+    src_r.x = 0;//ppu->scanline.x_pos;
+    src_r.w = EMU_WIDTH_PX; 
+    src_r.h = 1;
 
-    BYTE prio, alpha;
+    SDL_LockTexture(sdl->texture, &src_r, &pixels, &pitch);
 
-    for (; r.x < GB_WIDTH_PX; r.x++) {
+    BYTE prio;
+
+    for (int i = 0; i < GB_WIDTH_PX; i++) {
         
-        prio = scanline->priority[r.x];
+        prio = scanline->priority[i];
         
         switch (prio) {
             case PX_PRIO_NULL:
@@ -519,14 +523,19 @@ void ppu_render_scanline(GBState *state) {
 
 
         if (current_px != NULL) {
-            assert(r.x + current_px->offset < SCANLINE_PIXELBUF_SIZE);
-            color = color_table[current_px->buf[r.x + current_px->offset]];
+            assert(i + current_px->offset < SCANLINE_PIXELBUF_SIZE);
+            color = color_table[current_px->buf[i + current_px->offset]];
         } else
             color = 0;
         
-        SDL_SetRenderDrawColor(sdl->renderer, color, color, color, alpha);
-        SDL_RenderFillRect(sdl->renderer, &r);
+        final_color = (color << 16) | (color << 8) | color;
+        pixels[4*i] = final_color;
+        pixels[4*i+1] = final_color;
+        pixels[4*i+2] = final_color;
+        pixels[4*i+3] = final_color;
     }
+
+    SDL_UnlockTexture(sdl->texture);
    
 }
 
@@ -642,6 +651,7 @@ void task_ppu_cycle(GBState *state) {
     LCDStatus stat = ppu->stat;
     PPUMisc misc = ppu->misc;
     ToggleEnum stat_interrupt;
+    SDL_Rect src_r, dst_r;
 
     if (misc.ly == misc.lyc)
         ppu->stat.lyc_ly_equal = ON;
@@ -679,10 +689,22 @@ void task_ppu_cycle(GBState *state) {
     if (ppu->scanline.counter == 0) {
         ppu_render_scanline(state);
         ppu_next_scanline(ppu);
-        //SDL_UpdateWindowSurface(state->sdl->window);
     }
+
     if (ppu->frame.counter == 0) {
-        SDL_UpdateWindowSurface(state->sdl->window);
+        src_r.x = 0;
+        src_r.y = 0;
+        src_r.w = GB_WIDTH_PX;
+        src_r.h = GB_HEIGHT_PX;
+
+        dst_r.x = 0;
+        dst_r.y = 0;
+        dst_r.w = EMU_WIDTH_PX;
+        dst_r.h = GB_HEIGHT_PX;
+        SDL_RenderCopy(state->sdl->renderer, state->sdl->texture, NULL, NULL);
+        SDL_RenderPresent(state->sdl->renderer);
+        //SDL_UpdateWindowSurface(state->sdl->window);
+        
         ppu_next_frame(ppu);
     }
 
