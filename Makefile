@@ -9,6 +9,9 @@ build: gb.c cpu.c mem.c video.c
 debug: gb.c cpu.c mem.c video.c
 	$(CC) $(CFLAGS) -g -o gb -DGB_MAIN $^
 
+profile: gb.c cpu.c mem.c video.c
+	`brew --prefix llvm`/bin/clang $(CFLAGS) -DGB_MAIN -g -fprofile-instr-generate -fcoverage-mapping -o gb $^
+
 test: cpu_test.c gb.c mem.c video.c
 	$(CC) $(CFLAGS) -g -o cpu_test $^
 	./cpu_test
@@ -19,3 +22,6 @@ clean:
 video: video_test.c mem.c gb.c cpu.c
 	$(CC) $(CFLAGS) -g -o video_test $^
 	./video_test
+
+audio: _audio_test.c
+	$(CC) $(CFLAGS) _audio_test.c -o _audio_test
