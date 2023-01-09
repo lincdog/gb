@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <unistd.h>
 
 static my_timer_t a, b, c, d, e;
 
@@ -61,12 +62,25 @@ SDLComponents *initialize_sdl_core(void) {
         EMU_WIDTH_PX, EMU_HEIGHT_PX,
         SDL_WINDOW_RESIZABLE
     );
-    sdl->surface = SDL_GetWindowSurface(sdl->window);
-    sdl->renderer = SDL_CreateSoftwareRenderer(sdl->surface);
+    
+    //sdl->surface = SDL_GetWindowSurface(sdl->window);
+    sdl->renderer = SDL_CreateRenderer(sdl->window, -1, SDL_RENDERER_TARGETTEXTURE);
     SDL_RenderSetLogicalSize(sdl->renderer, GB_WIDTH_PX, GB_HEIGHT_PX);
     SDL_SetRenderDrawColor(sdl->renderer, 0, 0, 0, 0xFF);
     SDL_RenderClear(sdl->renderer);
     
+    sdl->texture = SDL_CreateTexture(
+        sdl->renderer, 
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        GB_WIDTH_PX,
+        GB_HEIGHT_PX
+    );
+
+    sdl->pxformat = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA8888);
+
+    SDL_RenderPresent(sdl->renderer);
+
     sdl->button_select = 0xFF;
     sdl->action_buttons = 0xFF;
     sdl->direction_buttons = 0xFF;
@@ -127,13 +141,53 @@ void teardown_gb(GBState *state) {
     timer_print_result(&e, "E");
 }
 
+void task_render_frame(GBState *state) {
+    SDL_Rect r;
+    r.x = 0;
+    r.y = 0;
+    r.w = GB_WIDTH_PX;
+    r.h = GB_HEIGHT_PX;
+
+    SDLComponents *sdl = state->sdl;
+    Frame_t *frame = state->ppu->frame;
+
+    BYTE color;
+
+    int i, j, pitch;
+    BYTE *pixels;
+    uint32_t *p;
+
+    SDL_LockTexture(sdl->texture, NULL, (void**)&pixels, &pitch);
+
+    for (i = 0; i < GB_HEIGHT_PX; i++) {
+        p = (uint32_t*)(pixels + pitch*i); // R
+        for (j = 0; j < GB_WIDTH_PX; j++) {
+            color = frame->pixels[i][j];
+            
+            *p = SDL_MapRGBA(sdl->pxformat, color, color, color, 0xFF);
+
+            p++;
+            //SDL_SetRenderDrawColor(sdl->renderer, color, color, color, 0xFF);
+            //SDL_RenderFillRect(sdl->renderer, &r);
+        }
+    }
+
+    SDL_UnlockTexture(sdl->texture);
+
+    SDL_RenderClear(sdl->renderer);
+    SDL_RenderCopy(sdl->renderer, sdl->texture, NULL, NULL);
+    SDL_RenderPresent(sdl->renderer);
+    //SDL_UpdateWindowSurface(sdl->window);
+    
+}
+
 
 void task_event(GBState *state) {
     SDLComponents *sdl = state->sdl;
     SDL_Event *ev = &sdl->event;
     int button_pressed = 0;
     //SDL_PollEvent(ev);
-    while(SDL_PollEvent(ev)) {
+    if (SDL_PollEvent(ev)) {
         switch (ev->type) {
             case SDL_QUIT:
                 state->should_quit = ON;
@@ -268,33 +322,62 @@ void main_loop(GBState *state) {
     double elapsed = 0.0;
     time_t pre, post;
 
+    unsigned int *frame_counter = &state->ppu->frame->counter;
+
+    uint64_t ticks_frame_start, ticks_frame_stop, ticks_frame;
+    ticks_frame_start = SDL_GetTicks64();
+
+    //struct timespec framesleep;
+    useconds_t framesleep;
+    //framesleep.tv_sec = 0;
+    //framesleep.tv_nsec = 16742005;
+
     pre = time(NULL);
-    while (state->should_quit == OFF) {
+    while (1) {
         t = state->counter;
+
+        if (*frame_counter == PPU_PER_FRAME) {
+            task_render_frame(state);
+            ticks_frame_stop = SDL_GetTicks64();
+
+            ticks_frame = ticks_frame_stop - ticks_frame_start;
+
+            printf("%d, %lu", state->ppu->frame->n_frames, ticks_frame);
+
+            if (ticks_frame < 17) {
+                printf(" sleep for %d\n", 16742 - (ticks_frame*1000));
+                usleep(16742 - ticks_frame * 1000);
+            }
+
+            ticks_frame_start = SDL_GetTicks64();
+        }
+
         timer_begin(&a);
-        task_ppu_cycle(state);
+        task_ppu_cycle(state); // every cycle
         timer_split(&a);
 
-        if (!(t & 0x3)) {
-            if (!(t & 0xF)) {
-                if (!(t & 0xFF)) {
+        if (!(t & 0x3)) { // every 4 cycles
+            if (!(t & 0xF)) { // every 16 cycles
+                if (!(t & 0xFF)) { // every 256 cycles
                     
-                    if (!(t & 0xFFFF)) {
+                    if (!(t & 0xFFFF)) { // every 65536 cycles
                         timer_begin(&b);
                         task_event(state);
                         timer_split(&b);
+                        if (state->should_quit == ON)
+                            break;
                     }
-                    task_div_timer(state);
+                    task_div_timer(state); // every 256 cycles
                 }
-                task_tima_timer(state);
+                task_tima_timer(state); // every 16 cycles
             }
             
             timer_begin(&c);
-            task_dma_cycle(state);
+            task_dma_cycle(state); // every 4 cycles
             timer_split(&c);
 
             timer_begin(&d);
-            task_cpu_m_cycle(state);
+            task_cpu_m_cycle(state); // every 4 cycles
             timer_split(&d);
         }
 
@@ -306,7 +389,7 @@ void main_loop(GBState *state) {
     printf("Cycles: %lu\nSeconds: %f (%f MHz)\n", 
     state->counter, elapsed, (state->counter/elapsed)/exp2(20));
     printf("Frames: %d (%f frames per second)\n", 
-    state->ppu->frame.n_frames, state->ppu->frame.n_frames / elapsed);
+    state->ppu->frame->n_frames, state->ppu->frame->n_frames / elapsed);
 }
 
 /* Reads the cartridge header from a given open file descriptor.

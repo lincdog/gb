@@ -65,10 +65,12 @@ PPUState *initialize_ppu(void) {
     ppu->stat.lyc_ly_equal = ON;
     ppu->stat.mode = VBLANK;
 
-    ppu->frame.n_frames = 0;
-    ppu->frame.counter = PPU_PER_FRAME + COUNTER_VBLANK_LENGTH;
-    ppu->frame.win_y = 0;
-    ppu->frame.in_window = OFF;
+    ppu->frame = malloc(sizeof(Frame_t));
+    ppu->frame->n_frames = 0;
+    ppu->frame->counter = PPU_PER_FRAME + COUNTER_VBLANK_LENGTH;
+    ppu->frame->win_y = 0;
+    ppu->frame->in_window = OFF;
+    memset(ppu->frame->pixels, 0, GB_WIDTH_PX*GB_HEIGHT_PX);
 
     ppu->scanline.counter = PPU_PER_SCANLINE;
     memset(ppu->scanline.priority, PX_PRIO_NULL, GB_WIDTH_PX);
@@ -220,7 +222,7 @@ void ppu_oamscan_cycle(GBState *state) {
         oamscan->current_row_sprites[oamscan->n_sprites_row].msb = ppu_read_mem(state, tile_row_addr+1);
 
         oamscan->n_sprites_row++;
-        ppu->frame.n_sprites_total++;
+        ppu->frame->n_sprites_total++;
     }
 
     ppu_oamscan_end:
@@ -474,13 +476,11 @@ void ppu_draw_cleanup(PPUState *ppu) {
 }
 
 
-void ppu_render_scanline(GBState *state) {
-    PPUState *ppu = state->ppu;
+void ppu_render_scanline(PPUState *ppu) {
     PPUMisc misc = ppu->misc;
     LCDControl lcdc = ppu->lcdc;
     Scanline_t *scanline = &ppu->scanline;
     Pixelbuf_t *current_px;
-    SDLComponents *sdl = state->sdl;
     SDL_Rect r;
     BYTE color;
 
@@ -524,8 +524,9 @@ void ppu_render_scanline(GBState *state) {
         } else
             color = 0;
         
-        SDL_SetRenderDrawColor(sdl->renderer, color, color, color, alpha);
-        SDL_RenderFillRect(sdl->renderer, &r);
+        
+        ppu->frame->pixels[r.y][r.x] = color;
+        
     }
    
 }
@@ -553,19 +554,20 @@ void ppu_next_scanline(PPUState *ppu) {
     if (ppu->lcdc.window_enable 
     && ppu->lcdc.bg_window_enable
     && ppu->misc.wy <= ppu->misc.ly)
-        ppu->frame.win_y++;
+        ppu->frame->win_y++;
 
     ppu->misc.ly++;
 
     reset_oamscan(&ppu->oamscan);
 }
 
+
 void ppu_next_frame(PPUState *ppu) {
-    ppu->frame.counter = PPU_PER_FRAME;
-    ppu->frame.win_y = 0;
-    ppu->frame.in_window = OFF;
-    ppu->frame.n_sprites_total = 0;
-    ppu->frame.n_frames++;
+    ppu->frame->counter = PPU_PER_FRAME;
+    ppu->frame->win_y = 0;
+    ppu->frame->in_window = OFF;
+    ppu->frame->n_sprites_total = 0;
+    ppu->frame->n_frames++;
     ppu->misc.ly = 0;
 }
 
@@ -598,7 +600,7 @@ void ppu_do_mode_switch(PPUState *ppu) {
                 /* End of HBLANK for scanline 143. We have not yet incremented
                 LY - which happens in ppu_next_scanline() - 
                 */
-                assert(ppu->frame.counter == COUNTER_VBLANK_LENGTH);
+                assert(ppu->frame->counter == COUNTER_VBLANK_LENGTH);
                 assert(ppu->misc.ly == 143);
                 next_mode = VBLANK;
                 next_mode_counter = COUNTER_VBLANK_LENGTH;
@@ -607,7 +609,7 @@ void ppu_do_mode_switch(PPUState *ppu) {
 
             break;
         case VBLANK:
-            assert(ppu->frame.counter == 0);
+            assert(ppu->frame->counter == 0);
             next_mode_counter = COUNTER_OAMSCAN_LENGTH;
             next_mode = OAMSCAN;
             break;
@@ -667,7 +669,7 @@ void task_ppu_cycle(GBState *state) {
 
     ppu_cycle_end:
     ppu->scanline.counter--;
-    ppu->frame.counter--;
+    ppu->frame->counter--;
     ppu->mode_counter--;
 
     if (ppu->mode_counter == 0) {
@@ -677,12 +679,11 @@ void task_ppu_cycle(GBState *state) {
     }
 
     if (ppu->scanline.counter == 0) {
-        ppu_render_scanline(state);
+        ppu_render_scanline(ppu);
         ppu_next_scanline(ppu);
         //SDL_UpdateWindowSurface(state->sdl->window);
     }
-    if (ppu->frame.counter == 0) {
-        SDL_UpdateWindowSurface(state->sdl->window);
+    if (ppu->frame->counter == 0) {
         ppu_next_frame(ppu);
     }
 

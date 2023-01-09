@@ -380,6 +380,7 @@ typedef struct {
     ToggleEnum in_window;
     int n_sprites_total;
     BYTE win_y;
+    BYTE pixels[160][144];
 } Frame_t;
 
 /* Location for unpacking rows of pixels to be rendered. 
@@ -413,8 +414,8 @@ typedef struct {
     LCDControl lcdc; // 0xFF40: LCD Control
     LCDStatus stat; // 0xFF41: LCD Status
     PPUMisc misc; // 0xFF42-0xFF4B: Scrolling, palettes, LY,  LY compare
-    Frame_t frame; // Per-frame data structure
     Scanline_t scanline; // Per-scanline data structure
+    Frame_t *frame; // Per-frame data structure
     OAMScan_t oamscan; // Per-scanline OAM scan data structure
     unsigned int mode_counter; // Counts down to the next mode switch
     ToggleEnum stat_interrupt;
@@ -432,6 +433,8 @@ typedef struct {
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Surface *surface;
+    SDL_Texture *texture;
+    SDL_PixelFormat *pxformat;
 } SDLComponents;
 
 typedef enum {DECREASE=0, INCREASE=1} DirEnum;
