@@ -7,4 +7,6 @@ tests/
 gb
 *.out
 _*
+resources
+roms
 
