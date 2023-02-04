@@ -332,22 +332,28 @@ void main_loop(GBState *state) {
     //framesleep.tv_sec = 0;
     //framesleep.tv_nsec = 16742005;
 
+    int skipnext = 0;
+
     pre = time(NULL);
     while (1) {
         t = state->counter;
 
+
         if (*frame_counter == PPU_PER_FRAME) {
-            task_render_frame(state);
+            if (!skipnext) {
+                task_render_frame(state);
+            }
+            skipnext = (skipnext) ? 0 : 1;
             ticks_frame_stop = SDL_GetTicks64();
 
             ticks_frame = ticks_frame_stop - ticks_frame_start;
 
-            printf("%d, %lu", state->ppu->frame->n_frames, ticks_frame);
+            /*printf("%d, %lu", state->ppu->frame->n_frames, ticks_frame);
 
             if (ticks_frame < 17) {
                 printf(" sleep for %d\n", 16742 - (ticks_frame*1000));
                 usleep(16742 - ticks_frame * 1000);
-            }
+            }*/
 
             ticks_frame_start = SDL_GetTicks64();
         }
