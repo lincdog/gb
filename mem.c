@@ -488,6 +488,8 @@ READ_FUNC(_read_boot) {
 WRITE_FUNC(_write_boot) {
     SysMemState *sys_mem = mem_sys(state, SysMemState);
     if (sys_mem->bootrom_mapped && (data & 0x1)) {
+        printf("UNMAPPING BOOT ROM\n");
+
         sys_mem->bootrom_mapped = 0;
         replace_mem_region(&state->mem->cartridge->regions[0], state->mem->table);
     }
@@ -1836,7 +1838,7 @@ int read_mbc1_rom_into_mem(GBState *state, FILE *fp) {
 }
 
 MBC3CartState *initialize_mbc3_memory(CartridgeHeader *header) {
-    MBC3CartState *mbc3 = malloc(sizeof(MBC1CartState));
+    MBC3CartState *mbc3 = malloc(sizeof(MBC3CartState));
     if (mbc3 == NULL) {
         printf("Error allocating MBC1 memory\n");
         exit(1);
@@ -2106,7 +2108,7 @@ void task_tima_timer(GBState *state) {
 
             if (timer->reg_tima == 0) {
                 timer->reg_tima = timer->reg_tma;
-                printf("timer expired\n");
+                //printf("timer expired\n");
                 REQUEST_INTERRUPT(state, INT_TIMER);
             }
         }

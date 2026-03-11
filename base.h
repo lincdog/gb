@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include <time.h>
 
 int _debug_dummy(void);
 
@@ -543,11 +544,13 @@ typedef struct {
 } GBTask;
 
 typedef struct {
-    uint64_t pre;
-    uint64_t max_nsec;
+    struct timespec begin;
+    long double begin_sec;
+    long double split_sec; 
+    uint64_t max_usec;
     uint64_t bad_thresh;
     uint64_t n_bad;
-    uint64_t total_nsec;
+    uint64_t total_usec;
     uint64_t n_calls;
 } my_timer_t;
 

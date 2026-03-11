@@ -11,22 +11,38 @@
 
 static my_timer_t a, b, c, d, e;
 
+#define TIMER_CLOCK CLOCK_MONOTONIC
+
 void timer_init(my_timer_t *t, uint64_t bad_thresh) {
-    t->max_nsec = 0;
-    t->total_nsec = 0;
+    //t->begin = malloc(sizeof(struct timespec));
+    t->max_usec = 0;
+    t->total_usec = 0;
     t->n_calls = 0;
     t->bad_thresh = bad_thresh;
     t->n_bad = 0;
 }
 
 void timer_begin(my_timer_t *t) {
-    t->pre = clock_gettime_nsec_np(CLOCK_MONOTONIC);
+    clock_gettime(TIMER_CLOCK, &(t->begin));
+    //t->a = t->begin;
 }
+
+uint64_t diff_time(struct timespec a, struct timespec b) {
+    uint64_t diff_sec = b.tv_sec - a.tv_sec;
+    uint64_t diff_usec = (b.tv_nsec - a.tv_nsec)>>10;
+    return 1000000*diff_sec + diff_usec;
+}
+
 void timer_split(my_timer_t *t) {
-    uint64_t diff = (clock_gettime_nsec_np(CLOCK_MONOTONIC) - t->pre)>>10;
-    t->total_nsec += diff;
-    if (diff > t->max_nsec)
-        t->max_nsec = diff;
+    //t->a = t->b;
+    struct timespec now;
+    clock_gettime(TIMER_CLOCK, &now);
+
+    uint64_t diff = diff_time(t->begin, now);
+
+    t->total_usec += (diff);
+    if (diff > t->max_usec)
+        t->max_usec = diff;
     
     if (diff > t->bad_thresh)
         t->n_bad++;
@@ -34,12 +50,12 @@ void timer_split(my_timer_t *t) {
     t->n_calls++;
 }
 float timer_get_average(my_timer_t *t) {
-    return (float)t->total_nsec / (float)t->n_calls;
+    return (float)t->total_usec / (float)t->n_calls;
 }
 
 void timer_print_result(my_timer_t *t, char *name) {
     printf("Timer %s: %llu usec, %llu calls, %f per call, %llu max, %llu above %llu\n",
-    name, t->total_nsec, t->n_calls, timer_get_average(t), t->max_nsec,
+    name, t->total_usec, t->n_calls, timer_get_average(t), t->max_usec,
     t->n_bad, t->bad_thresh);
 }
 
@@ -295,8 +311,13 @@ void main_loop(GBState *state) {
 
             timer_begin(&d);
             task_cpu_m_cycle(state);
+            //if (state->cpu->r.pc > 250)
+            //    printf("AFTER 250\n");
             timer_split(&d);
         }
+        
+        //if (state->counter % 10000000 == 0)
+        //    printf("End of main loop #%d\n", state->counter);
 
         state->counter++; 
     }
@@ -363,7 +384,12 @@ int main(int argc, char *argv[]) {
     }
 
     CartridgeHeader *header = read_cart_header(fp);
+    printf("Read header\n");
+
     state = initialize_gb(header);
+
+    printf("Initialized GBn\n");
+    
     if (state == NULL) {
         printf("Error in initializing emulator state\n");
         fclose(fp);
@@ -378,6 +404,7 @@ int main(int argc, char *argv[]) {
     
     fclose(fp);
 
+    printf("Starting main loop...\n");
     main_loop(state);
     
     teardown_gb(state);

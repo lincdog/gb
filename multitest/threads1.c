@@ -123,8 +123,8 @@ int main(void) {
     struct timespec initial;
     struct timespec total;
 
-    uint64_t frame_time_ns = 250;
-    long n_frames = 1000000;
+    uint64_t frame_time_ns = 16666000;
+    long n_frames = 60;
 
     long double elapsed;
 
